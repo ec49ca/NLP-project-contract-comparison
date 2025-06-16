@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  mcp-server:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:password@db:5432/samvid}
+      - SAMVID_API_URL=${SAMVID_API_URL:-http://host.docker.internal:3000/api}
+      - PORT=8000
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    depends_on:
+      - db
+    restart: unless-stopped
+    networks:
+      - mcp-network
+
+  # Optional: Local PostgreSQL for development
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=samvid
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - mcp-network
+
+volumes:
+  postgres_data:
+
+networks:
+  mcp-network:
+    driver: bridge 

@@ -99,12 +99,12 @@ docker run -d --name samvid-mcp-server -p 8000:8000 samvidai/mcp-server:0.1.0
 
 **Development mode:**
 ```bash
-python -m src.http_server
+python -m src.server
 ```
 
 **Production mode:**
 ```bash
-uvicorn src.http_server:app --host 0.0.0.0 --port 8000
+uvicorn src.server:app --host 0.0.0.0 --port 8000
 ```
 
 ## 📋 API Endpoints
@@ -213,80 +213,8 @@ To replace mock agents with real implementations:
    - `get_tools()`
    - `execute(input_data, context)`
    - `execute_tool(tool_name, arguments)`
-3. Update the agent initialization in `src/http_server.py`
+3. Update the agent initialization in `src/server.py`
 
-## 🏗️ Architecture
+## ��️ Architecture
 
 ```
-┌─────────────────┐    HTTP/REST    ┌──────────────────┐
-│   Samvid App    │ ──────────────► │   MCP Server     │
-│   (Next.js)     │                 │   (FastAPI)      │
-│   on Vercel     │                 │   Standalone     │
-└─────────────────┘                 └──────────────────┘
-                                            │
-                                            ▼
-                                    ┌──────────────────┐
-                                    │     Agents       │
-                                    │  • MetaAgent     │
-                                    │  • VectorSearch  │
-                                    │  • KnowledgeGraph│
-                                    │  • StatsAgent    │
-                                    └──────────────────┘
-```
-
-## 📦 Production Deployment
-
-### Docker Production Setup
-
-1. **Build production image:**
-   ```bash
-   docker build -t samvid-mcp-server:0.1.0 .
-   ```
-
-2. **Run with production settings:**
-   ```bash
-   docker run -d \
-     --name samvid-mcp-server \
-     -p 8000:8000 \
-     -e NODE_ENV=production \
-     -e LOG_LEVEL=WARNING \
-     --restart unless-stopped \
-     samvid-mcp-server:0.1.0
-   ```
-
-### Production Considerations
-
-- Use a process manager like PM2 or systemd
-- Set up reverse proxy (nginx/Apache)
-- Configure proper logging and monitoring
-- Use environment-specific configuration
-- Set up health checks and auto-restart policies
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Add tests
-5. Commit your changes (`git commit -m 'Add some amazing feature'`)
-6. Push to the branch (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🆘 Support
-
-- **Issues**: [GitHub Issues](https://github.com/samvid-ai/samvid-mcp-server/issues)
-- **Documentation**: [API Docs](http://localhost:8000/docs)
-- **Discord**: [Samvid Community](https://discord.gg/samvid-ai)
-
-## 🔗 Related Projects
-
-- [Samvid Main Application](https://github.com/samvid-ai/samvid)
-- [Samvid Documentation](https://docs.samvid.ai)
-
----
-
-Made with ❤️ by [Samvid AI](https://samvid.ai) 

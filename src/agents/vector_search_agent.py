@@ -9,13 +9,13 @@ from .base_agent import BaseAgent, Tool
 
 class VectorSearchAgent(BaseAgent):
     """Vector search agent for semantic document search"""
-    
+
     def __init__(self):
         super().__init__("vector_search")
         self.name = "Vector Search Agent"
         self.description = "Performs semantic search through document collections"
         self.category = "search"
-    
+
     async def get_tools(self) -> List[Tool]:
         """Get the tools provided by this agent"""
         return [
@@ -45,12 +45,14 @@ class VectorSearchAgent(BaseAgent):
                 }
             )
         ]
-    
+
     async def execute_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Any:
         """Execute a specific tool"""
         if tool_name == "semantic_search":
             query = arguments.get("query", "")
             limit = arguments.get("limit", 10)
+			# TODO: Add error handling on if arguments don't exist
+
             # Placeholder implementation
             return {
                 "results": [
@@ -61,7 +63,7 @@ class VectorSearchAgent(BaseAgent):
                         "score": 0.95
                     },
                     {
-                        "id": "doc_2", 
+                        "id": "doc_2",
                         "title": f"Related to {query}",
                         "content": f"Another document related to '{query}'",
                         "score": 0.87
@@ -70,10 +72,12 @@ class VectorSearchAgent(BaseAgent):
                 "total_found": 2,
                 "query": query
             }
-        
+
         elif tool_name == "find_similar":
             document_id = arguments.get("document_id", "")
             limit = arguments.get("limit", 5)
+			# TODO: Add error handling on if arguments don't exist
+
             # Placeholder implementation
             return {
                 "similar_documents": [
@@ -90,23 +94,23 @@ class VectorSearchAgent(BaseAgent):
                 ][:limit],
                 "reference_document": document_id
             }
-        
+
         else:
             raise ValueError(f"Unknown tool: {tool_name}")
-    
+
     async def execute(self, input_data: Dict[str, Any], context: Dict[str, Any]) -> Any:
         """Execute the vector search agent"""
         query = input_data.get("query", "")
         collection_id = input_data.get("collection_id")
-        
+
         # Perform semantic search
         search_result = await self.execute_tool("semantic_search", {
             "query": query,
             "collection_id": collection_id,
             "limit": 10
         })
-        
+
         return {
             "search_results": search_result,
             "agent": "vector_search"
-        } 
+        }

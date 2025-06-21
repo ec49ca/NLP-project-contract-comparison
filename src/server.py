@@ -91,9 +91,17 @@ from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 from dotenv import load_dotenv
-import sys
-sys.path.append('..')
-from version import __version__
+
+# Import version - handle both module and direct execution
+try:
+    from version import __version__
+except ImportError:
+    try:
+        import sys
+        sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        from version import __version__
+    except ImportError:
+        __version__ = "0.1.0"
 
 # Import our modular components
 from .util.dependencies import get_initialized_server, set_session_manager, set_agents, get_session_manager, get_agents

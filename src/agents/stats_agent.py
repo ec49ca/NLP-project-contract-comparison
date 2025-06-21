@@ -9,13 +9,13 @@ from .base_agent import BaseAgent, Tool
 
 class StatsAgent(BaseAgent):
     """Statistics agent for performing statistical analysis"""
-    
+
     def __init__(self):
         super().__init__("stats")
         self.name = "Statistics Agent"
         self.description = "Performs statistical analysis and modeling"
         self.category = "analysis"
-    
+
     async def get_tools(self) -> List[Tool]:
         """Get the tools provided by this agent"""
         return [
@@ -45,16 +45,16 @@ class StatsAgent(BaseAgent):
                 }
             )
         ]
-    
+
     async def execute_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Any:
         """Execute a specific tool"""
         if tool_name == "calculate_statistics":
             data = arguments.get("data", [])
             metrics = arguments.get("metrics", ["mean", "median", "std"])
-            
+
             if not data:
                 return {"error": "No data provided"}
-            
+
             # Placeholder implementation
             return {
                 "statistics": {
@@ -67,15 +67,15 @@ class StatsAgent(BaseAgent):
                 },
                 "data_points": len(data)
             }
-        
+
         elif tool_name == "correlation_analysis":
             x_values = arguments.get("x_values", [])
             y_values = arguments.get("y_values", [])
             method = arguments.get("method", "pearson")
-            
+
             if len(x_values) != len(y_values):
                 return {"error": "X and Y arrays must have the same length"}
-            
+
             # Placeholder implementation
             return {
                 "correlation": {
@@ -86,24 +86,24 @@ class StatsAgent(BaseAgent):
                 },
                 "sample_size": len(x_values)
             }
-        
+
         else:
             raise ValueError(f"Unknown tool: {tool_name}")
-    
+
     async def execute(self, input_data: Dict[str, Any], context: Dict[str, Any]) -> Any:
         """Execute the statistics agent"""
         data = input_data.get("data", [])
-        
+
         if not data:
             return {"error": "No data provided for analysis"}
-        
+
         # Calculate basic statistics
         stats_result = await self.execute_tool("calculate_statistics", {
             "data": data,
             "metrics": ["mean", "median", "std"]
         })
-        
+
         return {
             "statistical_analysis": stats_result,
             "agent": "stats"
-        } 
+        }

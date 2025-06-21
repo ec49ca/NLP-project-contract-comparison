@@ -37,4 +37,4 @@ mypy==1.7.1
 
 # Additional utilities
 uuid==1.30
-typing-extensions==4.8.0 
+typing-extensions==4.8.0

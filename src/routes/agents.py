@@ -25,7 +25,6 @@ async def discover_agents(
 	try:
 		agents = get_agents()
 		discovered_agents = []
-
 		for agent_id, agent in agents.items():
 			if not agent.is_initialized:
 				continue
@@ -38,10 +37,9 @@ async def discover_agents(
 						continue
 
 			agent_info = agent.get_agent_info()
-
 			tools = await agent.get_tools()
-			print(f'KG Tools: {tools}')
 
+			# add discovered agents with tool list comprehension
 			discovered_agents.append({
 				"id": agent_id,
 				"name": agent_info['name'],
@@ -60,11 +58,18 @@ async def discover_agents(
 
 		return {"success": True, "data": discovered_agents}
 
+	# TODO: add more robust error handling
 	except Exception as e:
 		logger.error(f"Error discovering agents: {e}")
 		raise HTTPException(status_code=500, detail=str(e))
 
 
+
+"""
+1. Requires agent_id -> uses for lookup + validates agent exists
+2. Calls agent.execute with input data and context
+TODO: 3. Implementing this flow for KG later -Sohum
+"""
 @router.post("/invoke")
 async def invoke_agent(
 	request: AgentInvocationRequest,

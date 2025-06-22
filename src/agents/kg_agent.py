@@ -23,6 +23,7 @@ How tools work:
 
 from typing import Dict, List, Any
 from .base_agent import BaseAgent, Tool
+from .tools.extract_triples import ExtractTriplesTool
 
 class KnowledgeGraphAgent(BaseAgent):
 	"""Knowledge graph agent for triple extraction and graph operations"""
@@ -35,6 +36,12 @@ class KnowledgeGraphAgent(BaseAgent):
 		# BUG: temporary fix: this should have been supered but needs to be done manually or won't be set. figure out why
 		self.is_initialized = True
 
+		# TODO: make this architecture better:
+		self.tools = {}
+
+		# Add extract_triples tool
+		self.tools["extract_triples"] = ExtractTriplesTool()
+
 	def get_agent_info(self):
 		return {
 			"name": self.name,
@@ -44,21 +51,15 @@ class KnowledgeGraphAgent(BaseAgent):
 
 	async def get_tools(self) -> List[Tool]:
 		"""Get the tools provided by this agent"""
-		return [
-			Tool(
-				name="extract_triples",
-				description="Extract triples from unstructured text using NLP",
-				inputSchema={
-					"type": "object",
-					"properties": {
-						"text": {"type": "string", "description": "Text to extract triples from"},
-						"extraction_method": {"type": "string", "enum": ["openie", "spacy", "custom"], "default": "openie"},
-						"confidence_threshold": {"type": "number", "minimum": 0, "maximum": 1, "default": 0.7},
-						"max_triples": {"type": "integer", "minimum": 1, "default": 100}
-					},
-					"required": ["text"]
-				}
-			),
+		tool_list = []
+
+		# Add extract_triples tool
+		if "extract_triples" in self.tools:
+			tool_list.append(self.tools["extract_triples"].get_tool())
+
+		# TODO: Add find_relationships and traverse_graph tools later
+		# For now, keeping placeholder implementations
+		tool_list.extend([
 			Tool(
 				name="find_relationships",
 				description="Find relationships between entities",
@@ -85,27 +86,15 @@ class KnowledgeGraphAgent(BaseAgent):
 					"required": ["start_entity", "end_entity"]
 				}
 			)
-		]
+		])
+
+		return tool_list
 
 	async def execute_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Any:
 		"""Execute a specific tool"""
 		if tool_name == "extract_triples":
-			text = arguments.get("text", "")
-			method = arguments.get("extraction_method", "openie")
-			confidence = arguments.get("confidence_threshold", 0.7)
-			max_triples = arguments.get("max_triples", 100)
+			return await self.tools["extract_triples"].execute_tool(arguments)
 
-			# Placeholder implementation
-			return {
-				"triples": [
-					{"subject": "Python", "predicate": "is_a", "object": "programming_language", "confidence": 0.95},
-					{"subject": "Python", "predicate": "created_by", "object": "Guido_van_Rossum", "confidence": 0.92}
-				],
-				"extraction_method": method,
-				"confidence_threshold": confidence,
-				"max_triples_requested": max_triples,
-				"total_extracted": 2
-			}
 
 		elif tool_name == "find_relationships":
 			entity = arguments.get("entity", "")

@@ -58,6 +58,8 @@ async def discover_tools(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# INPUT: request with agent_id, tool_name, optional arguments and session id
+#
 @router.post("/invoke")
 async def invoke_tool(
     request: ToolInvocationRequest,

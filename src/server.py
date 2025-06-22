@@ -92,6 +92,8 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 from dotenv import load_dotenv
 
+from src.agents.kg_agent import KnowledgeGraphAgent
+
 # Import version - handle both module and direct execution
 try:
     from version import __version__
@@ -161,11 +163,14 @@ async def initialize_server():
         set_session_manager(session_manager)
 
         # Initialize mock agents for testing
+		# TODO: create more robust way of agent testing
         agents_dict = {
-            "meta": MockAgent("MetaAgent", "orchestration"),
-            "vector_search": MockAgent("VectorSearchAgent", "search"),
-            "knowledge_graph": MockAgent("KnowledgeGraphAgent", "knowledge"),
-            "stats": MockAgent("StatsAgent", "analytics")
+			# comment out everything but kg agent for dev -Sohum
+            # "meta": MockAgent("MetaAgent", "orchestration"),
+            # "vector_search": MockAgent("VectorSearchAgent", "search"),
+            # "knowledge_graph": MockAgent("KnowledgeGraphAgent", "knowledge"),
+			"knowledge_graph": KnowledgeGraphAgent(),
+            # "stats": MockAgent("StatsAgent", "analytics")
         }
         set_agents(agents_dict)
 

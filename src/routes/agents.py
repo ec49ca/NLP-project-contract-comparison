@@ -38,22 +38,24 @@ async def discover_agents(
 						continue
 
 			agent_info = agent.get_agent_info()
+
 			tools = await agent.get_tools()
+			print(f'KG Tools: {tools}')
 
 			discovered_agents.append({
 				"id": agent_id,
-				"name": agent_info.get("name", agent_id),
-				"description": agent_info.get("description", ""),
-				"category": getattr(agent, 'category', 'general'),
+				"name": agent_info['name'],
+				"description": agent_info['description'],
+				"category": agent_info['category'],
 				"tools": [
 					{
-						"name": tool["name"],
-						"description": tool["description"],
-						"input_schema": tool["inputSchema"]
+						"name": tool.name,
+						"description": tool.description,
+						"input_schema": tool.inputSchema
 					}
 					for tool in tools
 				],
-				"status": "active" if agent.is_initialized else "inactive"
+				"status": "active"
 			})
 
 		return {"success": True, "data": discovered_agents}

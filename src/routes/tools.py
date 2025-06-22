@@ -40,14 +40,14 @@ async def discover_tools(
                 if request.filter:
                     # Simple filtering logic - can be enhanced
                     if 'name' in request.filter:
-                        if request.filter['name'].lower() not in tool["name"].lower():
+                        if request.filter['name'].lower() not in tool.name.lower():
                             continue
 
                 discovered_tools.append({
                     "agent_id": agent_id,
-                    "name": tool["name"],
-                    "description": tool["description"],
-                    "input_schema": tool["inputSchema"],
+                    "name": tool.name,
+                    "description": tool.description,
+                    "input_schema": tool.inputSchema,
                     "category": getattr(agent, 'category', 'general')
                 })
 

@@ -13,6 +13,7 @@ from ...services.openai_service import OpenAIService
 logger = logging.getLogger(__name__)
 
 
+# this is the extract_triples tool. it is used to extract triples from unstructured text using OpenAI.
 class ExtractTriplesTool:
     """Tool for extracting triples from unstructured text using OpenAI"""
 

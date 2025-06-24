@@ -39,8 +39,11 @@ typing-extensions==4.8.0
 
 # OpenAI integration
 openai==1.12.0
-# !! Changing httpx will make cause proxy env errors in openai. trust me just find another way bro
+# !! Changing httpx will make cause proxy env errors in openai
 httpx==0.24.1
+
+# Neo4j integration
+neo4j==5.19.0
 
 # Testing dependencies
 # Note: httpx is already included above for OpenAI compatibility

@@ -32,8 +32,22 @@ services:
   #   networks:
   #     - mcp-network
 
+  neo4j:
+    image: neo4j:5.19-community
+    ports:
+      - "7474:7474" # HTTP
+      - "7687:7687" # Bolt
+    environment:
+      # TODO: more secure password
+      - NEO4J_AUTH=neo4j/samvidneo4j # username=neo4j, password=samvid
+    volumes:
+      - neo4j_data:/data
+    networks:
+      - mcp-network
+
 volumes:
   postgres_data:
+  neo4j_data:
 
 networks:
   mcp-network:

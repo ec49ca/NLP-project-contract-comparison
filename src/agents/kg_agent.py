@@ -25,6 +25,7 @@ import logging
 from typing import Dict, List, Any, Optional
 from ..interfaces.agent import AgentInterface
 from .tools.extract_triples import ExtractTriplesTool
+from ..services.neo4j_service import Neo4jService
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +37,7 @@ class KnowledgeGraphAgent(AgentInterface):
 		self._description = "Extract triples from data and perform graph operations"
 		self._initialized = False
 		self._tools = {}
+		self._graphdb_= Neo4jService()
 
 		# Add extract_triples tool
 		self._tools["extract_triples"] = ExtractTriplesTool()
@@ -95,6 +97,11 @@ class KnowledgeGraphAgent(AgentInterface):
 				"confidence_threshold": confidence_threshold,
 				"max_triples": max_triples
 			})
+
+			# Insert triples into Neo4j if extraction was successful
+			triples = result.get("triples", [])
+			if triples:
+				self._graphdb_.insert_triples(triples)
 
 			return {
 				"status": "success",

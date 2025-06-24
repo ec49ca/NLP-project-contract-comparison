@@ -159,4 +159,6 @@ logs/
 
 # Temporary files
 *.tmp
-*.temp 
+*.temp
+
+sohum-todo

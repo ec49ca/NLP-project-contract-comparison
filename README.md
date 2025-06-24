@@ -6,22 +6,15 @@
 
 A standalone HTTP API server for Samvid's Model Context Protocol (MCP) agents.
 
+---
+
 ## Overview
 
-This server provides REST endpoints for the main Samvid application to communicate with MCP agents. It's designed to run independently from the main Next.js application, making it compatible with Vercel's serverless deployment.
+This server provides REST endpoints for the main Samvid application to communicate with MCP agents. It is designed for modularity, extensibility, and ease of integration.
 
-## Features
+---
 
-- **Agent Discovery**: Find available agents and their capabilities
-- **Tool Discovery**: Discover tools provided by agents
-- **Agent Invocation**: Execute agents with input data
-- **Tool Invocation**: Execute specific tools
-- **Session Management**: Create, update, and manage user sessions
-- **Health Monitoring**: Health check endpoint for monitoring
-
-## 🐳 Quick Start with Docker (Recommended)
-
-### Option 1: Docker Compose (Full Setup with Database)
+## 🐳 Quick Start with Docker
 
 1. **Clone the repository:**
    ```bash
@@ -33,62 +26,120 @@ This server provides REST endpoints for the main Samvid application to communica
    ```bash
    docker-compose up -d
    ```
-
    This will start:
    - Samvid MCP Server on `http://localhost:8000`
-   - PostgreSQL database on port `5432`
+   - Neo4j (and optionally PostgreSQL) for agent storage
 
 3. **Verify it's running:**
    ```bash
    curl http://localhost:8000/health
    ```
 
-### Option 2: Docker Only (Standalone)
+---
 
-1. **Clone and build:**
-   ```bash
-   git clone https://github.com/samvid-ai/samvid-mcp-server.git
-   cd samvid-mcp-server
-   docker build -t samvid-mcp-server .
+## 📋 API Endpoints
+
+### Health & Discovery
+- `GET /health` — Server health status
+- `POST /discover` — Auto-discover and register all available agents
+
+### Agent Management
+- `POST /agents` — Register a new agent (by class name and config)
+- `GET /agents` — List all registered agents
+- `GET /agents/{agent_id}` — Get info about a specific agent
+
+### Routing
+- `POST /routes/{primitive_name}` — Register a route (primitive → agent)
+- `DELETE /routes/{primitive_name}` — Unregister a route
+- `GET /routes` — List all registered routes
+
+### Primitive Invocation
+- `POST /primitives/{primitive_name}` — Route a request to the agent responsible for a primitive
+
+### Resource Discovery
+- `GET /mcp/resources` — List all available MCP resources (agents and their capabilities)
+
+### API Documentation
+- Visit `http://localhost:8000/docs` for interactive API documentation (Swagger UI)
+
+---
+
+## 🧑‍💻 How to Create a New Agent
+
+1. **Create a new file** in `src/agents/` (e.g., `my_agent.py`).
+2. **Subclass `AgentInterface`** from `src/interfaces/agent.py`.
+3. **Implement all required properties and methods:**
+   - `name` (property): Human-readable name
+   - `description` (property): Short description
+   - `agent_id_str` (property): Unique, stable string identifier (e.g., "my_agent")
+   - `uuid` (property + setter): Will be set by the registry
+   - `initialize(config)` (async): Any setup logic
+   - `process_request(request)` (async): Main entrypoint for handling requests
+   - `get_capabilities()` (returns dict): Describe what the agent can do
+   - `get_status()` (returns dict): Health/status info
+   - `shutdown()` (async): Cleanup logic
+4. **Expose capabilities** in `get_capabilities()` as a dictionary, e.g.:
+   ```python
+   def get_capabilities(self) -> Dict[str, Any]:
+       return {
+           "my_capability": {
+               "description": "What this does",
+               "parameters": {"param1": "desc", ...}
+           },
+           ...
+       }
    ```
-
-2. **Run the container:**
-   ```bash
-   docker run -d --name samvid-mcp-server -p 8000:8000 samvid-mcp-server
+5. **Implement `process_request()`** to handle commands/capabilities, e.g.:
+   ```python
+   async def process_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
+       command = request.get("command")
+       if command == "my_capability":
+           return await self._my_capability(request)
+       ...
    ```
+6. **(Optional) Add tools** in `src/agents/tools/` if your agent needs reusable logic.
+7. **Test your agent:**
+   - It will be auto-discovered and registered on server startup.
+   - Use `/agents`, `/mcp/resources`, and `/primitives/{primitive_name}` to verify.
+8. **Update routing:**
+   - Use the `/routes/{primitive_name}` endpoint to map new primitives to your agent.
+   - Example:
+     ```bash
+     curl -X POST http://localhost:8000/routes/my_capability \
+       -H "Content-Type: application/json" \
+       -d '{"agent_id": "<your-agent-uuid>"}'
+     ```
+9. **Document your agent and capabilities** in the code and in the project documentation.
 
-3. **Test the API:**
-   ```bash
-   curl http://localhost:8000/health
-   ```
+---
 
-### Option 3: Pre-built Image (Coming Soon)
+## 🔧 Configuration
 
-```bash
-# Pull and run the pre-built image
-docker run -d --name samvid-mcp-server -p 8000:8000 samvidai/mcp-server:0.1.0
-```
+Environment variables:
+- `PORT` — Server port (default: 8000)
+- `LOG_LEVEL` — Logging level (default: INFO)
+- `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD` — Neo4j connection (for KG agent)
+- `OPENAI_API_KEY` — OpenAI API key (for NLP tools)
+- See `env.example` for more
 
-## 🚀 Manual Installation
+---
+
+## 🛠️ Development & Manual Installation
 
 ### Prerequisites
-
-- Python 3.11+ (tested with Python 3.13)
+- Python 3.11+
 - Virtual environment (recommended)
 
 ### Installation Steps
-
 1. **Create and activate virtual environment:**
    ```bash
    python3 -m venv venv
    source venv/bin/activate  # On Windows: venv\Scripts\activate
    ```
-
 2. **Install dependencies:**
    ```bash
    pip install -r requirements.txt
    ```
-
 3. **Set up environment variables:**
    ```bash
    cp env.example .env
@@ -96,125 +147,23 @@ docker run -d --name samvid-mcp-server -p 8000:8000 samvidai/mcp-server:0.1.0
    ```
 
 ### Running the Server
+- **Development:**
+  ```bash
+  python -m src.server
+  ```
+- **Production:**
+  ```bash
+  uvicorn src.server:app --host 0.0.0.0 --port 8000
+  ```
 
-**Development mode:**
-```bash
-python -m src.server
-```
+---
 
-**Production mode:**
-```bash
-uvicorn src.server:app --host 0.0.0.0 --port 8000
-```
+## 🤝 Contributing
+- Follow the agent interface and registration patterns described above.
+- When adding a new agent, implement the `AgentInterface` and define a unique `agent_id_str`.
+- Update documentation and add tests for new features.
+- Keep code modular, readable, and maintainable.
 
-## 📋 API Endpoints
+---
 
-### Health Check
-- `GET /health` - Server health status
-
-### Agent Management
-- `POST /agents/discover` - Discover available agents
-- `POST /agents/invoke` - Invoke an agent
-
-### Tool Management
-- `POST /tools/discover` - Discover available tools
-- `POST /tools/invoke` - Invoke a specific tool
-
-### Session Management
-- `POST /sessions/create` - Create a new session
-- `GET /sessions/{session_id}` - Get session details
-- `PUT /sessions/{session_id}` - Update session
-- `DELETE /sessions/{session_id}` - Terminate session
-
-### API Documentation
-Visit `http://localhost:8000/docs` for interactive API documentation (Swagger UI).
-
-## 🔧 Configuration
-
-Environment variables:
-
-- `PORT` - Server port (default: 8000)
-- `LOG_LEVEL` - Logging level (default: INFO)
-- `ALLOWED_ORIGINS` - CORS allowed origins (default: http://localhost:3000)
-- `DATABASE_URL` - PostgreSQL connection string (optional)
-- `NODE_ENV` - Environment mode (development/production)
-
-## 🧪 Testing the API
-
-### Basic Health Check
-```bash
-curl http://localhost:8000/health
-```
-
-### Discover Available Agents
-```bash
-curl -X POST http://localhost:8000/agents/discover \
-  -H "Content-Type: application/json" \
-  -d '{}'
-```
-
-### Invoke an Agent
-```bash
-curl -X POST http://localhost:8000/agents/invoke \
-  -H "Content-Type: application/json" \
-  -d '{
-    "agent_id": "knowledge_graph",
-    "input_data": {"entity": "Python"},
-    "context": {"depth": 2}
-  }'
-```
-
-### Create a Session
-```bash
-curl -X POST http://localhost:8000/sessions/create \
-  -H "Content-Type: application/json" \
-  -d '{
-    "user_id": "test_user",
-    "context": {"test": "data"}
-  }'
-```
-
-## 🛠️ Development
-
-### Current Implementation
-
-The server currently includes these agents:
-- **MetaAgent** - Orchestration agent for managing other agents
-- **VectorSearchAgent** - Semantic search capabilities
-- **KnowledgeGraphAgent** - Knowledge graph traversal and analysis
-- **StatsAgent** - Analytics and statistics
-
-### Docker Commands for Development
-
-```bash
-# View logs
-docker-compose logs -f mcp-server
-
-# Access container shell
-docker-compose exec mcp-server bash
-
-# Rebuild after changes
-docker-compose up -d --build
-
-# Stop all services
-docker-compose down
-
-# Clean up
-docker-compose down -v  # Removes volumes too
-```
-
-### Adding Real Agents
-
-To replace mock agents with real implementations:
-
-1. Create agent classes in `src/agents/`
-2. Implement the required methods:
-   - `get_agent_info()`
-   - `get_tools()`
-   - `execute(input_data, context)`
-   - `execute_tool(tool_name, arguments)`
-3. Update the agent initialization in `src/server.py`
-
-## ��️ Architecture
-
-```
+For a full architecture and onboarding guide, see `ARCHITECTURE.md`.

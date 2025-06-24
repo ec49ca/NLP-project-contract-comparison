@@ -6,16 +6,35 @@ This is a placeholder implementation. You should replace this with your actual v
 
 from typing import Dict, List, Any, Optional
 from ..interfaces.agent import AgentInterface
+from uuid import UUID
 
 class VectorSearchAgent(AgentInterface):
     """Vector search agent for semantic document search"""
 
     def __init__(self):
+        self._agent_id_str = "vector_search"
+        self._uuid = None
         self.agent_id = "vector_search"
         self._name = "Vector Search Agent"
         self._description = "Performs semantic search through document collections"
         self.category = "search"
         self.status = "initialized"
+
+    @property
+    def agent_id_str(self) -> str:
+        return self._agent_id_str
+
+    @property
+    def uuid(self) -> UUID:
+        if self._uuid is None:
+            raise ValueError("UUID has not been set yet.")
+        return self._uuid
+
+    @uuid.setter
+    def uuid(self, value: UUID):
+        if self._uuid is not None:
+            raise ValueError("UUID can only be set once.")
+        self._uuid = value
 
     @property
     def name(self) -> str:

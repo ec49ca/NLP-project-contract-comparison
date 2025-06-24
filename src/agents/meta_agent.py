@@ -29,16 +29,35 @@ Example:
 
 from typing import Dict, List, Any, Optional
 from ..interfaces.agent import AgentInterface
+from uuid import UUID
 
 class MetaAgent(AgentInterface):
     """Meta agent for analyzing user intent and creating execution plans"""
 
     def __init__(self):
+        self._agent_id_str = "meta"
+        self._uuid = None
         self.agent_id = "meta"
         self._name = "Meta Agent"
         self._description = "Analyzes user intent and creates chain-of-thought execution plans"
         self.category = "analysis"
         self.status = "initialized"
+
+    @property
+    def agent_id_str(self) -> str:
+        return self._agent_id_str
+
+    @property
+    def uuid(self) -> UUID:
+        if self._uuid is None:
+            raise ValueError("UUID has not been set yet.")
+        return self._uuid
+
+    @uuid.setter
+    def uuid(self, value: UUID):
+        if self._uuid is not None:
+            raise ValueError("UUID can only be set once.")
+        self._uuid = value
 
     @property
     def name(self) -> str:

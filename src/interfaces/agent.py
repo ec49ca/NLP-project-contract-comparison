@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional
+from uuid import UUID
 
 class AgentInterface(ABC):
 	"""Standardized interface for all MCP agents."""
@@ -14,6 +15,24 @@ class AgentInterface(ABC):
 	@abstractmethod
 	def description(self) -> str:
 		"""Brief description of the agent's purpose."""
+		pass
+
+	@property
+	@abstractmethod
+	def agent_id_str(self) -> str:
+		"""Stable string identifier for the agent type (e.g., 'knowledge_graph')."""
+		pass
+
+	@property
+	@abstractmethod
+	def uuid(self) -> UUID:
+		"""The unique, immutable UUID for this agent instance."""
+		pass
+
+	@uuid.setter
+	@abstractmethod
+	def uuid(self, value: UUID):
+		"""Set the UUID for this agent instance (should only be set once)."""
 		pass
 
 	@abstractmethod

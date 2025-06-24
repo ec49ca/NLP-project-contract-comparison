@@ -10,6 +10,7 @@ from ..discovery.agent_discovery import AgentDiscovery
 from ..interfaces.agent import AgentInterface
 from ..registry.registry_models import AgentStatus
 # from mcp.server.fastmcp import FastMCP
+import uuid
 
 # Initialize core components
 registry = AgentRegistrySystem()
@@ -65,7 +66,7 @@ async def register_agent(agent_class_name: str, config: Dict[str, Any]):
         agent_module = __import__(f"src.agents.{agent_class_name}", fromlist=[agent_class_name])
         agent_class = getattr(agent_module, agent_class_name)
 
-        # Register the agent
+        # Register the agent and return the deterministic agent_id
         agent_id = await registry.register_agent(agent_class, config)
         return {"agent_id": str(agent_id)}
     except Exception as e:
@@ -250,7 +251,7 @@ async def auto_register_agents():
             # Create default config - can be customized per agent type if needed
             default_config = {}
 
-            # Register the agent
+            # Register the agent and use the deterministic agent_id
             logger.info(f"Registering agent {module_name}...")
             agent_id = await registry.register_agent(agent_class, default_config)
             registered_agents.add(agent_class)

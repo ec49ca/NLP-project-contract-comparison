@@ -6,16 +6,35 @@ This is a placeholder implementation. You should replace this with your actual s
 
 from typing import Dict, List, Any, Optional
 from ..interfaces.agent import AgentInterface
+from uuid import UUID
 
 class StatsAgent(AgentInterface):
     """Statistics agent for performing statistical analysis"""
 
     def __init__(self):
+        self._agent_id_str = "stats"
+        self._uuid = None
         self.agent_id = "stats"
         self._name = "Statistics Agent"
         self._description = "Performs statistical analysis and modeling"
         self.category = "analysis"
         self.status = "initialized"
+
+    @property
+    def agent_id_str(self) -> str:
+        return self._agent_id_str
+
+    @property
+    def uuid(self) -> UUID:
+        if self._uuid is None:
+            raise ValueError("UUID has not been set yet.")
+        return self._uuid
+
+    @uuid.setter
+    def uuid(self, value: UUID):
+        if self._uuid is not None:
+            raise ValueError("UUID can only be set once.")
+        self._uuid = value
 
     @property
     def name(self) -> str:

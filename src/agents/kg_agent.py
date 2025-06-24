@@ -26,6 +26,8 @@ from typing import Dict, List, Any, Optional
 from ..interfaces.agent import AgentInterface
 from .tools.extract_triples import ExtractTriplesTool
 from ..services.neo4j_service import Neo4jService
+import uuid
+from uuid import UUID
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +35,8 @@ class KnowledgeGraphAgent(AgentInterface):
 	"""Knowledge graph agent for triple extraction and graph operations"""
 
 	def __init__(self):
+		self._agent_id_str = "knowledge_graph"
+		self._uuid = None
 		self._name = "Knowledge Graph Agent"
 		self._description = "Extract triples from data and perform graph operations"
 		self._initialized = False
@@ -41,6 +45,22 @@ class KnowledgeGraphAgent(AgentInterface):
 
 		# Add extract_triples tool
 		self._tools["extract_triples"] = ExtractTriplesTool()
+
+	@property
+	def agent_id_str(self) -> str:
+		return self._agent_id_str
+
+	@property
+	def uuid(self) -> UUID:
+		if self._uuid is None:
+			raise ValueError("UUID has not been set yet.")
+		return self._uuid
+
+	@uuid.setter
+	def uuid(self, value: UUID):
+		if self._uuid is not None:
+			raise ValueError("UUID can only be set once.")
+		self._uuid = value
 
 	@property
 	def name(self) -> str:
@@ -61,6 +81,7 @@ class KnowledgeGraphAgent(AgentInterface):
 
 		self._initialized = True
 		logger.info("KnowledgeGraphAgent initialized successfully")
+
 
 	async def process_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
 		"""Process incoming requests through the agent."""

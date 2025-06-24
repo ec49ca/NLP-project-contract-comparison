@@ -34,7 +34,7 @@ async def lifespan(app: FastAPI):
     # Shutdown
     logger.info("Shutting down MCP server")
 
-app = FastAPI(title="AgentForge", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="Samvid MCP", version="0.1.0", lifespan=lifespan)
 
 # Enable CORS
 app.add_middleware(
@@ -161,48 +161,69 @@ async def list_mcp_resources():
     Follows the Model Context Protocol standard.
     """
     agents_state = await registry.get_registry_state()
+    logger.info(f"MCP Resources: Got registry state with {len(agents_state.get('agents', {}))} agents")
+
     resources = []
 
     for agent_id, agent_info in agents_state.get("agents", {}).items():
+        logger.info(f"MCP Resources: Processing agent {agent_id} with info {agent_info}")
+
         agent = await registry.get_agent(UUID(agent_id))
-        if agent and agent_info.get("status") == AgentStatus.ACTIVE.value:
-            # Add the agent as a resource with its full capabilities
-            agent_resource = {
-                "name": agent.name,
-                "description": agent.description,
-                "type": "agent",
-                "capabilities": {}
-            }
+        if agent:
+            logger.info(f"MCP Resources: Found agent {agent.name} with status {agent_info.get('status')}")
 
-            # Get capabilities - handle both direct capabilities and tools wrapper
-            capabilities = agent.get_capabilities()
+            if agent_info.get("status") == AgentStatus.ACTIVE.value:
+                logger.info(f"MCP Resources: Agent {agent.name} is active, adding to resources")
 
-            # Check if capabilities are wrapped in a "tools" key
-            if "tools" in capabilities:
-                tools = capabilities["tools"]
-            else:
-                # Direct capabilities format
-                tools = capabilities
-
-            # Add each capability as a property of the agent resource
-            for capability_name, capability_info in tools.items():
-                # Also add each capability as an individual resource for direct access
-                resources.append({
-                    "name": f"{agent.name}.{capability_name}",
-                    "description": capability_info.get("description", ""),
-                    "parameters": capability_info.get("parameters", {}),
-                    "type": "capability"
-                })
-
-                # Add to the agent's capabilities
-                agent_resource["capabilities"][capability_name] = {
-                    "description": capability_info.get("description", ""),
-                    "parameters": capability_info.get("parameters", {})
+                # Add the agent as a resource with its full capabilities
+                agent_resource = {
+                    "name": agent.name,
+                    "description": agent.description,
+                    "type": "agent",
+                    "capabilities": {}
                 }
 
-            # Add the complete agent resource
-            resources.append(agent_resource)
+                # Add each capability as a property of the agent resource
+                capabilities = agent.get_capabilities()
+                logger.info(f"MCP Resources: Agent {agent.name} capabilities: {capabilities}")
 
+                # Handle both direct capabilities and tools wrapper
+                if "tools" in capabilities:
+                    tools = capabilities["tools"]
+                    # Tools is a list, convert to dictionary for processing
+                    tools_dict = {}
+                    for tool in tools:
+                        if isinstance(tool, dict) and "name" in tool:
+                            tools_dict[tool["name"]] = tool
+                    tools = tools_dict
+                else:
+                    # Direct capabilities format (dictionary)
+                    tools = capabilities
+
+                for capability_name, capability_info in tools.items():
+                    # Also add each capability as an individual resource for direct access
+                    resources.append({
+                        "name": f"{agent.name}.{capability_name}",
+                        "description": capability_info.get("description", ""),
+                        "parameters": capability_info.get("parameters", {}),
+                        "type": "capability"
+                    })
+
+                    # Add to the agent's capabilities
+                    agent_resource["capabilities"][capability_name] = {
+                        "description": capability_info.get("description", ""),
+                        "parameters": capability_info.get("parameters", {})
+                    }
+
+                # Add the complete agent resource
+                resources.append(agent_resource)
+                logger.info(f"MCP Resources: Added agent resource for {agent.name}")
+            else:
+                logger.info(f"MCP Resources: Agent {agent.name} is not active (status: {agent_info.get('status')})")
+        else:
+            logger.warning(f"MCP Resources: Could not find agent with ID {agent_id}")
+
+    logger.info(f"MCP Resources: Returning {len(resources)} resources")
     return {"resources": resources}
 
 async def auto_register_agents():
@@ -295,7 +316,12 @@ async def execute_agent_capability(agent_name: str, capability: str, parameters:
 
         # Handle both direct capabilities and tools wrapper
         if "tools" in capabilities:
-            available_capabilities = list(capabilities["tools"].keys())
+            # Tools is a list, extract capability names
+            tools_list = capabilities["tools"]
+            available_capabilities = []
+            for tool in tools_list:
+                if isinstance(tool, dict) and "name" in tool:
+                    available_capabilities.append(tool["name"])
         else:
             available_capabilities = list(capabilities.keys())
 

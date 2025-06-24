@@ -31,8 +31,7 @@ flake8==6.1.0
 mypy==1.7.1
 
 # MCP protocol dependencies (if using official MCP SDK)
-# mcp==1.0.0  # Uncomment if using official MCP SDK
-mcp>=0.1.0
+# mcp>=0.1.0  # Commented out - not using MCP SDK in current implementation
 
 # Additional utilities
 uuid==1.30

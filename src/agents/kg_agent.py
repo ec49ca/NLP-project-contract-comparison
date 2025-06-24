@@ -32,7 +32,7 @@ class KnowledgeGraphAgent(AgentInterface):
 	"""Knowledge graph agent for triple extraction and graph operations"""
 
 	def __init__(self):
-		self._name = "knowledge_graph"
+		self._name = "Knowledge Graph Agent"
 		self._description = "Extract triples from data and perform graph operations"
 		self._initialized = False
 		self._tools = {}

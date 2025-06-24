@@ -7,7 +7,6 @@ This tool extracts triples (subject-predicate-object relationships) from unstruc
 import json
 import logging
 from typing import Dict, Any, List, Optional
-from ..base_agent import Tool
 from ...services.openai_service import OpenAIService
 
 logger = logging.getLogger(__name__)
@@ -20,24 +19,7 @@ class ExtractTriplesTool:
     def __init__(self):
         self.name = "extract_triples"
         self.description = "Extract triples from unstructured text using OpenAI"
-        self.input_schema = {
-            "type": "object",
-            "properties": {
-                "text": {"type": "string", "description": "Text to extract triples from"},
-                "confidence_threshold": {"type": "number", "minimum": 0, "maximum": 1, "default": 0.7},
-                "max_triples": {"type": "integer", "minimum": 1, "default": 100}
-            },
-            "required": ["text"]
-        }
         self.openai_service = OpenAIService()
-
-    def get_tool(self) -> Tool:
-        """Get the extract_triples tool definition"""
-        return Tool(
-            name=self.name,
-            description=self.description,
-            inputSchema=self.input_schema
-        )
 
     async def execute_tool(self, arguments: Dict[str, Any]) -> Any:
         """Execute the extract_triples tool"""

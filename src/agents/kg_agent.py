@@ -21,134 +21,201 @@ How tools work:
 2. Tool discovery:
 """
 
-from typing import Dict, List, Any
-from .base_agent import BaseAgent, Tool
+import logging
+from typing import Dict, List, Any, Optional
+from ..interfaces.agent import AgentInterface
 from .tools.extract_triples import ExtractTriplesTool
 
-class KnowledgeGraphAgent(BaseAgent):
+logger = logging.getLogger(__name__)
+
+class KnowledgeGraphAgent(AgentInterface):
 	"""Knowledge graph agent for triple extraction and graph operations"""
 
 	def __init__(self):
-		super().__init__("knowledge_graph")
-		self.name = "Knowledge Graph Agent"
-		self.description = "Extract triples from data and perform graph operations"
-		self.category = "knowledge"
-		# BUG: temporary fix: this should have been supered but needs to be done manually or won't be set. figure out why
-		self.is_initialized = True
-
-		# TODO: make this architecture better:
-		self.tools = {}
+		self._name = "knowledge_graph"
+		self._description = "Extract triples from data and perform graph operations"
+		self._initialized = False
+		self._tools = {}
 
 		# Add extract_triples tool
-		self.tools["extract_triples"] = ExtractTriplesTool()
+		self._tools["extract_triples"] = ExtractTriplesTool()
 
-	def get_agent_info(self):
+	@property
+	def name(self) -> str:
+		"""Agent's unique identifier."""
+		return self._name
+
+	@property
+	def description(self) -> str:
+		"""Brief description of the agent's purpose."""
+		return self._description
+
+	async def initialize(self, config: Dict[str, Any]) -> None:
+		"""Initialize the agent with configuration."""
+		# Initialize tools if needed
+		for tool_name, tool in self._tools.items():
+			if hasattr(tool, 'initialize'):
+				await tool.initialize(config)
+
+		self._initialized = True
+		logger.info("KnowledgeGraphAgent initialized successfully")
+
+	async def process_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
+		"""Process incoming requests through the agent."""
+		if not self._initialized:
+			return {"error": "Agent not initialized"}
+
+		command = request.get("command", "")
+
+		if command == "extract_triples":
+			return await self._extract_triples(request)
+		elif command == "find_relationships":
+			return await self._find_relationships(request)
+		elif command == "traverse_graph":
+			return await self._traverse_graph(request)
+		else:
+			return {
+				"error": f"Unknown command: {command}",
+				"available_commands": ["extract_triples", "find_relationships", "traverse_graph"]
+			}
+
+	async def _extract_triples(self, request: Dict[str, Any]) -> Dict[str, Any]:
+		"""Extract triples from text data."""
+		try:
+			text = request.get("text", "")
+			confidence_threshold = request.get("confidence_threshold", 0.7)
+			max_triples = request.get("max_triples", 100)
+
+			if not text:
+				return {"error": "Missing text parameter"}
+
+			# Use the extract_triples tool
+			result = await self._tools["extract_triples"].execute_tool({
+				"text": text,
+				"confidence_threshold": confidence_threshold,
+				"max_triples": max_triples
+			})
+
+			return {
+				"status": "success",
+				"data": result
+			}
+
+		except Exception as e:
+			logger.error(f"Error extracting triples: {str(e)}")
+			return {
+				"status": "error",
+				"message": f"Error extracting triples: {str(e)}"
+			}
+
+	async def _find_relationships(self, request: Dict[str, Any]) -> Dict[str, Any]:
+		"""Find relationships between entities."""
+		try:
+			entity = request.get("entity", "")
+			relationship_type = request.get("relationship_type", "any")
+			depth = request.get("depth", 2)
+
+			if not entity:
+				return {"error": "Missing entity parameter"}
+
+			# Placeholder implementation
+			return {
+				"status": "success",
+				"data": {
+					"entity": entity,
+					"relationships": [
+						{
+							"type": "related_to",
+							"target": f"Related Entity 1 to {entity}",
+							"strength": 0.9
+						},
+						{
+							"type": "part_of",
+							"target": f"Parent Entity of {entity}",
+							"strength": 0.8
+						}
+					],
+					"depth_searched": depth
+				}
+			}
+
+		except Exception as e:
+			logger.error(f"Error finding relationships: {str(e)}")
+			return {
+				"status": "error",
+				"message": f"Error finding relationships: {str(e)}"
+			}
+
+	async def _traverse_graph(self, request: Dict[str, Any]) -> Dict[str, Any]:
+		"""Traverse knowledge graph from starting point."""
+		try:
+			start_entity = request.get("start_entity", "")
+			end_entity = request.get("end_entity", "")
+			max_hops = request.get("max_hops", 3)
+
+			if not start_entity or not end_entity:
+				return {"error": "Missing start_entity or end_entity parameter"}
+
+			# Placeholder implementation
+			return {
+				"status": "success",
+				"data": {
+					"path": [
+						{"entity": start_entity, "hop": 0},
+						{"entity": f"Intermediate Entity", "hop": 1},
+						{"entity": end_entity, "hop": 2}
+					],
+					"path_length": 2,
+					"confidence": 0.85
+				}
+			}
+
+		except Exception as e:
+			logger.error(f"Error traversing graph: {str(e)}")
+			return {
+				"status": "error",
+				"message": f"Error traversing graph: {str(e)}"
+			}
+
+	async def shutdown(self) -> None:
+		"""Clean up resources when shutting down."""
+		self._initialized = False
+		logger.info("KnowledgeGraphAgent shutdown complete")
+
+	def get_capabilities(self) -> Dict[str, Any]:
+		"""Return agent's capabilities."""
 		return {
-			"name": self.name,
-			"description": self.description,
-			"category": self.category
+			"extract_triples": {
+				"description": "Extract triples (subject-predicate-object relationships) from unstructured text",
+				"parameters": {
+					"text": "Text to extract triples from (required)",
+					"confidence_threshold": "Minimum confidence score for triples (0.0-1.0, default: 0.7)",
+					"max_triples": "Maximum number of triples to extract (default: 100)"
+				}
+			},
+			"find_relationships": {
+				"description": "Find relationships between entities in the knowledge graph",
+				"parameters": {
+					"entity": "Entity to find relationships for (required)",
+					"relationship_type": "Type of relationship to find (default: 'any')",
+					"depth": "Search depth in the graph (default: 2)"
+				}
+			},
+			"traverse_graph": {
+				"description": "Traverse knowledge graph from starting point to target entity",
+				"parameters": {
+					"start_entity": "Starting entity (required)",
+					"end_entity": "Target entity (required)",
+					"max_hops": "Maximum number of hops allowed (default: 3)"
+				}
+			}
 		}
 
-	async def get_tools(self) -> List[Tool]:
-		"""Get the tools provided by this agent"""
-		tool_list = []
-
-		# Add extract_triples tool
-		if "extract_triples" in self.tools:
-			tool_list.append(self.tools["extract_triples"].get_tool())
-
-		# TODO: Add find_relationships and traverse_graph tools later
-		# For now, keeping placeholder implementations
-		tool_list.extend([
-			Tool(
-				name="find_relationships",
-				description="Find relationships between entities",
-				inputSchema={
-					"type": "object",
-					"properties": {
-						"entity": {"type": "string", "description": "Entity to find relationships for"},
-						"relationship_type": {"type": "string", "description": "Type of relationship to find"},
-						"depth": {"type": "integer", "description": "Search depth", "default": 2}
-					},
-					"required": ["entity"]
-				}
-			),
-			Tool(
-				name="traverse_graph",
-				description="Traverse knowledge graph from starting point",
-				inputSchema={
-					"type": "object",
-					"properties": {
-						"start_entity": {"type": "string", "description": "Starting entity"},
-						"end_entity": {"type": "string", "description": "Target entity"},
-						"max_hops": {"type": "integer", "description": "Maximum hops", "default": 3}
-					},
-					"required": ["start_entity", "end_entity"]
-				}
-			)
-		])
-
-		return tool_list
-
-	async def execute_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Any:
-		"""Execute a specific tool"""
-		if tool_name == "extract_triples":
-			return await self.tools["extract_triples"].execute_tool(arguments)
-
-
-		elif tool_name == "find_relationships":
-			entity = arguments.get("entity", "")
-			relationship_type = arguments.get("relationship_type", "any")
-			depth = arguments.get("depth", 2)
-
-			# Placeholder implementation
-			return {
-				"entity": entity,
-				"relationships": [
-					{
-						"type": "related_to",
-						"target": f"Related Entity 1 to {entity}",
-						"strength": 0.9
-					},
-					{
-						"type": "part_of",
-						"target": f"Parent Entity of {entity}",
-						"strength": 0.8
-					}
-				],
-				"depth_searched": depth
-			}
-
-		elif tool_name == "traverse_graph":
-			start_entity = arguments.get("start_entity", "")
-			end_entity = arguments.get("end_entity", "")
-			max_hops = arguments.get("max_hops", 3)
-
-			# Placeholder implementation
-			return {
-				"path": [
-					{"entity": start_entity, "hop": 0},
-					{"entity": f"Intermediate Entity", "hop": 1},
-					{"entity": end_entity, "hop": 2}
-				],
-				"path_length": 2,
-				"confidence": 0.85
-			}
-
-		else:
-			raise ValueError(f"Unknown tool: {tool_name}")
-
-	async def execute(self, input_data: Dict[str, Any], context: Dict[str, Any]) -> Any:
-		"""Execute the knowledge graph agent"""
-		entity = input_data.get("entity", "")
-
-		# Find relationships
-		relationships = await self.execute_tool("find_relationships", {
-			"entity": entity,
-			"depth": 2
-		})
-
+	def get_status(self) -> Dict[str, Any]:
+		"""Return agent's current status."""
 		return {
-			"knowledge_graph_analysis": relationships,
-			"agent": "knowledge_graph"
+			"initialized": self._initialized,
+			"healthy": self._initialized,
+			"tools_available": list(self._tools.keys()),
+			"capabilities": list(self.get_capabilities().keys())
 		}

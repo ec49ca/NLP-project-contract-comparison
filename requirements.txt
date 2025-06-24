@@ -32,6 +32,7 @@ mypy==1.7.1
 
 # MCP protocol dependencies (if using official MCP SDK)
 # mcp==1.0.0  # Uncomment if using official MCP SDK
+mcp>=0.1.0
 
 # Additional utilities
 uuid==1.30
@@ -39,4 +40,8 @@ typing-extensions==4.8.0
 
 # OpenAI integration
 openai==1.12.0
+# !! Changing httpx will make cause proxy env errors in openai. trust me just find another way bro
 httpx==0.24.1
+
+# Testing dependencies
+# Note: httpx is already included above for OpenAI compatibility

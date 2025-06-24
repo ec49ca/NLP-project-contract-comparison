@@ -1,9 +1,20 @@
+
+Done (for now)
 1. scaffold tool setup
 2. create extract triple tool (transfer from create kg graph lambda)
 	make this work for structures, unstructured, semistructured
 	benchmark and find general error bounds
-3. create traversal tool for natural language
+
+Todo:
+- refactor to agentforge structure
+- create traversal tool for natural language
 	- what docs were authored by ram bala?
 		- understand user intent
 		- find entity and relationships
 		- actually traverse: cypher queries
+
+Other cool ideas:
+- middleware for failed attempts agent intelligence caching
+	- assumption is that agent might fail in similar ways multiple times
+- rag pipeline optimization -> how to do proper hybrid method: lexical + semantic + KG.
+-

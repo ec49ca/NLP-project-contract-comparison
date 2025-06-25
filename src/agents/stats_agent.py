@@ -70,37 +70,27 @@ class StatsAgent(AgentInterface):
         """Shutdown the agent"""
         self.status = "shutdown"
 
-    def get_capabilities(self) -> Dict[str, Any]:
+    def get_capabilities(self) -> List[Dict[str, Any]]:
         """Get the capabilities provided by this agent"""
-        return {
-            "tools": [
-                {
-                    "name": "calculate_statistics",
-                    "description": "Calculate basic statistics for a dataset",
-                    "inputSchema": {
-                        "type": "object",
-                        "properties": {
-                            "data": {"type": "array", "description": "Array of numerical values"},
-                            "metrics": {"type": "array", "description": "List of metrics to calculate", "default": ["mean", "median", "std"]}
-                        },
-                        "required": ["data"]
-                    }
-                },
-                {
-                    "name": "correlation_analysis",
-                    "description": "Perform correlation analysis between variables",
-                    "inputSchema": {
-                        "type": "object",
-                        "properties": {
-                            "x_values": {"type": "array", "description": "X variable values"},
-                            "y_values": {"type": "array", "description": "Y variable values"},
-                            "method": {"type": "string", "description": "Correlation method", "default": "pearson"}
-                        },
-                        "required": ["x_values", "y_values"]
-                    }
+        return [
+            {
+                "name": "calculate_statistics",
+                "description": "Calculate basic statistics for a dataset",
+                "parameters": {
+                    "data": "array - Array of numerical values",
+                    "metrics": "array - List of metrics to calculate (default: ['mean', 'median', 'std'])"
                 }
-            ]
-        }
+            },
+            {
+                "name": "correlation_analysis",
+                "description": "Perform correlation analysis between variables",
+                "parameters": {
+                    "x_values": "array - X variable values",
+                    "y_values": "array - Y variable values",
+                    "method": "string - Correlation method (default: 'pearson')"
+                }
+            }
+        ]
 
     def get_status(self) -> Dict[str, Any]:
         """Get the current status of the agent"""
@@ -108,7 +98,8 @@ class StatsAgent(AgentInterface):
             "status": self.status,
             "agent_id": self.agent_id,
             "name": self.name,
-            "category": self.category
+            "category": self.category,
+            "capabilities": self.get_capabilities()
         }
 
     async def _calculate_statistics(self, data: List[float], metrics: List[str]) -> Dict[str, Any]:

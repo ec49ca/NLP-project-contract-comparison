@@ -91,35 +91,25 @@ class MetaAgent(AgentInterface):
         """Shutdown the agent"""
         self.status = "shutdown"
 
-    def get_capabilities(self) -> Dict[str, Any]:
+    def get_capabilities(self) -> List[Dict[str, Any]]:
         """Get the capabilities provided by this agent"""
-        return {
-            "tools": [
-                {
-                    "name": "analyze_intent",
-                    "description": "Analyze user queries to determine intent",
-                    "inputSchema": {
-                        "type": "object",
-                        "properties": {
-                            "query": {"type": "string", "description": "User query to analyze"}
-                        },
-                        "required": ["query"]
-                    }
-                },
-                {
-                    "name": "create_execution_plan",
-                    "description": "Create step-by-step execution plans",
-                    "inputSchema": {
-                        "type": "object",
-                        "properties": {
-                            "intent": {"type": "string", "description": "Analyzed intent"},
-                            "context": {"type": "object", "description": "Additional context"}
-                        },
-                        "required": ["intent"]
-                    }
+        return [
+            {
+                "name": "analyze_intent",
+                "description": "Analyze user queries to determine intent",
+                "parameters": {
+                    "query": "string - User query to analyze"
                 }
-            ]
-        }
+            },
+            {
+                "name": "create_execution_plan",
+                "description": "Create step-by-step execution plans",
+                "parameters": {
+                    "intent": "string - Analyzed intent",
+                    "context": "object - Additional context"
+                }
+            }
+        ]
 
     def get_status(self) -> Dict[str, Any]:
         """Get the current status of the agent"""
@@ -127,7 +117,8 @@ class MetaAgent(AgentInterface):
             "status": self.status,
             "agent_id": self.agent_id,
             "name": self.name,
-            "category": self.category
+            "category": self.category,
+            "capabilities": self.get_capabilities()
         }
 
     async def _analyze_intent(self, query: str) -> Dict[str, Any]:

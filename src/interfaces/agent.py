@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 from uuid import UUID
 
 class AgentInterface(ABC):
@@ -51,8 +51,19 @@ class AgentInterface(ABC):
 		pass
 
 	@abstractmethod
-	def get_capabilities(self) -> Dict[str, Any]:
-		"""Return agent's capabilities."""
+	def get_capabilities(self) -> List[Dict[str, Any]]:
+		"""
+		Return agent's capabilities as a list of objects, each with 'name', 'description', and 'parameters' fields.
+		Example:
+		[
+		  {
+		    "name": "capability_name",
+		    "description": "Description of the capability",
+		    "parameters": { ... }
+		  },
+		  ...
+		]
+		"""
 		pass
 
 	@abstractmethod

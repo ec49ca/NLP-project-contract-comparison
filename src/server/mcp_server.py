@@ -9,8 +9,6 @@ from ..routing.router import AgentRouter
 from ..discovery.agent_discovery import AgentDiscovery
 from ..interfaces.agent import AgentInterface
 from ..registry.registry_models import AgentStatus
-# from mcp.server.fastmcp import FastMCP
-import uuid
 
 # Initialize core components
 registry = AgentRegistrySystem()
@@ -104,7 +102,7 @@ async def list_agents():
                 "name": agent.name,
                 "description": agent.description,
                 "status": agent_info.get("status"),
-                "capabilities": list(agent.get_capabilities().keys())
+                "capabilities": agent.get_capabilities()
             })
 
     return {
@@ -181,40 +179,21 @@ async def list_mcp_resources():
                     "name": agent.name,
                     "description": agent.description,
                     "type": "agent",
-                    "capabilities": {}
+                    "capabilities": agent.get_capabilities()
                 }
 
                 # Add each capability as a property of the agent resource
-                capabilities = agent.get_capabilities()
-                logger.info(f"MCP Resources: Agent {agent.name} capabilities: {capabilities}")
-
-                # Handle both direct capabilities and tools wrapper
-                if "tools" in capabilities:
-                    tools = capabilities["tools"]
-                    # Tools is a list, convert to dictionary for processing
-                    tools_dict = {}
-                    for tool in tools:
-                        if isinstance(tool, dict) and "name" in tool:
-                            tools_dict[tool["name"]] = tool
-                    tools = tools_dict
-                else:
-                    # Direct capabilities format (dictionary)
-                    tools = capabilities
-
-                for capability_name, capability_info in tools.items():
-                    # Also add each capability as an individual resource for direct access
+                capabilities_list = agent.get_capabilities()
+                for capability_info in capabilities_list:
+                    if not isinstance(capability_info, dict):
+                        continue
+                    capability_name = capability_info.get("name", "")
                     resources.append({
                         "name": f"{agent.name}.{capability_name}",
                         "description": capability_info.get("description", ""),
                         "parameters": capability_info.get("parameters", {}),
                         "type": "capability"
                     })
-
-                    # Add to the agent's capabilities
-                    agent_resource["capabilities"][capability_name] = {
-                        "description": capability_info.get("description", ""),
-                        "parameters": capability_info.get("parameters", {})
-                    }
 
                 # Add the complete agent resource
                 resources.append(agent_resource)
@@ -314,17 +293,8 @@ async def execute_agent_capability(agent_name: str, capability: str, parameters:
 
         # Check if the agent has the requested capability
         capabilities = agent.get_capabilities()
-
-        # Handle both direct capabilities and tools wrapper
-        if "tools" in capabilities:
-            # Tools is a list, extract capability names
-            tools_list = capabilities["tools"]
-            available_capabilities = []
-            for tool in tools_list:
-                if isinstance(tool, dict) and "name" in tool:
-                    available_capabilities.append(tool["name"])
-        else:
-            available_capabilities = list(capabilities.keys())
+        capabilities_list = capabilities.get("capabilities", [])
+        available_capabilities = [cap.get("name", "") for cap in capabilities_list]
 
         if capability not in available_capabilities:
             raise HTTPException(

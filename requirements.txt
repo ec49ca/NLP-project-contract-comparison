@@ -45,5 +45,9 @@ httpx==0.24.1
 # Neo4j integration
 neo4j==5.19.0
 
+# Mathematical and scientific computing for options pricing
+numpy>=1.24.0
+scipy>=1.10.0
+
 # Testing dependencies
 # Note: httpx is already included above for OpenAI compatibility

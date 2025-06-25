@@ -210,10 +210,11 @@ class KnowledgeGraphAgent(AgentInterface):
 		self._initialized = False
 		logger.info("KnowledgeGraphAgent shutdown complete")
 
-	def get_capabilities(self) -> Dict[str, Any]:
+	def get_capabilities(self) -> List[Dict[str, Any]]:
 		"""Return agent's capabilities."""
-		return {
-			"extract_triples": {
+		return [
+			{
+				"name": "extract_triples",
 				"description": "Extract triples (subject-predicate-object relationships) from unstructured text",
 				"parameters": {
 					"text": "Text to extract triples from (required)",
@@ -221,7 +222,8 @@ class KnowledgeGraphAgent(AgentInterface):
 					"max_triples": "Maximum number of triples to extract (default: 100)"
 				}
 			},
-			"find_relationships": {
+			{
+				"name": "find_relationships",
 				"description": "Find relationships between entities in the knowledge graph",
 				"parameters": {
 					"entity": "Entity to find relationships for (required)",
@@ -229,7 +231,8 @@ class KnowledgeGraphAgent(AgentInterface):
 					"depth": "Search depth in the graph (default: 2)"
 				}
 			},
-			"traverse_graph": {
+			{
+				"name": "traverse_graph",
 				"description": "Traverse knowledge graph from starting point to target entity",
 				"parameters": {
 					"start_entity": "Starting entity (required)",
@@ -237,7 +240,7 @@ class KnowledgeGraphAgent(AgentInterface):
 					"max_hops": "Maximum number of hops allowed (default: 3)"
 				}
 			}
-		}
+		]
 
 	def get_status(self) -> Dict[str, Any]:
 		"""Return agent's current status."""
@@ -245,5 +248,5 @@ class KnowledgeGraphAgent(AgentInterface):
 			"initialized": self._initialized,
 			"healthy": self._initialized,
 			"tools_available": list(self._tools.keys()),
-			"capabilities": list(self.get_capabilities().keys())
+			"capabilities": self.get_capabilities()
 		}

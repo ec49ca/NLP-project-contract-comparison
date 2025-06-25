@@ -72,37 +72,27 @@ class VectorSearchAgent(AgentInterface):
         """Shutdown the agent"""
         self.status = "shutdown"
 
-    def get_capabilities(self) -> Dict[str, Any]:
+    def get_capabilities(self) -> List[Dict[str, Any]]:
         """Get the capabilities provided by this agent"""
-        return {
-            "tools": [
-                {
-                    "name": "semantic_search",
-                    "description": "Perform semantic document search",
-                    "inputSchema": {
-                        "type": "object",
-                        "properties": {
-                            "query": {"type": "string", "description": "Search query"},
-                            "collection_id": {"type": "string", "description": "Collection to search in"},
-                            "limit": {"type": "integer", "description": "Maximum number of results", "default": 10}
-                        },
-                        "required": ["query"]
-                    }
-                },
-                {
-                    "name": "find_similar",
-                    "description": "Find similar documents",
-                    "inputSchema": {
-                        "type": "object",
-                        "properties": {
-                            "document_id": {"type": "string", "description": "Reference document ID"},
-                            "limit": {"type": "integer", "description": "Maximum number of results", "default": 5}
-                        },
-                        "required": ["document_id"]
-                    }
+        return [
+            {
+                "name": "semantic_search",
+                "description": "Perform semantic document search",
+                "parameters": {
+                    "query": "string - Search query",
+                    "collection_id": "string - Collection to search in",
+                    "limit": "integer - Maximum number of results (default: 10)"
                 }
-            ]
-        }
+            },
+            {
+                "name": "find_similar",
+                "description": "Find similar documents",
+                "parameters": {
+                    "document_id": "string - Reference document ID",
+                    "limit": "integer - Maximum number of results (default: 5)"
+                }
+            }
+        ]
 
     def get_status(self) -> Dict[str, Any]:
         """Get the current status of the agent"""
@@ -110,7 +100,8 @@ class VectorSearchAgent(AgentInterface):
             "status": self.status,
             "agent_id": self.agent_id,
             "name": self.name,
-            "category": self.category
+            "category": self.category,
+            "capabilities": self.get_capabilities()
         }
 
     async def _semantic_search(self, query: str, collection_id: Optional[str], limit: int) -> Dict[str, Any]:

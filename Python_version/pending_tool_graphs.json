@@ -1,0 +1,641 @@
+{
+  "36723659-80ef-4999-a502-4243430ed382": {
+    "id": "36723659-80ef-4999-a502-4243430ed382",
+    "query": "Find all employees in Engineering department who earn more than the average salary",
+    "task_graph": [
+      {
+        "id": "task1",
+        "query": "This will be a data operation. I will filter the original dataset to include only records where the department is \"Engineering\". (produces: filtered_data)",
+        "depends_on": [],
+        "input": {},
+        "output": "filtered_data",
+        "code": "def filter_by_department(data, kwargs):\n    return [record for record in data if record.get(kwargs['departmentVar']) == kwargs['departmentValueVar']]",
+        "kwargs": {
+          "departmentVar": "department",
+          "departmentValueVar": "Engineering"
+        },
+        "executedoutput": [
+          {
+            "id": 1,
+            "name": "Alice",
+            "age": 25,
+            "salary": 50000,
+            "department": "Engineering"
+          },
+          {
+            "id": 3,
+            "name": "Charlie",
+            "age": 35,
+            "salary": 70000,
+            "department": "Engineering"
+          },
+          {
+            "id": 5,
+            "name": "Eve",
+            "age": 32,
+            "salary": 65000,
+            "department": "Engineering"
+          },
+          {
+            "id": 8,
+            "name": "Henry",
+            "age": 27,
+            "salary": 48000,
+            "department": "Engineering"
+          }
+        ],
+        "perceived_query": "Filter/Transform/Process the data to include only records where the department is \"Engineering\" and output the resulting dataset"
+      },
+      {
+        "id": "task2",
+        "query": "This will be a variable creation. I will calculate the average salary from the filtered dataset from step 1. (needs: data from step 1; produces: average_salary)",
+        "depends_on": [
+          "task1"
+        ],
+        "input": {},
+        "output": "average_salary",
+        "code": "def calculate_average(filtered_data, kwargs):\n    if not filtered_data:\n        return 0\n    total_value = 0\n    count = 0\n    for record in filtered_data:\n        value = record.get(kwargs['valueVar'])\n        if value is not None:\n            total_value += value\n            count += 1\n    return total_value / count if count > 0 else 0",
+        "kwargs": {
+          "valueVar": "salary"
+        },
+        "executedoutput": 58250.0,
+        "perceived_query": "Calculate the average salary from the filtered_data dataset and output only the numeric value"
+      },
+      {
+        "id": "task3",
+        "query": "This will be a data operation. I will filter the dataset from step 1 to include only records where the salary is greater than the average_salary variable from step 2. (needs: data from step 1, only variable average_salary from step 2; produces: final_comparison)",
+        "depends_on": [
+          "task1"
+        ],
+        "input": {},
+        "output": "final_comparison",
+        "code": "def generalized_filter(data, kwargs):\n    final_comparison = []\n    \n    for record in data:\n        # Safely access the specified field inside each record\n        field_value = record.get(kwargs['fieldVar'])\n        if field_value is not None:\n            # Convert field_value to integer for comparison\n            try:\n                field_value = int(field_value)\n            except ValueError:\n                continue\n            \n            # Append to final_comparison if field_value is greater than threshold\n            if field_value > kwargs['thresholdVar']:\n                final_comparison.append(record)\n\n    return final_comparison",
+        "kwargs": {
+          "fieldVar": "salary",
+          "thresholdVar": "average_salary"
+        },
+        "executedoutput": [
+          {
+            "id": 3,
+            "name": "Charlie",
+            "age": 35,
+            "salary": 70000,
+            "department": "Engineering"
+          },
+          {
+            "id": 5,
+            "name": "Eve",
+            "age": 32,
+            "salary": 65000,
+            "department": "Engineering"
+          }
+        ],
+        "perceived_query": "Filter the filtered_data dataset to include only records where the salary is greater than the average_salary variable, which has already been created, and output the resulting dataset as final_comparison"
+      }
+    ],
+    "mergedFunction": {
+      "code": "def merged_function(data):\n    # Task 1: Filter by department\n    department_var = 'department'\n    department_value_var = 'Engineering'\n    filtered_data = [record for record in data if record.get(department_var) == department_value_var]\n\n    # Task 2: Calculate average salary\n    value_var = 'salary'\n    if not filtered_data:\n        average_salary = 0\n    else:\n        total_value = sum(record.get(value_var, 0) for record in filtered_data)\n        count = len(filtered_data)\n        average_salary = total_value / count if count > 0 else 0\n\n    # Task 3: Filter by salary greater than average\n    field_var = 'salary'\n    final_comparison = [\n        record for record in filtered_data\n        if record.get(field_var, 0) > average_salary\n    ]\n\n    return final_comparison\n",
+      "metadata": {
+        "originalTaskCount": 3,
+        "mergedFunctionName": "merged_function",
+        "dependenciesResolved": [
+          "task1",
+          "task2",
+          "task3"
+        ]
+      },
+      "output": [
+        {
+          "id": 3,
+          "name": "Charlie",
+          "age": 35,
+          "salary": 70000,
+          "department": "Engineering"
+        },
+        {
+          "id": 5,
+          "name": "Eve",
+          "age": 32,
+          "salary": 65000,
+          "department": "Engineering"
+        }
+      ],
+      "testSuccess": true,
+      "testError": null
+    },
+    "created_at": "2025-06-27T23:48:19.671686"
+  },
+  "a4b98f17-d3f7-48ee-ad29-825e4508b1be": {
+    "id": "a4b98f17-d3f7-48ee-ad29-825e4508b1be",
+    "query": "what are the largest total compensations in each city",
+    "task_graph": [
+      {
+        "id": "task1",
+        "query": "This will be a transformation. I will add a new field called \"total_compensation\" to each record, calculated as the sum of \"salary\" and \"bonus\". (produces: filtered_data)",
+        "depends_on": [],
+        "input": {},
+        "output": "filtered_data",
+        "code": "def process_dataset_with_compensation(data, kwargs):\n    for record in data:\n        salary = record.get(kwargs['salaryVar'], 0)\n        bonus = record.get(kwargs['bonusVar'], 0)\n        record[kwargs['newFieldVar']] = salary + bonus\n    return data",
+        "kwargs": {
+          "salaryVar": "salary",
+          "bonusVar": "bonus",
+          "newFieldVar": "total_compensation"
+        },
+        "executedoutput": [
+          {
+            "name": "Alice",
+            "age": 30,
+            "city": "New York",
+            "salary": 75000,
+            "bonus": 5000,
+            "total_compensation": 80000
+          },
+          {
+            "name": "Bob",
+            "age": 25,
+            "city": "San Francisco",
+            "salary": 85000,
+            "bonus": 3000,
+            "total_compensation": 88000
+          },
+          {
+            "name": "Charlie",
+            "age": 35,
+            "city": "Chicago",
+            "salary": 65000,
+            "bonus": 4000,
+            "total_compensation": 69000
+          },
+          {
+            "name": "Diana",
+            "age": 28,
+            "city": "Boston",
+            "salary": 70000,
+            "bonus": 2000,
+            "total_compensation": 72000
+          },
+          {
+            "name": "Eve",
+            "age": 32,
+            "city": "Seattle",
+            "salary": 90000,
+            "bonus": 8000,
+            "total_compensation": 98000
+          },
+          {
+            "name": "Frank",
+            "age": 29,
+            "city": "New York",
+            "salary": 80000,
+            "bonus": 5000,
+            "total_compensation": 85000
+          },
+          {
+            "name": "Grace",
+            "age": 31,
+            "city": "San Francisco",
+            "salary": 95000,
+            "bonus": 9000,
+            "total_compensation": 104000
+          },
+          {
+            "name": "Henry",
+            "age": 27,
+            "city": "Chicago",
+            "salary": 60000,
+            "bonus": 1500,
+            "total_compensation": 61500
+          },
+          {
+            "name": "Ivy",
+            "age": 33,
+            "city": "Boston",
+            "salary": 72000,
+            "bonus": 4000,
+            "total_compensation": 76000
+          },
+          {
+            "name": "Jack",
+            "age": 26,
+            "city": "Seattle",
+            "salary": 88000,
+            "bonus": 4500,
+            "total_compensation": 92500
+          },
+          {
+            "name": "Karen",
+            "age": 34,
+            "city": "New York",
+            "salary": 82000,
+            "bonus": 5500,
+            "total_compensation": 87500
+          },
+          {
+            "name": "Leo",
+            "age": 30,
+            "city": "San Francisco",
+            "salary": 91000,
+            "bonus": 7500,
+            "total_compensation": 98500
+          },
+          {
+            "name": "Mia",
+            "age": 29,
+            "city": "Chicago",
+            "salary": 67000,
+            "bonus": 3200,
+            "total_compensation": 70200
+          },
+          {
+            "name": "Nate",
+            "age": 36,
+            "city": "Boston",
+            "salary": 76000,
+            "bonus": 4100,
+            "total_compensation": 80100
+          },
+          {
+            "name": "Olivia",
+            "age": 28,
+            "city": "Seattle",
+            "salary": 87000,
+            "bonus": 6200,
+            "total_compensation": 93200
+          },
+          {
+            "name": "Paul",
+            "age": 31,
+            "city": "New York",
+            "salary": 83000,
+            "bonus": 5800,
+            "total_compensation": 88800
+          },
+          {
+            "name": "Quinn",
+            "age": 26,
+            "city": "San Francisco",
+            "salary": 94000,
+            "bonus": 8600,
+            "total_compensation": 102600
+          },
+          {
+            "name": "Rachel",
+            "age": 33,
+            "city": "Chicago",
+            "salary": 69000,
+            "bonus": 3700,
+            "total_compensation": 72700
+          },
+          {
+            "name": "Steve",
+            "age": 35,
+            "city": "Boston",
+            "salary": 74000,
+            "bonus": 2900,
+            "total_compensation": 76900
+          },
+          {
+            "name": "Tina",
+            "age": 27,
+            "city": "Seattle",
+            "salary": 91000,
+            "bonus": 7000,
+            "total_compensation": 98000
+          }
+        ],
+        "perceived_query": "Filter/Transform/Process the data to add a new field called 'total_compensation' to each record, calculated as the sum of 'salary' and 'bonus', and output the resulting dataset as filtered_data"
+      },
+      {
+        "id": "task2",
+        "query": "This will be an aggregation. I will group the dataset from step 1 by \"city\" and find the record with the largest \"total_compensation\" in each city. (needs: data from step 1; produces: final_comparison)",
+        "depends_on": [
+          "task1"
+        ],
+        "input": {},
+        "output": "final_comparison",
+        "code": "def process_records(data, kwargs):\n    result = {}\n    for record in data:\n        key_value = record.get(kwargs['groupFieldVar'])\n        comparison_value = record.get(kwargs['comparisonFieldVar'], 0)\n        \n        # Ensure comparison_value is an integer for comparison\n        comparison_value = int(comparison_value)\n        \n        if key_value not in result or comparison_value > result[key_value].get(kwargs['comparisonFieldVar'], 0):\n            result[key_value] = record\n            \n    return list(result.values())",
+        "kwargs": {
+          "groupFieldVar": "city",
+          "comparisonFieldVar": "total_compensation"
+        },
+        "executedoutput": [
+          {
+            "name": "Paul",
+            "age": 31,
+            "city": "New York",
+            "salary": 83000,
+            "bonus": 5800,
+            "total_compensation": 88800
+          },
+          {
+            "name": "Grace",
+            "age": 31,
+            "city": "San Francisco",
+            "salary": 95000,
+            "bonus": 9000,
+            "total_compensation": 104000
+          },
+          {
+            "name": "Rachel",
+            "age": 33,
+            "city": "Chicago",
+            "salary": 69000,
+            "bonus": 3700,
+            "total_compensation": 72700
+          },
+          {
+            "name": "Nate",
+            "age": 36,
+            "city": "Boston",
+            "salary": 76000,
+            "bonus": 4100,
+            "total_compensation": 80100
+          },
+          {
+            "name": "Eve",
+            "age": 32,
+            "city": "Seattle",
+            "salary": 90000,
+            "bonus": 8000,
+            "total_compensation": 98000
+          }
+        ],
+        "perceived_query": "Filter/Transform/Process the data to group the dataset by 'city' and find the record with the largest 'total_compensation' in each city, and output the resulting dataset as final_comparison"
+      }
+    ],
+    "mergedFunction": {
+      "code": "def merged_function(data):\n    # Step 1: Add 'total_compensation' to each record\n    for record in data:\n        salary = record.get('salary', 0)\n        bonus = record.get('bonus', 0)\n        record['total_compensation'] = salary + bonus\n\n    # Step 2: Group by 'city' and find the record with the largest 'total_compensation'\n    result = {}\n    for record in data:\n        city = record.get('city')\n        total_compensation = record.get('total_compensation', 0)\n        \n        # Ensure total_compensation is an integer for comparison\n        total_compensation = int(total_compensation)\n        \n        if city not in result or total_compensation > result[city].get('total_compensation', 0):\n            result[city] = record\n\n    return list(result.values())\n",
+      "metadata": {
+        "originalTaskCount": 2,
+        "mergedFunctionName": "merged_function",
+        "dependenciesResolved": [
+          "task1",
+          "task2"
+        ]
+      },
+      "output": [
+        {
+          "name": "Paul",
+          "age": 31,
+          "city": "New York",
+          "salary": 83000,
+          "bonus": 5800,
+          "total_compensation": 88800
+        },
+        {
+          "name": "Grace",
+          "age": 31,
+          "city": "San Francisco",
+          "salary": 95000,
+          "bonus": 9000,
+          "total_compensation": 104000
+        },
+        {
+          "name": "Rachel",
+          "age": 33,
+          "city": "Chicago",
+          "salary": 69000,
+          "bonus": 3700,
+          "total_compensation": 72700
+        },
+        {
+          "name": "Nate",
+          "age": 36,
+          "city": "Boston",
+          "salary": 76000,
+          "bonus": 4100,
+          "total_compensation": 80100
+        },
+        {
+          "name": "Eve",
+          "age": 32,
+          "city": "Seattle",
+          "salary": 90000,
+          "bonus": 8000,
+          "total_compensation": 98000
+        }
+      ],
+      "testSuccess": true,
+      "testError": null
+    },
+    "created_at": "2025-06-30T03:51:31.108507"
+  },
+  "b4961ed1-eb77-4460-b350-254d93badfb6": {
+    "id": "b4961ed1-eb77-4460-b350-254d93badfb6",
+    "query": "what is the correlation between age and total compensation",
+    "task_graph": [
+      {
+        "id": "task1",
+        "query": "This will be a transformation. I will calculate the total compensation for each record by summing the salary and bonus fields, and add this as a new field called total_compensation. (produces: filtered_data)",
+        "depends_on": [],
+        "input": {},
+        "output": "filtered_data",
+        "code": "def calculate_total_compensation(data, kwargs):\n    for item in data:\n        salary = item.get(kwargs['salaryFieldVar'], 0)\n        bonus = item.get(kwargs['bonusFieldVar'], 0)\n        total_compensation = salary + bonus\n        item[kwargs['outputFieldVar']] = total_compensation\n    return data",
+        "kwargs": {
+          "salaryFieldVar": "salary",
+          "bonusFieldVar": "bonus",
+          "outputFieldVar": "total_compensation"
+        },
+        "executedoutput": [
+          {
+            "name": "Alice",
+            "age": 30,
+            "city": "New York",
+            "salary": 75000,
+            "bonus": 5000,
+            "total_compensation": 80000
+          },
+          {
+            "name": "Bob",
+            "age": 25,
+            "city": "San Francisco",
+            "salary": 85000,
+            "bonus": 3000,
+            "total_compensation": 88000
+          },
+          {
+            "name": "Charlie",
+            "age": 35,
+            "city": "Chicago",
+            "salary": 65000,
+            "bonus": 4000,
+            "total_compensation": 69000
+          },
+          {
+            "name": "Diana",
+            "age": 28,
+            "city": "Boston",
+            "salary": 70000,
+            "bonus": 2000,
+            "total_compensation": 72000
+          },
+          {
+            "name": "Eve",
+            "age": 32,
+            "city": "Seattle",
+            "salary": 90000,
+            "bonus": 8000,
+            "total_compensation": 98000
+          },
+          {
+            "name": "Frank",
+            "age": 29,
+            "city": "New York",
+            "salary": 80000,
+            "bonus": 5000,
+            "total_compensation": 85000
+          },
+          {
+            "name": "Grace",
+            "age": 31,
+            "city": "San Francisco",
+            "salary": 95000,
+            "bonus": 9000,
+            "total_compensation": 104000
+          },
+          {
+            "name": "Henry",
+            "age": 27,
+            "city": "Chicago",
+            "salary": 60000,
+            "bonus": 1500,
+            "total_compensation": 61500
+          },
+          {
+            "name": "Ivy",
+            "age": 33,
+            "city": "Boston",
+            "salary": 72000,
+            "bonus": 4000,
+            "total_compensation": 76000
+          },
+          {
+            "name": "Jack",
+            "age": 26,
+            "city": "Seattle",
+            "salary": 88000,
+            "bonus": 4500,
+            "total_compensation": 92500
+          },
+          {
+            "name": "Karen",
+            "age": 34,
+            "city": "New York",
+            "salary": 82000,
+            "bonus": 5500,
+            "total_compensation": 87500
+          },
+          {
+            "name": "Leo",
+            "age": 30,
+            "city": "San Francisco",
+            "salary": 91000,
+            "bonus": 7500,
+            "total_compensation": 98500
+          },
+          {
+            "name": "Mia",
+            "age": 29,
+            "city": "Chicago",
+            "salary": 67000,
+            "bonus": 3200,
+            "total_compensation": 70200
+          },
+          {
+            "name": "Nate",
+            "age": 36,
+            "city": "Boston",
+            "salary": 76000,
+            "bonus": 4100,
+            "total_compensation": 80100
+          },
+          {
+            "name": "Olivia",
+            "age": 28,
+            "city": "Seattle",
+            "salary": 87000,
+            "bonus": 6200,
+            "total_compensation": 93200
+          },
+          {
+            "name": "Paul",
+            "age": 31,
+            "city": "New York",
+            "salary": 83000,
+            "bonus": 5800,
+            "total_compensation": 88800
+          },
+          {
+            "name": "Quinn",
+            "age": 26,
+            "city": "San Francisco",
+            "salary": 94000,
+            "bonus": 8600,
+            "total_compensation": 102600
+          },
+          {
+            "name": "Rachel",
+            "age": 33,
+            "city": "Chicago",
+            "salary": 69000,
+            "bonus": 3700,
+            "total_compensation": 72700
+          },
+          {
+            "name": "Steve",
+            "age": 35,
+            "city": "Boston",
+            "salary": 74000,
+            "bonus": 2900,
+            "total_compensation": 76900
+          },
+          {
+            "name": "Tina",
+            "age": 27,
+            "city": "Seattle",
+            "salary": 91000,
+            "bonus": 7000,
+            "total_compensation": 98000
+          }
+        ],
+        "perceived_query": "Filter/Transform/Process the data to calculate the total compensation for each record by summing the salary and bonus fields, add this as a new field called total_compensation, and output the resulting dataset as filtered_data"
+      },
+      {
+        "id": "task2",
+        "query": "This will be a complex operation. I will calculate the correlation between the age and total_compensation fields from the dataset produced in step 1. (needs: data from step 1; produces: final_comparison)",
+        "depends_on": [
+          "task1"
+        ],
+        "input": {},
+        "output": "final_comparison",
+        "code": "def calculate_correlation(data, kwargs):\n    import numpy as np\n\n    x_values = []\n    y_values = []\n\n    for entry in data:\n        try:\n            x_value = entry.get(kwargs['xFieldVar'])\n            y_value = entry.get(kwargs['yFieldVar'])\n            if x_value is not None and y_value is not None:\n                x_values.append(float(x_value))\n                y_values.append(float(y_value))\n        except ValueError:\n            continue\n\n    if len(x_values) > 1 and len(y_values) > 1:\n        correlation = np.corrcoef(x_values, y_values)[0, 1]\n    else:\n        correlation = None\n\n    return {kwargs['outputVar']: correlation}",
+        "kwargs": {
+          "xFieldVar": "age",
+          "yFieldVar": "total_compensation",
+          "outputVar": "final_comparison"
+        },
+        "executedoutput": {
+          "final_comparison": -0.2739330704930045
+        },
+        "perceived_query": "Filter/Transform/Process the data to calculate the correlation between the age and total_compensation fields from the dataset produced in step 1 and output the resulting dataset as final_comparison"
+      }
+    ],
+    "mergedFunction": {
+      "code": "def merged_function(data):\n    import numpy as np\n\n    # Task 1: Calculate total compensation\n    for item in data:\n        salary = item.get('salary', 0)\n        bonus = item.get('bonus', 0)\n        total_compensation = salary + bonus\n        item['total_compensation'] = total_compensation\n\n    # Task 2: Calculate correlation between age and total compensation\n    x_values = []\n    y_values = []\n\n    for entry in data:\n        try:\n            x_value = entry.get('age')\n            y_value = entry.get('total_compensation')\n            if x_value is not None and y_value is not None:\n                x_values.append(float(x_value))\n                y_values.append(float(y_value))\n        except ValueError:\n            continue\n\n    if len(x_values) > 1 and len(y_values) > 1:\n        correlation = np.corrcoef(x_values, y_values)[0, 1]\n    else:\n        correlation = None\n\n    return {'final_comparison': correlation}\n",
+      "metadata": {
+        "originalTaskCount": 2,
+        "mergedFunctionName": "merged_function",
+        "dependenciesResolved": [
+          "task1",
+          "task2"
+        ]
+      },
+      "output": {
+        "final_comparison": -0.2739330704930045
+      },
+      "testSuccess": true,
+      "testError": null
+    },
+    "created_at": "2025-06-30T04:23:57.222500"
+  }
+}

@@ -9,3 +9,31 @@ Relation Extraction (RE)
 Quadruple Construction (s, p, o, source/context)
     ↓
 RDF-ready output
+
+
+Test kg pipeline in docs with:
+
+POST /execute/Knowledge Graph Agent/process_file_to_ner
+
+{
+  "command": "process_file_to_ner",
+  "file_path": "/app/sunworld_test_data/ss1.docx",
+  "auto_detect_type": true,
+  "entity_types": [
+    "PERSON",
+    "ORGANIZATION",
+    "MONEY",
+    "DATE",
+    "LOCATION",
+    "PRODUCT",
+    "JOB_TITLE"
+  ],
+  "ner_confidence_threshold": 0.8,
+  "re_confidence_threshold": 0.7,
+  "enable_linking": true,
+  "enable_logging": true,
+  "log_file_name": "ner_re_test1.log"
+}
+
+
+check logs after.

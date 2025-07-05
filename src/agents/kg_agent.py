@@ -28,6 +28,7 @@ from .tools.extract_triples import ExtractTriplesTool
 from .tools.detect_document_tool import DetectDocumentTool
 from .tools.ner_el_tool import NEREntityLinkingTool
 from .tools.preprocess_document_tool import PreprocessDocumentTool
+from .tools.relation_extraction_tool import RelationExtractionTool
 from ..services.neo4j_service import Neo4jService
 from uuid import UUID
 
@@ -60,6 +61,9 @@ class KnowledgeGraphAgent(AgentInterface):
 
         # Add NER+EL tool
         self._tools["run_ner_el"] = NEREntityLinkingTool()
+
+        # Add relation extraction tool
+        self._tools["run_relation_extraction"] = RelationExtractionTool()
 
     @property
     def agent_id_str(self) -> str:
@@ -160,13 +164,15 @@ class KnowledgeGraphAgent(AgentInterface):
             },
             {
                 "name": "run_relation_extraction",
-                "description": "Extract relationships between entities from preprocessed text",
+                "description": "Extract comprehensive relationships from preprocessed text using GPT-4o with rich metadata for RDF quadruples",
                 "parameters": {
                     "text": "Preprocessed text content (required)",
-                    "entities": "List of entities from NER (optional, will auto-detect if not provided)",
-                    "relation_types": "List of relation types to extract (optional)",
+                    "relation_types": "List of specific relation types to focus on (optional, default: extracts all types)",
                     "confidence_threshold": "Minimum confidence score for relations (0.0-1.0, default: 0.7)",
-                    "max_relations": "Maximum number of relations to extract (default: 100)",
+                    "chunk_size": "Size of text chunks for processing (default: 2000)",
+                    "enable_logging": "Whether to log query and output to file (default: false)",
+                    "log_file_path": "Directory path for log files (default: '/app/logs')",
+                    "log_file_name": "Custom log file name (optional, auto-generated if not provided)",
                 },
             },
             {
@@ -181,13 +187,15 @@ class KnowledgeGraphAgent(AgentInterface):
             },
             {
                 "name": "process_file_to_ner",
-                "description": "Complete pipeline: takes a file, preprocesses it, and extracts entities using NER+EL",
+                "description": "Complete pipeline: takes a file, preprocesses it, extracts entities using NER+EL, and extracts relationships using RE",
                 "parameters": {
                     "file_path": "Path to the file to process (required)",
                     "auto_detect_type": "Whether to auto-detect document type (default: true)",
                     "document_type": "Manual document type override (optional, use if auto_detect_type is false)",
                     "entity_types": "List of entity types to extract (optional, default: ['PERSON', 'ORGANIZATION', 'LOCATION', 'DATE', 'MONEY'])",
-                    "confidence_threshold": "Minimum confidence score for entities (0.0-1.0, default: 0.8)",
+                    "relation_types": "List of relation types to focus on (optional, default: extracts all types)",
+                    "ner_confidence_threshold": "Minimum confidence score for entities (0.0-1.0, default: 0.8)",
+                    "re_confidence_threshold": "Minimum confidence score for relations (0.0-1.0, default: 0.7)",
                     "enable_linking": "Whether to perform entity linking (default: true)",
                     "remove_stopwords": "Whether to remove stopwords during preprocessing (default: false)",
                     "normalize_text": "Whether to normalize text during preprocessing (default: true)",
@@ -369,19 +377,36 @@ class KnowledgeGraphAgent(AgentInterface):
             return {"status": "error", "message": f"Error running NER+EL: {str(e)}"}
 
     async def _run_relation_extraction(self, request: Dict[str, Any]) -> Dict[str, Any]:
-        """Extract relationships between entities from preprocessed text."""
+        """Extract relationships between entities from preprocessed text using GPT-4o."""
         try:
             text = request.get("text", "")
+            relation_types = request.get("relation_types", [])
+            confidence_threshold = request.get("confidence_threshold", 0.7)
+            chunk_size = request.get("chunk_size", 2000)
+            enable_logging = request.get("enable_logging", False)
+            log_file_path = request.get("log_file_path", "/app/logs")
+            log_file_name = request.get("log_file_name", "")
 
             if not text:
                 return {"error": "Missing text parameter"}
 
-            # Placeholder implementation
-            result = {
-                "relations": [],
-                "total_found": 0,
-                "message": "Placeholder implementation",
+            # Use the relation extraction tool
+            tool_args = {
+                "preprocessed_content": text,
+                "relation_types": relation_types,
+                "confidence_threshold": confidence_threshold,
+                "chunk_size": chunk_size,
+                "enable_logging": enable_logging,
+                "log_file_path": log_file_path,
             }
+
+            # Add log file name if provided
+            if log_file_name:
+                tool_args["log_file_name"] = log_file_name
+
+            result = await self._tools["run_relation_extraction"].execute_tool(
+                tool_args
+            )
 
             return {"status": "success", "data": result}
 
@@ -429,7 +454,9 @@ class KnowledgeGraphAgent(AgentInterface):
             entity_types = request.get(
                 "entity_types", ["PERSON", "ORGANIZATION", "LOCATION", "DATE", "MONEY"]
             )
-            confidence_threshold = request.get("confidence_threshold", 0.8)
+            relation_types = request.get("relation_types", [])
+            ner_confidence_threshold = request.get("ner_confidence_threshold", 0.8)
+            re_confidence_threshold = request.get("re_confidence_threshold", 0.7)
             enable_linking = request.get("enable_linking", True)
             remove_stopwords = request.get("remove_stopwords", False)
             normalize_text = request.get("normalize_text", True)
@@ -582,7 +609,7 @@ class KnowledgeGraphAgent(AgentInterface):
                 "command": "run_ner_el",
                 "text": preprocessed_content,
                 "entity_types": entity_types,
-                "confidence_threshold": confidence_threshold,
+                "confidence_threshold": ner_confidence_threshold,
                 "enable_linking": enable_linking,
                 "enable_logging": enable_logging,
                 "log_file_path": log_file_path,
@@ -655,6 +682,86 @@ class KnowledgeGraphAgent(AgentInterface):
                 f"NER+EL completed: {ner_data.get('total_entities', 0)} entities found"
             )
 
+            # Step 4: Relation Extraction
+            logger.info("Step 4: Running Relation Extraction...")
+            step_start = time.time()
+
+            re_request = {
+                "command": "run_relation_extraction",
+                "text": preprocessed_content,
+                "relation_types": relation_types,
+                "confidence_threshold": re_confidence_threshold,
+                "enable_logging": enable_logging,
+                "log_file_path": log_file_path,
+            }
+
+            # Add custom log file name if provided
+            if log_file_name:
+                re_request["log_file_name"] = log_file_name
+
+            re_result = await self.process_request(re_request)
+            step_time = time.time() - step_start
+            pipeline_results["processing_time"]["relation_extraction"] = step_time
+
+            # Handle different response formats for RE
+            if isinstance(re_result, dict):
+                if "status" in re_result:
+                    # Standard wrapped response
+                    if re_result["status"] != "success":
+                        return {
+                            "status": "error",
+                            "message": f"Relation extraction failed: {re_result.get('message', 'Unknown error')}",
+                            "pipeline_results": pipeline_results,
+                        }
+                    re_data = re_result["data"]
+                elif "success" in re_result:
+                    # Direct tool response format
+                    if not re_result["success"]:
+                        return {
+                            "status": "error",
+                            "message": f"Relation extraction failed: {re_result.get('error', 'Unknown error')}",
+                            "pipeline_results": pipeline_results,
+                        }
+                    re_data = re_result
+                else:
+                    # Unexpected format
+                    return {
+                        "status": "error",
+                        "message": f"Relation extraction returned unexpected format: {re_result}",
+                        "pipeline_results": pipeline_results,
+                    }
+            else:
+                return {
+                    "status": "error",
+                    "message": f"Relation extraction returned non-dict result: {type(re_result)}",
+                    "pipeline_results": pipeline_results,
+                }
+
+            pipeline_results["steps_completed"].append(
+                {
+                    "step": "relation_extraction",
+                    "result": {
+                        "total_relationships": re_data.get("total_found", 0),
+                        "high_confidence_relationships": re_data.get(
+                            "processing_stats", {}
+                        ).get("high_confidence_relationships", 0),
+                        "relationship_types": list(
+                            re_data.get("metadata", {})
+                            .get("relationship_types", {})
+                            .keys()
+                        ),
+                        "processing_errors": re_data.get("processing_stats", {}).get(
+                            "processing_errors", 0
+                        ),
+                    },
+                    "processing_time": step_time,
+                }
+            )
+
+            logger.info(
+                f"Relation extraction completed: {re_data.get('total_found', 0)} relationships found"
+            )
+
             # Calculate total processing time
             total_time = sum(pipeline_results["processing_time"].values())
             pipeline_results["total_processing_time"] = total_time
@@ -662,11 +769,19 @@ class KnowledgeGraphAgent(AgentInterface):
             # Prepare final result
             final_result = {
                 "entities": ner_data.get("entities", []),
-                "relationships": ner_data.get("relationships", []),
-                "statistics": ner_data.get("statistics", {}),
+                "ner_relationships": ner_data.get("relationships", []),
+                "extracted_relationships": re_data.get("relationships", []),
+                "statistics": {
+                    "ner_stats": ner_data.get("statistics", {}),
+                    "re_stats": re_data.get("processing_stats", {}),
+                },
                 "entity_types_found": ner_data.get("entity_types_found", []),
                 "total_entities": ner_data.get("total_entities", 0),
                 "high_confidence_entities": ner_data.get("high_confidence_entities", 0),
+                "total_relationships": re_data.get("total_found", 0),
+                "high_confidence_relationships": re_data.get(
+                    "processing_stats", {}
+                ).get("high_confidence_relationships", 0),
                 "pipeline_metadata": {
                     "file_path": file_path,
                     "document_type": document_type,
@@ -678,15 +793,15 @@ class KnowledgeGraphAgent(AgentInterface):
             }
 
             logger.info(
-                f"File-to-NER pipeline completed successfully in {total_time:.2f}s"
+                f"File-to-NER-RE pipeline completed successfully in {total_time:.2f}s"
             )
             return {"status": "success", "data": final_result}
 
         except Exception as e:
-            logger.error(f"Error in file-to-NER pipeline: {str(e)}")
+            logger.error(f"Error in file-to-NER-RE pipeline: {str(e)}")
             return {
                 "status": "error",
-                "message": f"File-to-NER pipeline failed: {str(e)}",
+                "message": f"File-to-NER-RE pipeline failed: {str(e)}",
                 "pipeline_results": (
                     pipeline_results if "pipeline_results" in locals() else {}
                 ),

@@ -1,0 +1,11 @@
+Raw Document (structured / semi / unstructured)
+    ↓
+Document Preprocessing (cleaning, normalization)
+    ↓
+Named Entity Recognition (NER) + Entity Linking (EL)
+    ↓
+Relation Extraction (RE)
+    ↓
+Quadruple Construction (s, p, o, source/context)
+    ↓
+RDF-ready output

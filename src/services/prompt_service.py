@@ -15,11 +15,14 @@ Max calls: 3 (vs 27 in original system)
 import json
 from typing import Dict, List, Any, Optional
 
+
 class PromptService:
     """Service for managing simplified dynamic prompt templates"""
 
     @staticmethod
-    def get_complexity_assessment_prompt(query: str, data_sample: List[Dict[str, Any]]) -> Dict[str, str]:
+    def get_complexity_assessment_prompt(
+        query: str, data_sample: List[Dict[str, Any]]
+    ) -> Dict[str, str]:
         """
         PROMPT 1: Assess query complexity and determine processing path
         Routes queries to either simple direct generation or complex analysis path.
@@ -76,13 +79,12 @@ Data sample:
 Classify the complexity and provide reasoning.
 """
 
-        return {
-            "system": system_prompt.strip(),
-            "user": user_prompt.strip()
-        }
+        return {"system": system_prompt.strip(), "user": user_prompt.strip()}
 
     @staticmethod
-    def get_direct_generation_prompt(query: str, data_sample: List[Dict[str, Any]]) -> Dict[str, str]:
+    def get_direct_generation_prompt(
+        query: str, data_sample: List[Dict[str, Any]]
+    ) -> Dict[str, str]:
         """
         PROMPT 2A: Direct code generation for simple queries
         Generates complete solution in one step for straightforward queries.
@@ -136,13 +138,12 @@ Generate a complete function that processes this data according to the query.
 Include the kwargs documentation comment.
 """
 
-        return {
-            "system": system_prompt.strip(),
-            "user": user_prompt.strip()
-        }
+        return {"system": system_prompt.strip(), "user": user_prompt.strip()}
 
     @staticmethod
-    def get_analyze_and_plan_prompt(query: str, data_sample: List[Dict[str, Any]]) -> Dict[str, str]:
+    def get_analyze_and_plan_prompt(
+        query: str, data_sample: List[Dict[str, Any]]
+    ) -> Dict[str, str]:
         """
         PROMPT 2B: Analyze complex query and create execution plan
         Breaks down complex queries for understanding while planning holistic execution.
@@ -188,16 +189,11 @@ Data structure:
 Analyze this query and create a comprehensive execution plan.
 """
 
-        return {
-            "system": system_prompt.strip(),
-            "user": user_prompt.strip()
-        }
+        return {"system": system_prompt.strip(), "user": user_prompt.strip()}
 
     @staticmethod
     def get_complete_solution_prompt(
-        query: str,
-        data_sample: List[Dict[str, Any]],
-        analysis: Dict[str, Any]
+        query: str, data_sample: List[Dict[str, Any]], analysis: Dict[str, Any]
     ) -> Dict[str, str]:
         """
         PROMPT 3: Generate complete solution for complex queries
@@ -257,16 +253,11 @@ Analysis:
 Generate a complete function that implements this complex query using the analysis.
 """
 
-        return {
-            "system": system_prompt.strip(),
-            "user": user_prompt.strip()
-        }
+        return {"system": system_prompt.strip(), "user": user_prompt.strip()}
 
     @staticmethod
     def get_parameterize_and_document_prompt(
-        query: str,
-        function_code: str,
-        data_sample: List[Dict[str, Any]]
+        query: str, function_code: str, data_sample: List[Dict[str, Any]]
     ) -> Dict[str, str]:
         """
         PROMPT 4: Add parameters and metadata to generated function
@@ -316,7 +307,4 @@ Data structure:
 Extract kwargs and generate metadata for this function.
 """
 
-        return {
-            "system": system_prompt.strip(),
-            "user": user_prompt.strip()
-        }
+        return {"system": system_prompt.strip(), "user": user_prompt.strip()}

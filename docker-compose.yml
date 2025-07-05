@@ -15,6 +15,7 @@ services:
     volumes:
       - ./generated_tools:/app/generated_tools
       - ./logs:/app/logs
+      - ./sunworld_test_data:/app/sunworld_test_data
     # depends_on:
     #   - db
     restart: unless-stopped

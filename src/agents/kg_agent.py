@@ -17,7 +17,7 @@ Additional tools to be implemented:
 
 How tools work:
 1. Discovery: client hits /agents/discover to get a list of agents with basic info and tools available
-	- agentdiscoveryrequest with filters. each agent returns tools via .get_tools()
+        - agentdiscoveryrequest with filters. each agent returns tools via .get_tools()
 2. Tool discovery:
 """
 
@@ -25,231 +25,337 @@ import logging
 from typing import Dict, List, Any, Optional
 from ..interfaces.agent import AgentInterface
 from .tools.extract_triples import ExtractTriplesTool
+from .tools.detect_document_tool import DetectDocumentTool
 from ..services.neo4j_service import Neo4jService
 import uuid
 from uuid import UUID
 
 logger = logging.getLogger(__name__)
 
+
 class KnowledgeGraphAgent(AgentInterface):
-	"""Knowledge graph agent for triple extraction and graph operations"""
+    """Knowledge graph agent for triple extraction and graph operations"""
 
-	def __init__(self):
-		self._agent_id_str = "knowledge_graph"
-		self._uuid = None
-		self.agent_id = "knowledge_graph"
-		self._name = "Knowledge Graph Agent"
-		self._description = "Extract triples from data and perform graph operations"
-		self._initialized = False
-		self.category = "knowledge_management"
-		self.status = "initialized"
-		self._tools = {}
-		self._graphdb_= Neo4jService()
+    def __init__(self):
+        self._agent_id_str = "knowledge_graph"
+        self._uuid = None
+        self.agent_id = "knowledge_graph"
+        self._name = "Knowledge Graph Agent"
+        self._description = "Extract triples from data and perform graph operations"
+        self._initialized = False
+        self.category = "knowledge_management"
+        self.status = "initialized"
+        self._tools = {}
+        self._graphdb_ = Neo4jService()
 
-		# Add extract_triples tool
-		self._tools["extract_triples"] = ExtractTriplesTool()
+        # Add extract_triples tool
+        self._tools["extract_triples"] = ExtractTriplesTool()
 
-	@property
-	def agent_id_str(self) -> str:
-		return self._agent_id_str
+        # Add detect_document_type tool
+        self._tools["detect_document_type"] = DetectDocumentTool()
 
-	@property
-	def uuid(self) -> UUID:
-		if self._uuid is None:
-			raise ValueError("UUID has not been set yet.")
-		return self._uuid
+    @property
+    def agent_id_str(self) -> str:
+        return self._agent_id_str
 
-	@uuid.setter
-	def uuid(self, value: UUID):
-		if self._uuid is not None:
-			raise ValueError("UUID can only be set once.")
-		self._uuid = value
+    @property
+    def uuid(self) -> UUID:
+        if self._uuid is None:
+            raise ValueError("UUID has not been set yet.")
+        return self._uuid
 
-	@property
-	def name(self) -> str:
-		"""Agent's unique identifier."""
-		return self._name
+    @uuid.setter
+    def uuid(self, value: UUID):
+        if self._uuid is not None:
+            raise ValueError("UUID can only be set once.")
+        self._uuid = value
 
-	@property
-	def description(self) -> str:
-		"""Brief description of the agent's purpose."""
-		return self._description
+    @property
+    def name(self) -> str:
+        """Agent's unique identifier."""
+        return self._name
 
-	async def initialize(self, config: Dict[str, Any]) -> None:
-		"""Initialize the agent with configuration."""
-		# Initialize tools if needed
-		for tool_name, tool in self._tools.items():
-			if hasattr(tool, 'initialize'):
-				await tool.initialize(config)
+    @property
+    def description(self) -> str:
+        """KG Agent will extract triples from text data and insert them into the graph database."""
+        return self._description
 
-		self._initialized = True
-		logger.info("KnowledgeGraphAgent initialized successfully")
+    async def initialize(self, config: Dict[str, Any]) -> None:
+        """Initialize the agent with configuration."""
+        # Initialize tools if needed
+        for tool_name, tool in self._tools.items():
+            if hasattr(tool, "initialize"):
+                await tool.initialize(config)
 
+        self._initialized = True
+        logger.info("KnowledgeGraphAgent initialized successfully")
 
-	async def process_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
-		"""Process incoming requests through the agent."""
-		if not self._initialized:
-			return {"error": "Agent not initialized"}
+    async def shutdown(self) -> None:
+        """Clean up resources when shutting down."""
+        self._initialized = False
+        logger.info("KnowledgeGraphAgent shutdown complete")
 
-		command = request.get("command", "")
+    def get_status(self) -> Dict[str, Any]:
+        """Return agent's current status."""
+        return {
+            "initialized": self._initialized,
+            "healthy": self._initialized,
+            "tools_available": list(self._tools.keys()),
+            "capabilities": self.get_capabilities(),
+        }
 
-		if command == "extract_triples":
-			return await self._extract_triples(request)
-		elif command == "find_relationships":
-			return await self._find_relationships(request)
-		elif command == "traverse_graph":
-			return await self._traverse_graph(request)
-		else:
-			return {
-				"error": f"Unknown command: {command}",
-				"available_commands": ["extract_triples", "find_relationships", "traverse_graph"]
-			}
+    def get_capabilities(self) -> List[Dict[str, Any]]:
+        """Return agent's capabilities."""
+        return [
+            {
+                "name": "extract_triples",
+                "description": "Extract triples (subject-predicate-object relationships) from unstructured text",
+                "parameters": {
+                    "text": "Text to extract triples from (required)",
+                    "confidence_threshold": "Minimum confidence score for triples (0.0-1.0, default: 0.7)",
+                    "max_triples": "Maximum number of triples to extract (default: 100)",
+                },
+            },
+            {
+                "name": "detect_document_type",
+                "description": "Detect document type with 7-point structure classification: highly_structured, structured, moderately_structured, semi_structured, lightly_structured, unstructured, highly_unstructured, plus scanned detection",
+                "parameters": {
+                    "document_content": "Document content or file path (required)",
+                    "content_type": "MIME type hint (optional)",
+                    "filename": "Original filename for extension-based detection (optional)",
+                    "file_path": "Path to the file for analysis (optional, alternative to document_content)",
+                },
+            },
+            {
+                "name": "preprocess_document",
+                "description": "Clean and preprocess document content for knowledge extraction",
+                "parameters": {
+                    "document_content": "Raw document content (required)",
+                    "document_type": "Document type from detect_document_type (required)",
+                    "remove_stopwords": "Whether to remove stopwords (default: false)",
+                    "normalize_text": "Whether to normalize text (default: true)",
+                },
+            },
+            {
+                "name": "run_ner_el",
+                "description": "Perform Named Entity Recognition and Entity Linking on preprocessed text",
+                "parameters": {
+                    "text": "Preprocessed text content (required)",
+                    "entity_types": "List of entity types to extract (optional, default: ['PERSON', 'ORG', 'GPE', 'PRODUCT'])",
+                    "confidence_threshold": "Minimum confidence score for entities (0.0-1.0, default: 0.8)",
+                    "max_entities": "Maximum number of entities to extract (default: 50)",
+                },
+            },
+            {
+                "name": "run_relation_extraction",
+                "description": "Extract relationships between entities from preprocessed text",
+                "parameters": {
+                    "text": "Preprocessed text content (required)",
+                    "entities": "List of entities from NER (optional, will auto-detect if not provided)",
+                    "relation_types": "List of relation types to extract (optional)",
+                    "confidence_threshold": "Minimum confidence score for relations (0.0-1.0, default: 0.7)",
+                    "max_relations": "Maximum number of relations to extract (default: 100)",
+                },
+            },
+            {
+                "name": "create_quadruples",
+                "description": "Create quadruples from relation extraction and NER+EL results",
+                "parameters": {
+                    "relations": "List of relations from run_relation_extraction (required)",
+                    "entities": "List of entities from run_ner_el (required)",
+                    "confidence_threshold": "Minimum confidence score for quadruples (0.0-1.0, default: 0.7)",
+                    "max_quadruples": "Maximum number of quadruples to create (default: 100)",
+                },
+            },
+        ]
 
-	async def _extract_triples(self, request: Dict[str, Any]) -> Dict[str, Any]:
-		"""Extract triples from text data."""
-		try:
-			text = request.get("text", "")
-			confidence_threshold = request.get("confidence_threshold", 0.7)
-			max_triples = request.get("max_triples", 100)
+    async def process_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
+        """Process incoming requests through the agent."""
+        if not self._initialized:
+            return {"error": "Agent not initialized"}
 
-			if not text:
-				return {"error": "Missing text parameter"}
+        command = request.get("command", "")
 
-			# Use the extract_triples tool
-			result = await self._tools["extract_triples"].execute_tool({
-				"text": text,
-				"confidence_threshold": confidence_threshold,
-				"max_triples": max_triples
-			})
+        if command == "extract_triples":
+            return await self._extract_triples(request)
+        elif command == "detect_document_type":
+            return await self._detect_document_type(request)
+        elif command == "preprocess_document":
+            return await self._preprocess_document(request)
+        elif command == "run_ner_el":
+            return await self._run_ner_el(request)
+        elif command == "run_relation_extraction":
+            return await self._run_relation_extraction(request)
+        elif command == "create_quadruples":
+            return await self._create_quadruples(request)
+        else:
+            return {
+                "error": f"Unknown command: {command}",
+                "available_commands": [
+                    "extract_triples",
+                    "detect_document_type",
+                    "preprocess_document",
+                    "run_ner_el",
+                    "run_relation_extraction",
+                    "create_quadruples",
+                ],
+            }
 
-			# Insert triples into Neo4j if extraction was successful
-			triples = result.get("triples", [])
-			if triples:
-				self._graphdb_.insert_triples(triples)
+    async def _extract_triples(self, request: Dict[str, Any]) -> Dict[str, Any]:
+        """Extract triples from text data."""
+        try:
+            text = request.get("text", "")
+            confidence_threshold = request.get("confidence_threshold", 0.7)
+            max_triples = request.get("max_triples", 100)
 
-			return {
-				"status": "success",
-				"data": result
-			}
+            if not text:
+                return {"error": "Missing text parameter"}
 
-		except Exception as e:
-			logger.error(f"Error extracting triples: {str(e)}")
-			return {
-				"status": "error",
-				"message": f"Error extracting triples: {str(e)}"
-			}
+            # Use the extract_triples tool
+            result = await self._tools["extract_triples"].execute_tool(
+                {
+                    "text": text,
+                    "confidence_threshold": confidence_threshold,
+                    "max_triples": max_triples,
+                }
+            )
 
-	async def _find_relationships(self, request: Dict[str, Any]) -> Dict[str, Any]:
-		"""Find relationships between entities."""
-		try:
-			entity = request.get("entity", "")
-			relationship_type = request.get("relationship_type", "any")
-			depth = request.get("depth", 2)
+            # Insert triples into Neo4j if extraction was successful
+            triples = result.get("triples", [])
+            if triples:
+                self._graphdb_.insert_triples(triples)
 
-			if not entity:
-				return {"error": "Missing entity parameter"}
+            return {"status": "success", "data": result}
 
-			# Placeholder implementation
-			return {
-				"status": "success",
-				"data": {
-					"entity": entity,
-					"relationships": [
-						{
-							"type": "related_to",
-							"target": f"Related Entity 1 to {entity}",
-							"strength": 0.9
-						},
-						{
-							"type": "part_of",
-							"target": f"Parent Entity of {entity}",
-							"strength": 0.8
-						}
-					],
-					"depth_searched": depth
-				}
-			}
+        except Exception as e:
+            logger.error(f"Error extracting triples: {str(e)}")
+            return {"status": "error", "message": f"Error extracting triples: {str(e)}"}
 
-		except Exception as e:
-			logger.error(f"Error finding relationships: {str(e)}")
-			return {
-				"status": "error",
-				"message": f"Error finding relationships: {str(e)}"
-			}
+    async def _detect_document_type(self, request: Dict[str, Any]) -> Dict[str, Any]:
+        """Detect document type from content, filename, or MIME type."""
+        try:
+            document_content = request.get("document_content", "")
+            filename = request.get("filename", "")
+            content_type = request.get("content_type", "")
+            file_path = request.get("file_path", "")
 
-	async def _traverse_graph(self, request: Dict[str, Any]) -> Dict[str, Any]:
-		"""Traverse knowledge graph from starting point."""
-		try:
-			start_entity = request.get("start_entity", "")
-			end_entity = request.get("end_entity", "")
-			max_hops = request.get("max_hops", 3)
+            if not document_content and not file_path:
+                return {"error": "Missing document_content or file_path parameter"}
 
-			if not start_entity or not end_entity:
-				return {"error": "Missing start_entity or end_entity parameter"}
+            # Use the detect_document_type tool
+            result = await self._tools["detect_document_type"].execute_tool(
+                {
+                    "document_content": document_content,
+                    "filename": filename,
+                    "content_type": content_type,
+                    "file_path": file_path,
+                }
+            )
 
-			# Placeholder implementation
-			return {
-				"status": "success",
-				"data": {
-					"path": [
-						{"entity": start_entity, "hop": 0},
-						{"entity": f"Intermediate Entity", "hop": 1},
-						{"entity": end_entity, "hop": 2}
-					],
-					"path_length": 2,
-					"confidence": 0.85
-				}
-			}
+            return {"status": "success", "data": result}
 
-		except Exception as e:
-			logger.error(f"Error traversing graph: {str(e)}")
-			return {
-				"status": "error",
-				"message": f"Error traversing graph: {str(e)}"
-			}
+        except Exception as e:
+            logger.error(f"Error detecting document type: {str(e)}")
+            return {
+                "status": "error",
+                "message": f"Error detecting document type: {str(e)}",
+            }
 
-	async def shutdown(self) -> None:
-		"""Clean up resources when shutting down."""
-		self._initialized = False
-		logger.info("KnowledgeGraphAgent shutdown complete")
+    async def _preprocess_document(self, request: Dict[str, Any]) -> Dict[str, Any]:
+        """Preprocess document content for knowledge extraction."""
+        try:
+            document_content = request.get("document_content", "")
+            document_type = request.get("document_type", "")
 
-	def get_capabilities(self) -> List[Dict[str, Any]]:
-		"""Return agent's capabilities."""
-		return [
-			{
-				"name": "extract_triples",
-				"description": "Extract triples (subject-predicate-object relationships) from unstructured text",
-				"parameters": {
-					"text": "Text to extract triples from (required)",
-					"confidence_threshold": "Minimum confidence score for triples (0.0-1.0, default: 0.7)",
-					"max_triples": "Maximum number of triples to extract (default: 100)"
-				}
-			},
-			{
-				"name": "find_relationships",
-				"description": "Find relationships between entities in the knowledge graph",
-				"parameters": {
-					"entity": "Entity to find relationships for (required)",
-					"relationship_type": "Type of relationship to find (default: 'any')",
-					"depth": "Search depth in the graph (default: 2)"
-				}
-			},
-			{
-				"name": "traverse_graph",
-				"description": "Traverse knowledge graph from starting point to target entity",
-				"parameters": {
-					"start_entity": "Starting entity (required)",
-					"end_entity": "Target entity (required)",
-					"max_hops": "Maximum number of hops allowed (default: 3)"
-				}
-			}
-		]
+            if not document_content:
+                return {"error": "Missing document_content parameter"}
 
-	def get_status(self) -> Dict[str, Any]:
-		"""Return agent's current status."""
-		return {
-			"initialized": self._initialized,
-			"healthy": self._initialized,
-			"tools_available": list(self._tools.keys()),
-			"capabilities": self.get_capabilities()
-		}
+            if not document_type:
+                return {"error": "Missing document_type parameter"}
+
+            # Placeholder implementation
+            result = {
+                "processed_content": document_content,
+                "message": "Placeholder implementation",
+            }
+
+            return {"status": "success", "data": result}
+
+        except Exception as e:
+            logger.error(f"Error preprocessing document: {str(e)}")
+            return {
+                "status": "error",
+                "message": f"Error preprocessing document: {str(e)}",
+            }
+
+    async def _run_ner_el(self, request: Dict[str, Any]) -> Dict[str, Any]:
+        """Run Named Entity Recognition and Entity Linking on preprocessed text."""
+        try:
+            text = request.get("text", "")
+
+            if not text:
+                return {"error": "Missing text parameter"}
+
+            # Placeholder implementation
+            result = {
+                "entities": [],
+                "total_found": 0,
+                "message": "Placeholder implementation",
+            }
+
+            return {"status": "success", "data": result}
+
+        except Exception as e:
+            logger.error(f"Error running NER+EL: {str(e)}")
+            return {"status": "error", "message": f"Error running NER+EL: {str(e)}"}
+
+    async def _run_relation_extraction(self, request: Dict[str, Any]) -> Dict[str, Any]:
+        """Extract relationships between entities from preprocessed text."""
+        try:
+            text = request.get("text", "")
+
+            if not text:
+                return {"error": "Missing text parameter"}
+
+            # Placeholder implementation
+            result = {
+                "relations": [],
+                "total_found": 0,
+                "message": "Placeholder implementation",
+            }
+
+            return {"status": "success", "data": result}
+
+        except Exception as e:
+            logger.error(f"Error running relation extraction: {str(e)}")
+            return {
+                "status": "error",
+                "message": f"Error running relation extraction: {str(e)}",
+            }
+
+    async def _create_quadruples(self, request: Dict[str, Any]) -> Dict[str, Any]:
+        """Create quadruples from relation extraction and NER+EL results."""
+        try:
+            relations = request.get("relations", [])
+            entities = request.get("entities", [])
+
+            if not relations:
+                return {"error": "Missing relations parameter"}
+            if not entities:
+                return {"error": "Missing entities parameter"}
+
+            # Placeholder implementation
+            result = {
+                "quadruples": [],
+                "total_found": 0,
+                "message": "Placeholder implementation",
+            }
+
+            return {"status": "success", "data": result}
+
+        except Exception as e:
+            logger.error(f"Error creating quadruples: {str(e)}")
+            return {
+                "status": "error",
+                "message": f"Error creating quadruples: {str(e)}",
+            }

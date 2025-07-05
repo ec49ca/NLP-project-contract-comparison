@@ -9,10 +9,19 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app
 
-# Install system dependencies
+# Install system dependencies including Tesseract OCR and PDF processing
 RUN apt-get update && apt-get install -y \
     gcc \
     curl \
+    tesseract-ocr \
+    tesseract-ocr-eng \
+    libtesseract-dev \
+    libleptonica-dev \
+    libpng-dev \
+    libjpeg-dev \
+    libtiff-dev \
+    zlib1g-dev \
+    poppler-utils \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching

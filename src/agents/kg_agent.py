@@ -26,8 +26,8 @@ from typing import Dict, List, Any, Optional
 from ..interfaces.agent import AgentInterface
 from .tools.extract_triples import ExtractTriplesTool
 from .tools.detect_document_tool import DetectDocumentTool
+from .tools.preprocess_document_tool import PreprocessDocumentTool
 from ..services.neo4j_service import Neo4jService
-import uuid
 from uuid import UUID
 
 logger = logging.getLogger(__name__)
@@ -53,6 +53,9 @@ class KnowledgeGraphAgent(AgentInterface):
 
         # Add detect_document_type tool
         self._tools["detect_document_type"] = DetectDocumentTool()
+
+        # Add preprocess_document tool
+        self._tools["preprocess_document"] = PreprocessDocumentTool()
 
     @property
     def agent_id_str(self) -> str:
@@ -128,12 +131,13 @@ class KnowledgeGraphAgent(AgentInterface):
             },
             {
                 "name": "preprocess_document",
-                "description": "Clean and preprocess document content for knowledge extraction",
+                "description": "Clean and preprocess document content for knowledge extraction with OCR support for scanned documents, type-specific preprocessing, text normalization, and stopword removal",
                 "parameters": {
-                    "document_content": "Raw document content (required)",
-                    "document_type": "Document type from detect_document_type (required)",
+                    "document_content": "Raw document content (required if no file_path)",
+                    "document_type": "Document type from detect_document_type (required) - use 'scanned' for OCR processing",
                     "remove_stopwords": "Whether to remove stopwords (default: false)",
                     "normalize_text": "Whether to normalize text (default: true)",
+                    "file_path": "Path to file for OCR processing (optional, for scanned documents)",
                 },
             },
             {
@@ -266,18 +270,26 @@ class KnowledgeGraphAgent(AgentInterface):
         try:
             document_content = request.get("document_content", "")
             document_type = request.get("document_type", "")
+            remove_stopwords = request.get("remove_stopwords", False)
+            normalize_text = request.get("normalize_text", True)
+            file_path = request.get("file_path", "")
 
-            if not document_content:
-                return {"error": "Missing document_content parameter"}
+            if not document_content and not file_path:
+                return {"error": "Missing document_content or file_path parameter"}
 
             if not document_type:
                 return {"error": "Missing document_type parameter"}
 
-            # Placeholder implementation
-            result = {
-                "processed_content": document_content,
-                "message": "Placeholder implementation",
-            }
+            # Use the preprocess_document tool
+            result = await self._tools["preprocess_document"].execute_tool(
+                {
+                    "document_content": document_content,
+                    "document_type": document_type,
+                    "remove_stopwords": remove_stopwords,
+                    "normalize_text": normalize_text,
+                    "file_path": file_path,
+                }
+            )
 
             return {"status": "success", "data": result}
 

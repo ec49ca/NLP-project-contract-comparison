@@ -251,6 +251,46 @@ async def auto_register_agents():
 	logger.info(f"Auto-registration complete. {len(registered_agents)} agents registered.")
 	logger.info(f"Agent name to ID mapping: {agent_name_to_id}")
 
+@app.post("/tool-generator/execute")
+async def execute_tool_generator(request: Dict[str, Any]):
+	"""
+	Convenience endpoint for the tool generator.
+	Accepts a query and data, then generates and executes a dynamic tool.
+	"""
+	try:
+		query = request.get("query", "")
+		data = request.get("data", [])
+
+		if not query:
+			raise HTTPException(status_code=400, detail="Query is required")
+		if not data:
+			raise HTTPException(status_code=400, detail="Data is required")
+
+		# Find the tool generator agent
+		agent_id = agent_name_to_id.get("Tool Generator Agent")
+		if not agent_id:
+			raise HTTPException(status_code=404, detail="Tool Generator Agent not found")
+
+		# Get the agent instance
+		agent = await registry.get_agent(agent_id)
+		if not agent:
+			raise HTTPException(status_code=404, detail="Tool Generator Agent not available")
+
+		# Execute the tool generation
+		result = await agent.process_request({
+			"command": "generate_and_execute",
+			"query": query,
+			"data": data
+		})
+
+		return result
+
+	except HTTPException:
+		raise
+	except Exception as e:
+		logger.error(f"Error in tool generator: {str(e)}")
+		raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/execute/{agent_name}/{capability}")
 async def execute_agent_capability(agent_name: str, capability: str, parameters: Dict[str, Any]):
 	"""

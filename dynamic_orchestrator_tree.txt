@@ -1,0 +1,95 @@
+📍 ENTRY: run_voyager_task(query, data)
+│
+├─ 🧠 PROMPT 1: voyager_brain(query, data)
+│   │ Purpose: Break complex query into sequential steps
+│   │ Model: GPT-4o
+│   │ Input: User query + data sample
+│   │ Output: Raw steps text (e.g., "Step 1: filter data, Step 2: calculate average")
+│   │
+│   ├─ 🧠 PROMPT 2: samvid_voyager_plan(steps)
+│   │   │ Purpose: Convert steps into structured task graph
+│   │   │ Model: GPT-4o
+│   │   │ Input: Raw steps text
+│   │   │ Output: Parsed task graph with dependencies
+│   │   │
+│   │   ├─ FOR EACH TASK IN GRAPH:
+│   │   │   │
+│   │   │   ├─ 🧠 PROMPT 3: voyager_perceive(task, context)
+│   │   │   │   │ Purpose: Rewrite task query based on execution context
+│   │   │   │   │ Model: GPT-4o
+│   │   │   │   │ Input: Original task + execution state + reasoning
+│   │   │   │   │ Output: Rewritten query for this specific task
+│   │   │   │   │
+│   │   │   │   ├─ 🔄 DECISION: Use existing tool?
+│   │   │   │   │   │ Check: find_and_execute_existing_tool()
+│   │   │   │   │   │
+│   │   │   │   │   ├─ YES → Return existing result
+│   │   │   │   │   │
+│   │   │   │   │   ├─ NO → Generate new tool:
+│   │   │   │   │   │   │
+│   │   │   │   │   │   ├─ 🧠 PROMPT 4: generate_poc_code(query, data)
+│   │   │   │   │   │   │   │ Purpose: Generate proof-of-concept Python function
+│   │   │   │   │   │   │   │ Model: GPT-4o
+│   │   │   │   │   │   │   │ Input: Rewritten query + data schema
+│   │   │   │   │   │   │   │ Output: Working Python function (hardcoded values)
+│   │   │   │   │   │   │   │
+│   │   │   │   │   │   │   ├─ 🧠 PROMPT 5: generalize_poc_code(poc_code)
+│   │   │   │   │   │   │   │   │ Purpose: Make POC reusable with kwargs
+│   │   │   │   │   │   │   │   │ Model: GPT-4o
+│   │   │   │   │   │   │   │   │ Input: POC code + data context
+│   │   │   │   │   │   │   │   │ Output: Generalized function + kwargs comment
+│   │   │   │   │   │   │   │   │
+│   │   │   │   │   │   │   │   ├─ 🧠 PROMPT 6: extract_runtime_kwargs(function)
+│   │   │   │   │   │   │   │   │   │ Purpose: Extract actual parameter values
+│   │   │   │   │   │   │   │   │   │ Model: GPT-4o
+│   │   │   │   │   │   │   │   │   │ Input: Function code + data + original query
+│   │   │   │   │   │   │   │   │   │ Output: JSON of parameter values
+│   │   │   │   │   │   │   │   │   │
+│   │   │   │   │   │   │   │   │   ├─ 🧠 PROMPT 7: generate_intent_capabilities_tags(function)
+│   │   │   │   │   │   │   │   │   │   │ Purpose: Generate metadata for tool
+│   │   │   │   │   │   │   │   │   │   │ Model: GPT-4o
+│   │   │   │   │   │   │   │   │   │   │ Input: Function + query + data
+│   │   │   │   │   │   │   │   │   │   │ Output: Intent summary, capabilities, tags
+│   │   │   │   │   │   │   │   │   │   │
+│   │   │   │   │   │   │   │   │   │   ├─ EXECUTE FUNCTION: Run the generated tool
+│   │   │   │   │   │   │   │   │   │   │ Store result in execution_state
+│   │   │   │   │   │   │   │   │   │   │
+│   │   │   │   │   │   │   │   │   │   └─ NEXT TASK (if any)
+│   │   │   │   │   │   │   │   │   │
+│   │   │   │   │   │   │   │   │   └─ (continues to next task)
+│   │   │   │   │   │   │   │   │
+│   │   │   │   │   │   │   │   └─ (continues to next task)
+│   │   │   │   │   │   │   │
+│   │   │   │   │   │   │   └─ (continues to next task)
+│   │   │   │   │   │   │
+│   │   │   │   │   │   └─ (continues to next task)
+│   │   │   │   │   │
+│   │   │   │   │   └─ (continues to next task)
+│   │   │   │   │
+│   │   │   │   └─ (continues to next task)
+│   │   │   │
+│   │   │   └─ ALL TASKS COMPLETE
+│   │   │
+│   │   ├─ 🔄 DECISION: Generate merged function?
+│   │   │   │ Check: merge_task_graph_into_function()
+│   │   │   │
+│   │   │   ├─ YES → 🧠 PROMPT 8: merge_task_graph_into_function(task_graph)
+│   │   │   │   │ Purpose: Combine all tasks into single optimized function
+│   │   │   │   │ Model: GPT-4o
+│   │   │   │   │ Input: Complete task graph with all codes/outputs
+│   │   │   │   │ Output: Single merged function that does everything
+│   │   │   │   │
+│   │   │   │   ├─ TEST: Execute merged function with original data
+│   │   │   │   │
+│   │   │   │   ├─ SUCCESS → Use merged result
+│   │   │   │   └─ FAILURE → Use task graph result
+│   │   │   │
+│   │   │   └─ NO → Use task graph result
+│   │   │
+│   │   └─ 🔄 DECISION: Save to pending storage?
+│   │       │ Check: save_to_pending flag
+│   │       │
+│   │       ├─ YES → Save tool graph to pending_tool_graphs.json
+│   │       └─ NO → Skip saving
+│   │
+│   └─ RETURN: Final output + execution details

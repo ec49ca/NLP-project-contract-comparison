@@ -72,6 +72,10 @@ class PreprocessDocumentTool:
                         "error": "Failed to process scanned document",
                         "success": False,
                     }
+                # Set document_content to the OCR result for further processing
+                document_content = processed_content
+                # Treat OCR results as unstructured text for NER/EL/RE formatting
+                document_type = "unstructured"
             else:
                 processed_content = document_content
 
@@ -182,6 +186,9 @@ class PreprocessDocumentTool:
             return self._unstructured_to_entity_text(content)
         elif document_type == "docx":
             # Handle DOCX files that didn't get structure classification
+            return self._unstructured_to_entity_text(content)
+        elif document_type == "scanned":
+            # Handle any remaining scanned documents as unstructured
             return self._unstructured_to_entity_text(content)
         else:
             return self._generic_to_entity_text(content)

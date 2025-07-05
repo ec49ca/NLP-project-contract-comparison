@@ -795,7 +795,16 @@ class KnowledgeGraphAgent(AgentInterface):
             logger.info(
                 f"File-to-NER-RE pipeline completed successfully in {total_time:.2f}s"
             )
-            return {"status": "success", "data": final_result}
+
+            final_response = {"status": "success", "data": final_result}
+
+            # Log the final pipeline result if logging is enabled
+            if enable_logging:
+                await self._log_pipeline_result(
+                    final_response, log_file_path, log_file_name
+                )
+
+            return final_response
 
         except Exception as e:
             logger.error(f"Error in file-to-NER-RE pipeline: {str(e)}")
@@ -806,3 +815,34 @@ class KnowledgeGraphAgent(AgentInterface):
                     pipeline_results if "pipeline_results" in locals() else {}
                 ),
             }
+
+    async def _log_pipeline_result(
+        self, final_response: Dict[str, Any], log_file_path: str, log_file_name: str
+    ) -> None:
+        """Log the exact pipeline response that's sent to clients"""
+        try:
+            import json
+            import os
+            from datetime import datetime
+
+            # Generate log file name if not provided
+            if not log_file_name:
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                log_file_name = f"pipeline_{timestamp}.log"
+
+            # Ensure log directory exists
+            os.makedirs(log_file_path, exist_ok=True)
+
+            log_file_full_path = os.path.join(log_file_path, log_file_name)
+
+            # Write to log file with delimiter and exact response
+            with open(log_file_full_path, "a", encoding="utf-8") as f:
+                f.write("\n" + "=" * 100 + "\n")  # Line delimiter
+                f.write("FINAL CLIENT RESPONSE:\n")
+                f.write(json.dumps(final_response, indent=2, ensure_ascii=False) + "\n")
+                f.write("=" * 100 + "\n")  # Final separator
+
+            logger.info(f"Final pipeline response logged to: {log_file_full_path}")
+
+        except Exception as e:
+            logger.error(f"Error logging pipeline result: {e}")

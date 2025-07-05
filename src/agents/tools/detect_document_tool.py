@@ -105,6 +105,8 @@ class DetectDocumentTool:
 
             if file_ext == ".docx":
                 return self._extract_docx_content(file_path)
+            elif file_ext == ".pdf":
+                return self._extract_pdf_content(file_path)
             elif file_ext in [".txt", ".md", ".html", ".xml", ".json", ".csv"]:
                 return self._extract_text_content(file_path)
             else:
@@ -164,6 +166,45 @@ class DetectDocumentTool:
             return content, True
         except Exception as e:
             logger.error(f"Error reading text file: {e}")
+            return "", False
+
+    def _extract_pdf_content(self, file_path: str) -> Tuple[str, bool]:
+        """Extract text content from PDF files and detect if it's scanned"""
+        try:
+            # Try importing PyPDF2
+            try:
+                import PyPDF2
+            except ImportError:
+                logger.warning("PyPDF2 not available, cannot extract PDF text")
+                return "", False
+
+            with open(file_path, "rb") as file:
+                reader = PyPDF2.PdfReader(file)
+                text = ""
+
+                # Extract text from all pages
+                for page_num in range(len(reader.pages)):
+                    page = reader.pages[page_num]
+                    text += page.extract_text() + "\n"
+
+                text = text.strip()
+
+                # Check if PDF has meaningful text content
+                if text and len(text) > 50:
+                    word_count = len(text.split())
+                    # If it has reasonable amount of text, it's not scanned
+                    if word_count > 20:
+                        logger.info(f"PDF has extractable text ({word_count} words)")
+                        return text, True
+
+                # If we get here, the PDF is likely scanned (no text or very little text)
+                logger.info(
+                    f"PDF appears to be scanned (minimal text: {len(text)} chars)"
+                )
+                return "", False
+
+        except Exception as e:
+            logger.error(f"Error extracting PDF content: {e}")
             return "", False
 
     def _detect_file_type(
@@ -386,6 +427,20 @@ class DetectDocumentTool:
         if file_type == "docx" and content:
             return self._analyze_docx_structure(content)
 
+        # For PDF files, check if they're scanned (no content) or text-based
+        if file_type == "pdf":
+            if not content or len(content.strip()) < 50:
+                # PDF has no extractable text - it's scanned
+                return "scanned"
+            else:
+                # PDF has text content - classify based on structure
+                word_count = len(content.split())
+                if word_count > 100:
+                    # Analyze the text structure for classification
+                    return self._analyze_text_structure(content)
+                else:
+                    return "unstructured"
+
         # For other file types, use enhanced 7-point classification
         highly_structured_types = {
             "json",
@@ -397,9 +452,6 @@ class DetectDocumentTool:
         }  # Database-like
         structured_types = {"pptx", "ppt", "odp"}  # Clear organization
         moderately_structured_types = {"html", "markdown"}  # Some structure
-        semi_structured_types = {"pdf", "odt"}  # Mixed content
-        lightly_structured_types = {"rtf"}  # Some formatting
-        unstructured_types = {"text"}  # Plain text
 
         if file_type in highly_structured_types:
             return "highly_structured"
@@ -407,16 +459,14 @@ class DetectDocumentTool:
             return "structured"
         elif file_type in moderately_structured_types:
             return "moderately_structured"
-        elif file_type in semi_structured_types:
-            return "semi_structured"
-        elif file_type in lightly_structured_types:
-            return "lightly_structured"
-        elif file_type in unstructured_types:
-            return "unstructured"
-        elif file_type == "image":
-            return "image"
+        elif file_type in ["text", "txt"]:
+            if content:
+                return self._analyze_text_structure(content)
+            else:
+                return "unstructured"
         else:
-            return "unknown"
+            # Default classification for unknown types
+            return "semi_structured"
 
     def _analyze_docx_structure(self, content: str) -> str:
         """Analyze DOCX content to determine structure type"""
@@ -532,6 +582,65 @@ class DetectDocumentTool:
             return "unstructured"  # 2 - Prose with minimal formatting
         else:
             return "highly_unstructured"  # 1 - Pure narrative, no structure
+
+    def _analyze_text_structure(self, content: str) -> str:
+        """Analyze plain text content to determine structure level"""
+        if not content:
+            return "unstructured"
+
+        lines = content.split("\n")
+        total_lines = len(lines)
+
+        # Count structural elements
+        headers_count = 0
+        lists_count = 0
+        tables_count = 0
+        field_value_pairs = 0
+
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+
+            # Count headers (lines that end with : or are ALL CAPS)
+            if line.endswith(":") or (line.isupper() and len(line) > 3):
+                headers_count += 1
+
+            # Count list items
+            if line.startswith(("-", "*", "•")) or (
+                len(line) > 2 and line[0].isdigit() and line[1] in ".):"
+            ):
+                lists_count += 1
+
+            # Count potential table data (contains multiple separators)
+            if line.count("|") > 1 or line.count("\t") > 1:
+                tables_count += 1
+
+            # Count field-value pairs (contains : or =)
+            if ":" in line or "=" in line:
+                field_value_pairs += 1
+
+        # Calculate structure score
+        structure_score = 0
+        if total_lines > 0:
+            structure_score += (headers_count / total_lines) * 2
+            structure_score += (lists_count / total_lines) * 1.5
+            structure_score += (tables_count / total_lines) * 3
+            structure_score += (field_value_pairs / total_lines) * 2
+
+        # Classify based on score
+        if structure_score >= 1.5:
+            return "highly_structured"
+        elif structure_score >= 1.0:
+            return "structured"
+        elif structure_score >= 0.7:
+            return "moderately_structured"
+        elif structure_score >= 0.4:
+            return "semi_structured"
+        elif structure_score >= 0.2:
+            return "lightly_structured"
+        else:
+            return "unstructured"
 
     def _detect_scanned_content(self, file_type: str, content: str) -> bool:
         """Detect if document is scanned (image-based)"""

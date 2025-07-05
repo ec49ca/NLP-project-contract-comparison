@@ -37,9 +37,12 @@ class KnowledgeGraphAgent(AgentInterface):
 	def __init__(self):
 		self._agent_id_str = "knowledge_graph"
 		self._uuid = None
+		self.agent_id = "knowledge_graph"
 		self._name = "Knowledge Graph Agent"
 		self._description = "Extract triples from data and perform graph operations"
 		self._initialized = False
+		self.category = "knowledge_management"
+		self.status = "initialized"
 		self._tools = {}
 		self._graphdb_= Neo4jService()
 

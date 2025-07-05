@@ -29,9 +29,13 @@ class OptionsAgent(AgentInterface):
 	def __init__(self):
 		self._agent_id_str = "options"
 		self._uuid = None
+		self.agent_id = "options"
 		self._name = "Options Pricing Agent"
 		self._description = "Calculate option prices and Greeks using Black-Scholes model"
 		self._initialized = False
+		self.category = "financial_modeling"
+		self.status = "initialized"
+		self._tools = {}
 
 	@property
 	def agent_id_str(self) -> str:

@@ -64,52 +64,58 @@ This server provides REST endpoints for the main Samvid application to communica
 
 ---
 
-## 🧑‍💻 How to Create a New Agent
+## 🧑‍💻 Creating New Agents
 
-1. **Create a new file** in `src/agents/` (e.g., `my_agent.py`).
-2. **Subclass `AgentInterface`** from `src/interfaces/agent.py`.
-3. **Implement all required properties and methods:**
-   - `name` (property): Human-readable name
-   - `description` (property): Short description
-   - `agent_id_str` (property): Unique, stable string identifier (e.g., "my_agent")
-   - `uuid` (property + setter): Will be set by the registry
-   - `initialize(config)` (async): Any setup logic
-   - `process_request(request)` (async): Main entrypoint for handling requests
-   - `get_capabilities()` (returns dict): Describe what the agent can do
-   - `get_status()` (returns dict): Health/status info
-   - `shutdown()` (async): Cleanup logic
-4. **Expose capabilities** in `get_capabilities()` as a dictionary, e.g.:
-   ```python
-   def get_capabilities(self) -> Dict[str, Any]:
-       return {
-           "my_capability": {
-               "description": "What this does",
-               "parameters": {"param1": "desc", ...}
-           },
-           ...
-       }
+### Quick Start
+Creating a new agent is now streamlined with our template system:
+
+1. **Copy the template:**
+   ```bash
+   cp src/agents/template_agent.py src/agents/your_agent_name_agent.py
    ```
-5. **Implement `process_request()`** to handle commands/capabilities, e.g.:
+
+2. **Follow the customization guide:**
+   - See [`AGENT_DEVELOPMENT_GUIDE.md`](./AGENT_DEVELOPMENT_GUIDE.md) for detailed instructions
+   - The template includes all required standardized attributes and methods
+   - Clear comments guide you through each customization step
+
+3. **Register your agent:**
    ```python
-   async def process_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
-       command = request.get("command")
-       if command == "my_capability":
-           return await self._my_capability(request)
-       ...
+   # Add to src/agents/__init__.py
+   from .your_agent_name_agent import YourAgentNameAgent
    ```
-6. **(Optional) Add tools** in `src/agents/tools/` if your agent needs reusable logic.
-7. **Test your agent:**
-   - It will be auto-discovered and registered on server startup.
-   - Use `/agents`, `/mcp/resources`, and `/primitives/{primitive_name}` to verify.
-8. **Update routing:**
-   - Use the `/routes/{primitive_name}` endpoint to map new primitives to your agent.
-   - Example:
-     ```bash
-     curl -X POST http://localhost:8000/routes/my_capability \
-       -H "Content-Type: application/json" \
-       -d '{"agent_id": "<your-agent-uuid>"}'
-     ```
-9. **Document your agent and capabilities** in the code and in the project documentation.
+
+4. **Test and deploy:**
+   - Your agent will be auto-discovered on server startup
+   - Use the API endpoints to verify functionality
+
+### Agent Standards
+All agents in the system follow these standards:
+- **Tab indentation** for consistency
+- **Standard attributes**: `agent_id`, `category`, `status`, `_tools`
+- **Error handling patterns** with consistent response formats
+- **Comprehensive logging** and documentation
+- **Async/await patterns** for I/O operations
+
+### Available Agent Categories
+- `analysis` — Data analysis and statistical operations
+- `search` — Search and retrieval operations
+- `financial_modeling` — Financial calculations and modeling
+- `knowledge_management` — Knowledge graphs and information extraction
+- `tool_generation` — Dynamic tool creation
+- `communication` — External API integrations
+- `data_processing` — Data transformation and processing
+- `machine_learning` — ML model training and inference
+
+### Current Agents
+- **Knowledge Graph Agent** (`knowledge_management`) — Triple extraction and graph operations
+- **Meta Agent** (`analysis`) — Intent analysis and execution planning
+- **Options Agent** (`financial_modeling`) — Black-Scholes option pricing
+- **Statistics Agent** (`analysis`) — Statistical analysis and modeling
+- **Tool Generator Agent** (`tool_generation`) — Dynamic tool creation
+- **Vector Search Agent** (`search`) — Semantic document search
+
+For detailed development instructions, examples, and best practices, see the [**Agent Development Guide**](./AGENT_DEVELOPMENT_GUIDE.md).
 
 ---
 
@@ -159,10 +165,32 @@ Environment variables:
 ---
 
 ## 🤝 Contributing
-- Follow the agent interface and registration patterns described above.
-- When adding a new agent, implement the `AgentInterface` and define a unique `agent_id_str`.
-- Update documentation and add tests for new features.
-- Keep code modular, readable, and maintainable.
+
+### Agent Development
+- Use the provided `template_agent.py` as your starting point
+- Follow the [Agent Development Guide](./AGENT_DEVELOPMENT_GUIDE.md) for best practices
+- All agents must implement the `AgentInterface` with standardized attributes
+- Include comprehensive tests and documentation
+
+### Code Standards
+- **Indentation**: Use tabs (converted from spaces during standardization)
+- **Naming**: Follow Python conventions (snake_case for files, PascalCase for classes)
+- **Error handling**: Use consistent error response formats
+- **Documentation**: Include docstrings and inline comments
+
+### Testing
+- Write unit tests for new agents
+- Test API endpoints with realistic scenarios
+- Verify agent discovery and registration
+- Check error handling and edge cases
+
+---
+
+## 📚 Documentation
+
+- **[Agent Development Guide](./AGENT_DEVELOPMENT_GUIDE.md)** — Complete guide for creating new agents
+- **[Architecture Guide](./ARCHITECTURE.md)** — System architecture and design patterns
+- **[API Documentation](http://localhost:8000/docs)** — Interactive API documentation (when server is running)
 
 ---
 

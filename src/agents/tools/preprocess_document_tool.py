@@ -75,6 +75,52 @@ class PreprocessDocumentTool:
             else:
                 processed_content = document_content
 
+            # Debug: log content info
+            logger.info(
+                f"Input content length: {len(document_content) if document_content else 0}"
+            )
+            logger.info(
+                f"Processed content length before NER processing: {len(processed_content) if processed_content else 0}"
+            )
+
+            # If we have no content, try to extract from file_path
+            if not processed_content and file_path:
+                logger.info(
+                    f"No content provided, attempting to extract from file: {file_path}"
+                )
+                try:
+                    if file_path.endswith(".docx"):
+                        from docx import Document
+
+                        doc = Document(file_path)
+                        paragraphs = []
+                        for para in doc.paragraphs:
+                            if para.text.strip():
+                                paragraphs.append(para.text.strip())
+                        processed_content = "\n".join(paragraphs)
+                        logger.info(
+                            f"Extracted {len(processed_content)} characters from DOCX"
+                        )
+                    elif file_path.endswith((".txt", ".csv", ".json", ".html", ".md")):
+                        with open(
+                            file_path, "r", encoding="utf-8", errors="ignore"
+                        ) as f:
+                            processed_content = f.read()
+                        logger.info(
+                            f"Extracted {len(processed_content)} characters from text file"
+                        )
+                except Exception as e:
+                    logger.error(f"Failed to extract content from {file_path}: {e}")
+
+            if not processed_content:
+                logger.warning(
+                    f"No content available for processing. Document type: {document_type}, File path: {file_path}"
+                )
+                return {
+                    "error": "No content available for preprocessing",
+                    "success": False,
+                }
+
             # Apply NER/EL/RE-optimized preprocessing
             processed_content = self._preprocess_for_ner_el_re(
                 processed_content, document_type
@@ -128,7 +174,14 @@ class PreprocessDocumentTool:
             return self._structured_to_entity_text(content)
         elif document_type in ["semi_structured", "moderately_structured"]:
             return self._semi_structured_to_entity_text(content)
-        elif document_type in ["unstructured", "highly_unstructured"]:
+        elif document_type in [
+            "unstructured",
+            "highly_unstructured",
+            "lightly_structured",
+        ]:
+            return self._unstructured_to_entity_text(content)
+        elif document_type == "docx":
+            # Handle DOCX files that didn't get structure classification
             return self._unstructured_to_entity_text(content)
         else:
             return self._generic_to_entity_text(content)

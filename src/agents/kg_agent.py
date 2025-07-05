@@ -26,6 +26,7 @@ from typing import Dict, List, Any, Optional
 from ..interfaces.agent import AgentInterface
 from .tools.extract_triples import ExtractTriplesTool
 from .tools.detect_document_tool import DetectDocumentTool
+from .tools.ner_el_tool import NEREntityLinkingTool
 from .tools.preprocess_document_tool import PreprocessDocumentTool
 from ..services.neo4j_service import Neo4jService
 from uuid import UUID
@@ -56,6 +57,9 @@ class KnowledgeGraphAgent(AgentInterface):
 
         # Add preprocess_document tool
         self._tools["preprocess_document"] = PreprocessDocumentTool()
+
+        # Add NER+EL tool
+        self._tools["run_ner_el"] = NEREntityLinkingTool()
 
     @property
     def agent_id_str(self) -> str:
@@ -142,12 +146,16 @@ class KnowledgeGraphAgent(AgentInterface):
             },
             {
                 "name": "run_ner_el",
-                "description": "Perform Named Entity Recognition and Entity Linking on preprocessed text",
+                "description": "Advanced Named Entity Recognition and Entity Linking using GPT-4 on preprocessed text with chunking support and optional logging",
                 "parameters": {
                     "text": "Preprocessed text content (required)",
-                    "entity_types": "List of entity types to extract (optional, default: ['PERSON', 'ORG', 'GPE', 'PRODUCT'])",
+                    "entity_types": "List of entity types to extract (optional, default: ['PERSON', 'ORGANIZATION', 'LOCATION', 'DATE', 'MONEY']. Available: PERSON, ORGANIZATION, LOCATION, DATE, MONEY, PRODUCT, EMAIL, PHONE, ID_NUMBER, PERCENTAGE, QUANTITY, EVENT, DOCUMENT, JOB_TITLE, SKILL)",
                     "confidence_threshold": "Minimum confidence score for entities (0.0-1.0, default: 0.8)",
-                    "max_entities": "Maximum number of entities to extract (default: 50)",
+                    "enable_linking": "Whether to perform entity linking (default: true)",
+                    "chunk_size": "Size of text chunks for processing (default: 2000)",
+                    "enable_logging": "Whether to log query and output to file (default: false)",
+                    "log_file_path": "Directory path for log files (default: '/app/logs')",
+                    "log_file_name": "Custom log file name (optional, auto-generated if not provided)",
                 },
             },
             {
@@ -171,6 +179,23 @@ class KnowledgeGraphAgent(AgentInterface):
                     "max_quadruples": "Maximum number of quadruples to create (default: 100)",
                 },
             },
+            {
+                "name": "process_file_to_ner",
+                "description": "Complete pipeline: takes a file, preprocesses it, and extracts entities using NER+EL",
+                "parameters": {
+                    "file_path": "Path to the file to process (required)",
+                    "auto_detect_type": "Whether to auto-detect document type (default: true)",
+                    "document_type": "Manual document type override (optional, use if auto_detect_type is false)",
+                    "entity_types": "List of entity types to extract (optional, default: ['PERSON', 'ORGANIZATION', 'LOCATION', 'DATE', 'MONEY'])",
+                    "confidence_threshold": "Minimum confidence score for entities (0.0-1.0, default: 0.8)",
+                    "enable_linking": "Whether to perform entity linking (default: true)",
+                    "remove_stopwords": "Whether to remove stopwords during preprocessing (default: false)",
+                    "normalize_text": "Whether to normalize text during preprocessing (default: true)",
+                    "enable_logging": "Whether to log processing steps and results (default: false)",
+                    "log_file_path": "Directory path for log files (default: '/app/logs')",
+                    "log_file_name": "Custom log file name (optional, auto-generated if not provided)",
+                },
+            },
         ]
 
     async def process_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
@@ -192,6 +217,8 @@ class KnowledgeGraphAgent(AgentInterface):
             return await self._run_relation_extraction(request)
         elif command == "create_quadruples":
             return await self._create_quadruples(request)
+        elif command == "process_file_to_ner":
+            return await self._process_file_to_ner(request)
         else:
             return {
                 "error": f"Unknown command: {command}",
@@ -202,6 +229,7 @@ class KnowledgeGraphAgent(AgentInterface):
                     "run_ner_el",
                     "run_relation_extraction",
                     "create_quadruples",
+                    "process_file_to_ner",
                 ],
             }
 
@@ -304,16 +332,35 @@ class KnowledgeGraphAgent(AgentInterface):
         """Run Named Entity Recognition and Entity Linking on preprocessed text."""
         try:
             text = request.get("text", "")
+            entity_types = request.get(
+                "entity_types", ["PERSON", "ORGANIZATION", "LOCATION", "DATE", "MONEY"]
+            )
+            confidence_threshold = request.get("confidence_threshold", 0.8)
+            enable_linking = request.get("enable_linking", True)
+            chunk_size = request.get("chunk_size", 2000)
+            enable_logging = request.get("enable_logging", False)
+            log_file_path = request.get("log_file_path", "/app/logs")
+            log_file_name = request.get("log_file_name", "")
 
             if not text:
                 return {"error": "Missing text parameter"}
 
-            # Placeholder implementation
-            result = {
-                "entities": [],
-                "total_found": 0,
-                "message": "Placeholder implementation",
+            # Use the NER+EL tool
+            tool_args = {
+                "preprocessed_content": text,
+                "entity_types": entity_types,
+                "confidence_threshold": confidence_threshold,
+                "enable_linking": enable_linking,
+                "chunk_size": chunk_size,
+                "enable_logging": enable_logging,
+                "log_file_path": log_file_path,
             }
+
+            # Add log file name if provided
+            if log_file_name:
+                tool_args["log_file_name"] = log_file_name
+
+            result = await self._tools["run_ner_el"].execute_tool(tool_args)
 
             return {"status": "success", "data": result}
 
@@ -370,4 +417,277 @@ class KnowledgeGraphAgent(AgentInterface):
             return {
                 "status": "error",
                 "message": f"Error creating quadruples: {str(e)}",
+            }
+
+    async def _process_file_to_ner(self, request: Dict[str, Any]) -> Dict[str, Any]:
+        """Complete pipeline: file -> preprocessing -> NER+EL"""
+        try:
+            # Extract parameters
+            file_path = request.get("file_path", "")
+            auto_detect_type = request.get("auto_detect_type", True)
+            document_type = request.get("document_type", "")
+            entity_types = request.get(
+                "entity_types", ["PERSON", "ORGANIZATION", "LOCATION", "DATE", "MONEY"]
+            )
+            confidence_threshold = request.get("confidence_threshold", 0.8)
+            enable_linking = request.get("enable_linking", True)
+            remove_stopwords = request.get("remove_stopwords", False)
+            normalize_text = request.get("normalize_text", True)
+            enable_logging = request.get("enable_logging", False)
+            log_file_path = request.get("log_file_path", "/app/logs")
+            log_file_name = request.get("log_file_name", "")
+
+            if not file_path:
+                return {"error": "Missing file_path parameter"}
+
+            # Initialize pipeline tracking
+            import time
+
+            pipeline_start_time = time.time()
+            logger.info(f"Starting file-to-NER pipeline for: {file_path}")
+
+            pipeline_results = {
+                "file_path": file_path,
+                "steps_completed": [],
+                "processing_time": {},
+                "pipeline_start_time": pipeline_start_time,
+            }
+
+            # Step 1: Document Type Detection (if auto_detect_type is True)
+            if auto_detect_type:
+                logger.info("Step 1: Detecting document type...")
+                step_start = time.time()
+
+                detect_request = {
+                    "command": "detect_document_type",
+                    "file_path": file_path,
+                }
+
+                detect_result = await self.process_request(detect_request)
+                step_time = time.time() - step_start
+                pipeline_results["processing_time"]["detection"] = step_time
+
+                if detect_result["status"] != "success":
+                    return {
+                        "status": "error",
+                        "message": f"Document type detection failed: {detect_result.get('message', 'Unknown error')}",
+                        "pipeline_results": pipeline_results,
+                    }
+
+                # Use structure_type for preprocessing, not document_type
+                detected_structure = detect_result["data"]["structure_type"]
+                detected_file_type = detect_result["data"]["document_type"]
+
+                pipeline_results["steps_completed"].append(
+                    {
+                        "step": "document_detection",
+                        "result": f"file_type: {detected_file_type}, structure: {detected_structure}",
+                        "processing_time": step_time,
+                    }
+                )
+
+                # Use structure type for preprocessing
+                document_type = detected_structure
+                logger.info(f"Document type detected: {document_type}")
+            else:
+                if not document_type:
+                    return {
+                        "error": "document_type parameter required when auto_detect_type is false"
+                    }
+                pipeline_results["steps_completed"].append(
+                    {
+                        "step": "document_detection",
+                        "result": f"manual override: {document_type}",
+                        "processing_time": 0,
+                    }
+                )
+
+            # Step 2: Preprocessing
+            logger.info("Step 2: Preprocessing document...")
+            step_start = time.time()
+
+            preprocess_request = {
+                "command": "preprocess_document",
+                "file_path": file_path,
+                "document_type": document_type,
+                "remove_stopwords": remove_stopwords,
+                "normalize_text": normalize_text,
+            }
+
+            preprocess_result = await self.process_request(preprocess_request)
+            step_time = time.time() - step_start
+            pipeline_results["processing_time"]["preprocessing"] = step_time
+
+            if preprocess_result["status"] != "success":
+                return {
+                    "status": "error",
+                    "message": f"Preprocessing failed: {preprocess_result.get('message', 'Unknown error')}",
+                    "pipeline_results": pipeline_results,
+                }
+
+            # Debug: log the preprocessing result structure
+            logger.info(
+                f"Preprocessing result keys: {list(preprocess_result.get('data', {}).keys())}"
+            )
+            logger.debug(f"Full preprocessing result: {preprocess_result}")
+
+            # Handle different possible response structures from preprocessing
+            preprocess_data = preprocess_result.get("data", {})
+
+            if "processed_content" in preprocess_data:
+                preprocessed_content = preprocess_data["processed_content"]
+            elif "preprocessed_content" in preprocess_data:
+                preprocessed_content = preprocess_data["preprocessed_content"]
+            elif "content" in preprocess_data:
+                preprocessed_content = preprocess_data["content"]
+            else:
+                # If no content found, log available keys and return error
+                available_keys = list(preprocess_data.keys())
+                logger.error(
+                    f"No preprocessed content found. Available keys: {available_keys}"
+                )
+                return {
+                    "status": "error",
+                    "message": f"Preprocessing did not return expected content. Available keys: {available_keys}",
+                    "pipeline_results": pipeline_results,
+                }
+
+            preprocessing_metadata = preprocess_data.get("metadata", {})
+
+            pipeline_results["steps_completed"].append(
+                {
+                    "step": "preprocessing",
+                    "result": {
+                        "content_length": len(preprocessed_content),
+                        "original_length": preprocessing_metadata.get(
+                            "original_length", 0
+                        ),
+                        "processing_type": preprocessing_metadata.get(
+                            "processing_type", "unknown"
+                        ),
+                    },
+                    "processing_time": step_time,
+                }
+            )
+
+            logger.info(
+                f"Preprocessing completed: {len(preprocessed_content)} characters"
+            )
+
+            # Step 3: NER+EL
+            logger.info("Step 3: Running NER+EL...")
+            step_start = time.time()
+
+            ner_request = {
+                "command": "run_ner_el",
+                "text": preprocessed_content,
+                "entity_types": entity_types,
+                "confidence_threshold": confidence_threshold,
+                "enable_linking": enable_linking,
+                "enable_logging": enable_logging,
+                "log_file_path": log_file_path,
+            }
+
+            # Add custom log file name if provided
+            if log_file_name:
+                ner_request["log_file_name"] = log_file_name
+
+            ner_result = await self.process_request(ner_request)
+            step_time = time.time() - step_start
+            pipeline_results["processing_time"]["ner_el"] = step_time
+
+            # Debug the NER result structure
+            logger.info(f"NER result type: {type(ner_result)}")
+            logger.info(
+                f"NER result keys: {list(ner_result.keys()) if isinstance(ner_result, dict) else 'Not a dict'}"
+            )
+
+            # Handle different response formats
+            if isinstance(ner_result, dict):
+                if "status" in ner_result:
+                    # Standard wrapped response
+                    if ner_result["status"] != "success":
+                        return {
+                            "status": "error",
+                            "message": f"NER+EL failed: {ner_result.get('message', 'Unknown error')}",
+                            "pipeline_results": pipeline_results,
+                        }
+                    ner_data = ner_result["data"]
+                elif "success" in ner_result:
+                    # Direct tool response format
+                    if not ner_result["success"]:
+                        return {
+                            "status": "error",
+                            "message": f"NER+EL failed: {ner_result.get('error', 'Unknown error')}",
+                            "pipeline_results": pipeline_results,
+                        }
+                    ner_data = ner_result
+                else:
+                    # Unexpected format
+                    return {
+                        "status": "error",
+                        "message": f"NER+EL returned unexpected format: {ner_result}",
+                        "pipeline_results": pipeline_results,
+                    }
+            else:
+                return {
+                    "status": "error",
+                    "message": f"NER+EL returned non-dict result: {type(ner_result)}",
+                    "pipeline_results": pipeline_results,
+                }
+
+            pipeline_results["steps_completed"].append(
+                {
+                    "step": "ner_el",
+                    "result": {
+                        "total_entities": ner_data.get("total_entities", 0),
+                        "high_confidence_entities": ner_data.get(
+                            "high_confidence_entities", 0
+                        ),
+                        "entity_types_found": ner_data.get("entity_types_found", []),
+                        "relationships_count": len(ner_data.get("relationships", [])),
+                    },
+                    "processing_time": step_time,
+                }
+            )
+
+            logger.info(
+                f"NER+EL completed: {ner_data.get('total_entities', 0)} entities found"
+            )
+
+            # Calculate total processing time
+            total_time = sum(pipeline_results["processing_time"].values())
+            pipeline_results["total_processing_time"] = total_time
+
+            # Prepare final result
+            final_result = {
+                "entities": ner_data.get("entities", []),
+                "relationships": ner_data.get("relationships", []),
+                "statistics": ner_data.get("statistics", {}),
+                "entity_types_found": ner_data.get("entity_types_found", []),
+                "total_entities": ner_data.get("total_entities", 0),
+                "high_confidence_entities": ner_data.get("high_confidence_entities", 0),
+                "pipeline_metadata": {
+                    "file_path": file_path,
+                    "document_type": document_type,
+                    "preprocessing_metadata": preprocessing_metadata,
+                    "pipeline_results": pipeline_results,
+                    "total_processing_time": total_time,
+                },
+                "success": True,
+            }
+
+            logger.info(
+                f"File-to-NER pipeline completed successfully in {total_time:.2f}s"
+            )
+            return {"status": "success", "data": final_result}
+
+        except Exception as e:
+            logger.error(f"Error in file-to-NER pipeline: {str(e)}")
+            return {
+                "status": "error",
+                "message": f"File-to-NER pipeline failed: {str(e)}",
+                "pipeline_results": (
+                    pipeline_results if "pipeline_results" in locals() else {}
+                ),
             }

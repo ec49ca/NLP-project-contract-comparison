@@ -34,13 +34,9 @@ Samvid MCP is a modular, agent-based system for Model Context Protocol (MCP) ope
 - Manages agent lifecycle, registration, and state.
 - Only place where agent UUIDs are set on agent instances.
 
-### Routing
-- Maps primitives (capabilities) to agent UUIDs.
-- `AgentRouter` (`src/routing/router.py`) handles all routing logic.
-
 ### API Server
-- FastAPI (`src/server/mcp_server.py`) exposes endpoints for agent management, invocation, discovery, and routing.
-- All agent and route management is performed via these endpoints.
+- FastAPI (`src/server/mcp_server.py`) exposes endpoints for agent management, invocation, discovery, and resource listing.
+- All agent management and invocation is performed via these endpoints.
 
 ### Discovery
 - Dynamically discovers all agent classes in the codebase at startup.
@@ -58,12 +54,9 @@ Samvid MCP is a modular, agent-based system for Model Context Protocol (MCP) ope
 - On startup, the server calls `auto_register_agents()`, which uses `AgentDiscovery` to find all agent classes.
 - Each agent is registered via the registry, which instantiates, initializes, and sets the UUID on the agent instance.
 
-### Routing
-- Primitives (capabilities) are mapped to agent UUIDs via the router.
-- When a request for a primitive is received, the router looks up the agent UUID, retrieves the agent from the registry, and forwards the request to the agent's `process_request()` method.
-
 ### Agent Invocation
-- The client calls an endpoint (e.g., `/primitives/{primitive_name}`), which is routed to the correct agent and capability.
+- The client calls the `/execute/{agent_name}/{capability}` endpoint, passing the agent name, capability, and parameters.
+- The server looks up the agent by name, verifies the capability, and forwards the request to the agent's `process_request()` method.
 - The agent processes the request and returns the result.
 
 ---

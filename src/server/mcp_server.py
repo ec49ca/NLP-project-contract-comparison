@@ -5,14 +5,12 @@ from uuid import UUID
 import logging
 from contextlib import asynccontextmanager
 from ..registry.registry import AgentRegistrySystem
-from ..routing.router import AgentRouter
 from ..discovery.agent_discovery import AgentDiscovery
 from ..interfaces.agent import AgentInterface
 from ..registry.registry_models import AgentStatus
 
 # Initialize core components
 registry = AgentRegistrySystem()
-router = AgentRouter(registry)
 discovery = AgentDiscovery()
 
 # Keep track of registered agent classes to avoid duplicates
@@ -110,38 +108,6 @@ async def list_agents():
 		"active_agents": registry_state.get("active_agents", 0),
 		"agents": agents
 	}
-
-@app.post("/routes/{primitive_name}")
-async def register_route(primitive_name: str, agent_id: str):
-	"""Register a route for an MCP primitive to an agent."""
-	try:
-		agent_uuid = UUID(agent_id)
-		await router.register_route(primitive_name, agent_uuid)
-		return {"status": "success"}
-	except Exception as e:
-		raise HTTPException(status_code=500, detail=str(e))
-
-@app.delete("/routes/{primitive_name}")
-async def unregister_route(primitive_name: str):
-	"""Unregister a route for an MCP primitive."""
-	try:
-		await router.unregister_route(primitive_name)
-		return {"status": "success"}
-	except Exception as e:
-		raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/routes")
-async def list_routes():
-	"""List all registered routes."""
-	return await router.get_routes()
-
-@app.post("/primitives/{primitive_name}")
-async def process_primitive(primitive_name: str, request: Dict[str, Any]):
-	"""Process an MCP primitive request."""
-	try:
-		return await router.route_request(primitive_name, request)
-	except Exception as e:
-		raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/discover")
 async def discover_agents(background_tasks: BackgroundTasks):

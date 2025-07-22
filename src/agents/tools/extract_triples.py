@@ -35,13 +35,17 @@ class ExtractTriplesTool:
             entities = await self.openai_service.extract_entities(processed_text)
 
             # Step 3: Relationship Extraction using OpenAI
-            relationships = await self.openai_service.extract_relationships(processed_text, entities)
+            relationships = await self.openai_service.extract_relationships(
+                processed_text, entities
+            )
 
             # Step 4: Triple Generation
             triples = self._generate_triples(entities, relationships)
 
             # Step 5: Confidence Scoring & Filtering
-            scored_triples = self._score_and_filter_triples(triples, confidence_threshold, max_triples)
+            scored_triples = self._score_and_filter_triples(
+                triples, confidence_threshold, max_triples
+            )
 
             return {
                 "triples": scored_triples,
@@ -49,7 +53,7 @@ class ExtractTriplesTool:
                 "max_triples_requested": max_triples,
                 "total_extracted": len(scored_triples),
                 "entities_found": len(entities),
-                "relationships_found": len(relationships)
+                "relationships_found": len(relationships),
             }
 
         except Exception as e:
@@ -69,38 +73,50 @@ class ExtractTriplesTool:
 
         return processed
 
-    def _generate_triples(self, entities: List[Dict[str, Any]], relationships: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _generate_triples(
+        self, entities: List[Dict[str, Any]], relationships: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
         """Generate triples from entities and relationships"""
         triples = []
 
         # Generate triples from entities (type and attribute triples)
         for entity in entities:
             # Entity type triple
-            triples.append({
-                "subject": entity["name"],
-                "predicate": "is_a",
-                "object": entity["type"],
-                "confidence": entity.get("confidence", 0.8),
-                "source": "entity_extraction"
-            })
+            triples.append(
+                {
+                    "subject": entity["name"],
+                    "predicate": "is_a",
+                    "object": entity["type"],
+                    "confidence": entity.get("confidence", 0.8),
+                    "source": "entity_extraction",
+                }
+            )
 
         # Generate triples from relationships
         for rel in relationships:
-            triples.append({
-                "subject": rel["source"],
-                "predicate": rel["relationship"],
-                "object": rel["target"],
-                "confidence": rel.get("confidence", 0.8),
-                "source": "relationship_extraction"
-            })
+            triples.append(
+                {
+                    "subject": rel["source"],
+                    "predicate": rel["relationship"],
+                    "object": rel["target"],
+                    "confidence": rel.get("confidence", 0.8),
+                    "source": "relationship_extraction",
+                }
+            )
 
         return triples
 
-    def _score_and_filter_triples(self, triples: List[Dict[str, Any]], confidence_threshold: float, max_triples: int) -> List[Dict[str, Any]]:
+    def _score_and_filter_triples(
+        self,
+        triples: List[Dict[str, Any]],
+        confidence_threshold: float,
+        max_triples: int,
+    ) -> List[Dict[str, Any]]:
         """Score and filter triples based on confidence and limits"""
         # Filter by confidence threshold
         filtered_triples = [
-            triple for triple in triples
+            triple
+            for triple in triples
             if triple.get("confidence", 0) >= confidence_threshold
         ]
 
@@ -113,17 +129,29 @@ class ExtractTriplesTool:
 
         return filtered_triples
 
-    def _fallback_response(self, confidence_threshold: float, max_triples: int) -> Dict[str, Any]:
+    def _fallback_response(
+        self, confidence_threshold: float, max_triples: int
+    ) -> Dict[str, Any]:
         """Fallback response when extraction fails"""
         return {
             "triples": [
-                {"subject": "Python", "predicate": "is_a", "object": "programming_language", "confidence": 0.95},
-                {"subject": "Python", "predicate": "created_by", "object": "Guido_van_Rossum", "confidence": 0.92}
+                {
+                    "subject": "Python",
+                    "predicate": "is_a",
+                    "object": "programming_language",
+                    "confidence": 0.95,
+                },
+                {
+                    "subject": "Python",
+                    "predicate": "created_by",
+                    "object": "Guido_van_Rossum",
+                    "confidence": 0.92,
+                },
             ],
             "confidence_threshold": confidence_threshold,
             "max_triples_requested": max_triples,
             "total_extracted": 2,
             "entities_found": 2,
             "relationships_found": 1,
-            "note": "Fallback response due to extraction error"
+            "note": "Fallback response due to extraction error",
         }

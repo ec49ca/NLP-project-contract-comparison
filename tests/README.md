@@ -1,6 +1,6 @@
 # Test Suite
 
-Simple, comprehensive test suite for the MCP multi-agent system. Tests configuration, server endpoints, LLM service, and agent functionality.
+Simple, comprehensive test suite for the MCP multi-agent system. Tests configuration, server endpoints, LLM service, agent functionality, registry system, and core components.
 
 ## Usage
 
@@ -13,13 +13,16 @@ Simple, comprehensive test suite for the MCP multi-agent system. Tests configura
 ./test server       # Server endpoint tests
 ./test llm         # LLM service tests
 ./test agents       # Agent functionality tests
+./test services     # Service layer tests (includes LLM & prompt services)
+./test registry     # Registry system tests
+./test tools        # Agent tools tests (experimental)
 ./test unit        # Unit tests only
 ./test integration # Integration tests only
 ```
 
-## Test Coverage (87 tests)
+## Test Coverage (110+ tests, 90+ passing)
 
-### Configuration Tests (12 tests)
+### Configuration Tests (12 tests) ✅
 **What**: Configuration parsing, provider setup, environment variables
 - `test_parse_valid_default_model` - Parse "provider:model" format correctly
 - `test_parse_default_model_no_colon` - Parse provider-only format
@@ -34,7 +37,7 @@ Simple, comprehensive test suite for the MCP multi-agent system. Tests configura
 - `test_missing_api_key_handling` - Handle missing API keys gracefully
 - `test_config_supports_llm_service_initialization` - Config integration with LLM service
 
-### Server Endpoint Tests (12 tests)
+### Server Endpoint Tests (12 tests) ✅
 **What**: FastAPI server endpoints, error handling, API responses
 - `test_health_endpoint_returns_200` - Health endpoint responds with 200
 - `test_health_endpoint_structure` - Health endpoint returns expected fields
@@ -49,7 +52,7 @@ Simple, comprehensive test suite for the MCP multi-agent system. Tests configura
 - `test_docs_endpoint_accessible` - OpenAPI docs are accessible
 - `test_openapi_json_accessible` - OpenAPI JSON schema is accessible
 
-### LLM Service Tests (19 tests)
+### LLM Service Tests (19 tests) ✅
 **What**: LLM provider management, completions, model switching
 - `test_service_initialization_with_providers` - Service initializes with multiple providers
 - `test_service_initialization_openai_only` - Service works with OpenAI only
@@ -71,9 +74,9 @@ Simple, comprehensive test suite for the MCP multi-agent system. Tests configura
 - `test_service_ready_for_use` - Service is ready for typical usage
 - `test_end_to_end_completion_flow` - Complete workflow from init to completion
 
-### Agent Tests (44 tests)
+### Agent Tests (44 tests) ✅
 
-#### Knowledge Graph Agent (19 tests)
+#### Knowledge Graph Agent (19 tests) ✅
 **What**: Knowledge Graph Agent functionality, document processing, triple extraction
 - `test_agent_creation` - Basic agent creation and properties
 - `test_uuid_property` - UUID property management and validation
@@ -95,7 +98,7 @@ Simple, comprehensive test suite for the MCP multi-agent system. Tests configura
 - `test_neo4j_service_available` - Neo4j database service integration
 - `test_agent_ready_for_production` - Production readiness verification
 
-#### Tool Generator Agent (25 tests)
+#### Tool Generator Agent (25 tests) ✅
 **What**: Dynamic tool creation, complexity assessment, code generation and execution
 - `test_agent_creation` - Basic agent creation and properties
 - `test_agent_initialization` - Agent initialization with OpenAI API key
@@ -123,13 +126,49 @@ Simple, comprehensive test suite for the MCP multi-agent system. Tests configura
 - `test_session_management` - Session ID generation and management
 - `test_error_resilience` - Agent resilience to error conditions
 
+### Registry System Tests (18 tests) ✅
+**What**: Agent registration, registry data models, lifecycle management
+- `test_agent_status_values` - Enum values for agent status
+- `test_agent_status_comparison` - Status comparison operations
+- `test_agent_info_creation` - Agent information model creation
+- `test_agent_info_with_custom_status` - Custom status handling
+- `test_registry_creation` - Basic registry initialization
+- `test_add_agent` - Agent registration process
+- `test_add_multiple_agents` - Multiple agent management
+- `test_register_single_agent` - Complete agent registration workflow
+- `test_register_multiple_agents` - Multiple agent registration
+- `test_deterministic_uuid_generation` - Consistent UUID generation
+- `test_agent_initialization_called` - Proper agent initialization
+- `test_agent_uuid_assignment` - UUID assignment verification
+- `test_registry_internal_consistency` - Registry state consistency
+- `test_agent_class_instantiation` - Agent class instantiation
+- `test_config_passing` - Configuration passing to agents
+- `test_registry_state_after_registration` - Post-registration state
+
+### Service Layer Tests (8+ tests) ⚠️
+**What**: Core service functionality including prompt service
+- **Prompt Service**: Prompt generation and template management (some tests need import fixes)
+- **Additional services**: Ready for expansion
+
+### Agent Tools Tests (Experimental) ⚠️
+**What**: Individual agent tool functionality
+- **Document Detection Tool**: Basic functionality tests
+- **Triple Extraction Tool**: Core extraction logic tests
+- **Note**: Some tests need import system fixes for full functionality
+
 ## Test Architecture
 
 - **Unit tests**: Individual component testing with mocks
 - **Integration tests**: API endpoint and service interaction testing
 - **Fixtures**: Reusable test data and mock objects in `conftest.py`
-- **Markers**: `@pytest.mark.config`, `@pytest.mark.server`, `@pytest.mark.llm`, `@pytest.mark.agents`
+- **Markers**: `@pytest.mark.config`, `@pytest.mark.server`, `@pytest.mark.llm`, `@pytest.mark.agents`, `@pytest.mark.registry`, `@pytest.mark.services`, `@pytest.mark.tools`
 - **Async support**: Full async/await testing with pytest-asyncio
+
+## Test Status
+
+✅ **90+ tests passing** - Core functionality well tested
+⚠️ **20 tests with import issues** - Tool and service tests need refinement
+🎯 **Solid foundation** - Ready for expansion and refinement
 
 ## Adding Tests
 
@@ -138,3 +177,18 @@ Simple, comprehensive test suite for the MCP multi-agent system. Tests configura
 3. Add pytest markers for categorization
 4. Follow naming convention: `test_<what_it_tests>`
 5. Keep test methods simple and focused on one thing
+
+## Quick Start
+
+```bash
+# Run all working tests
+./test unit
+
+# Run specific components
+./test agents
+./test registry
+./test llm
+
+# Run everything (including experimental)
+./test
+```

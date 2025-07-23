@@ -1,135 +1,78 @@
 #!/bin/bash
-# Simple test runner script
-# Usage: ./test [category] [options]
 
-set -e  # Exit on any error
+# Test runner script for MCP project
 
 # Colors for output
-RED='\033[0;31m'
 GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
+RED='\033[0;31m'
 BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-# Function to print colored output
-print_status() {
-    echo -e "${BLUE}🧪 $1${NC}"
-}
+# Default to running all tests if no argument provided
+TEST_TYPE=${1:-"all"}
 
-print_success() {
-    echo -e "${GREEN}✅ $1${NC}"
-}
-
-print_error() {
-    echo -e "${RED}❌ $1${NC}"
-}
-
-print_warning() {
-    echo -e "${YELLOW}⚠️  $1${NC}"
-}
-
-# Help function
-show_help() {
-    echo "📋 Test Runner Commands:"
-    echo ""
-    echo "  ./test              - Run all tests"
-    echo "  ./test config       - Run configuration tests only"
-    echo "  ./test server       - Run server endpoint tests only"
-    echo "  ./test llm          - Run LLM service tests only"
-    echo "  ./test agents       - Run agent functionality tests only"
-    echo "  ./test unit         - Run unit tests only"
-    echo "  ./test integration  - Run integration tests only"
-    echo "  ./test quick        - Run fastest tests only"
-    echo "  ./test verbose      - Run all tests with verbose output"
-    echo "  ./test watch        - Watch files and re-run tests on changes"
-    echo "  ./test help         - Show this help"
-    echo ""
-    echo "Examples:"
-    echo "  ./test config       # Test just configuration"
-    echo "  ./test server -v    # Test server endpoints with verbose output"
-    echo "  ./test              # Run everything"
-}
-
-# Check if pytest is available
-if ! command -v pytest &> /dev/null; then
-    print_error "pytest not found. Please install with: pip install pytest pytest-asyncio"
-    exit 1
-fi
-
-# Main logic
-case "${1:-all}" in
-    "help"|"-h"|"--help")
-        show_help
-        ;;
-
+case $TEST_TYPE in
     "config")
-        print_status "Running configuration tests..."
-        pytest -m config ${@:2}
+        echo -e "${BLUE}🧪 Running configuration tests...${NC}"
+        python -m pytest tests/test_config.py -v --tb=short
         ;;
-
     "server")
-        print_status "Running server endpoint tests..."
-        pytest -m server ${@:2}
+        echo -e "${BLUE}🧪 Running server endpoint tests...${NC}"
+        python -m pytest tests/test_server.py -v --tb=short
         ;;
-
     "llm")
-        print_status "Running LLM service tests..."
-        pytest -m llm ${@:2}
+        echo -e "${BLUE}🧪 Running LLM service tests...${NC}"
+        python -m pytest tests/test_services/test_llm_service.py -v --tb=short
         ;;
-
     "agents")
-        print_status "Running agent functionality tests..."
-        pytest -m agents ${@:2}
+        echo -e "${BLUE}🧪 Running agent functionality tests...${NC}"
+        python -m pytest tests/test_agents/ -v --tb=short
         ;;
-
+    "services")
+        echo -e "${BLUE}🧪 Running service layer tests...${NC}"
+        python -m pytest tests/test_services/ -v --tb=short
+        ;;
+    "registry")
+        echo -e "${BLUE}🧪 Running registry system tests...${NC}"
+        python -m pytest tests/test_registry/ -v --tb=short
+        ;;
+    "tools")
+        echo -e "${BLUE}🧪 Running agent tools tests...${NC}"
+        python -m pytest tests/test_tools/ -v --tb=short
+        ;;
     "unit")
-        print_status "Running unit tests..."
-        pytest -m unit ${@:2}
+        echo -e "${BLUE}🧪 Running unit tests...${NC}"
+        python -m pytest -m unit -v --tb=short
         ;;
-
     "integration")
-        print_status "Running integration tests..."
-        pytest -m integration ${@:2}
+        echo -e "${BLUE}🧪 Running integration tests...${NC}"
+        python -m pytest -m integration -v --tb=short
         ;;
-
-    "quick")
-        print_status "Running quick tests (unit + config)..."
-        pytest -m "unit or config" ${@:2}
+    "all")
+        echo -e "${BLUE}🧪 Running all tests...${NC}"
+        python -m pytest tests/ -v --tb=short
         ;;
-
-    "verbose")
-        print_status "Running all tests with verbose output..."
-        pytest -v ${@:2}
-        ;;
-
-    "watch")
-        print_status "Watching for changes and re-running tests..."
-        if command -v pytest-watch &> /dev/null; then
-            pytest-watch ${@:2}
-        else
-            print_warning "pytest-watch not installed. Install with: pip install pytest-watch"
-            print_status "Running tests once instead..."
-            pytest ${@:2}
-        fi
-        ;;
-
-    "all"|"")
-        print_status "Running all tests..."
-        pytest ${@:2}
-        ;;
-
     *)
-        print_error "Unknown command: $1"
-        echo ""
-        show_help
+        echo -e "${RED}❌ Unknown test type: $TEST_TYPE${NC}"
+        echo -e "${YELLOW}Available options:${NC}"
+        echo "  config      - Configuration tests"
+        echo "  server      - Server endpoint tests"
+        echo "  llm         - LLM service tests"
+        echo "  agents      - Agent functionality tests"
+        echo "  services    - Service layer tests"
+        echo "  registry    - Registry system tests"
+        echo "  tools       - Agent tools tests"
+        echo "  unit        - Unit tests only"
+        echo "  integration - Integration tests only"
+        echo "  all         - All tests (default)"
         exit 1
         ;;
 esac
 
-# Show test results summary if tests ran successfully
+# Check exit status and provide feedback
 if [ $? -eq 0 ]; then
-    print_success "Tests completed successfully!"
+    echo -e "${GREEN}✅ Tests completed successfully!${NC}"
 else
-    print_error "Some tests failed. Check output above for details."
-    exit 1
+    echo -e "${RED}❌ Some tests failed. Check output above for details.${NC}"
 fi

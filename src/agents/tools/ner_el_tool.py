@@ -12,7 +12,7 @@ import re
 import os
 from datetime import datetime
 from typing import Dict, Any, List, Tuple, Optional
-from ...services.openai_service import OpenAIService
+from ...services.llm_service import llm_service
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ class NEREntityLinkingTool:
     def __init__(self):
         self.name = "run_ner_el"
         self.description = "Extract and link named entities from preprocessed documents"
-        self.openai_service = OpenAIService()
+        self.llm_service = llm_service
 
         # Define entity types with clear descriptions
         self.entity_types = {
@@ -103,7 +103,7 @@ class NEREntityLinkingTool:
 
                 try:
                     # Extract entities from this chunk
-                    chunk_entities = self._extract_entities_from_chunk(
+                    chunk_entities = await self._extract_entities_from_chunk(
                         chunk, valid_types, confidence_threshold
                     )
 
@@ -199,7 +199,7 @@ class NEREntityLinkingTool:
 
         return chunks
 
-    def _extract_entities_from_chunk(
+    async def _extract_entities_from_chunk(
         self, chunk: str, entity_types: List[str], confidence_threshold: float
     ) -> List[Dict[str, Any]]:
         """Extract entities from a single chunk using GPT-4"""
@@ -264,8 +264,10 @@ RESPOND ONLY WITH VALID JSON:"""
         )
 
         try:
-            # Use the existing OpenAI service method
-            content = self.openai_service._make_openai_call(prompt)
+            # Use LLM service
+            content = await self.llm_service.simple_completion(
+                prompt=prompt, response_format={"type": "json_object"}
+            )
 
             # Parse JSON response
             try:

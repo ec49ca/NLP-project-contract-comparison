@@ -3,195 +3,373 @@
 ![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.11+-green.svg)
 ![Docker](https://img.shields.io/badge/docker-supported-blue.svg)
+![Neo4j](https://img.shields.io/badge/neo4j-5.19+-orange.svg)
 
-A standalone HTTP API server for Samvid's Model Context Protocol (MCP) agents.
-
----
-
-## Overview
-
-This server provides REST endpoints for the main Samvid application to communicate with MCP agents. It is designed for modularity, extensibility, and ease of integration.
+A multi-agent HTTP API server implementing the Model Context Protocol (MCP) with flexible LLM provider support and specialized agents for knowledge extraction, financial modeling, and dynamic tool generation.
 
 ---
 
-## 🐳 Quick Start with Docker
+## 🚀 **Key Features**
 
-1. **Clone the repository:**
+- **🤖 Multi-Agent System**: 6 specialized agents for different domains
+- **🔄 LLM Provider Hotswapping**: Support for OpenAI, Claude, and Grok with runtime switching
+- **📊 Knowledge Graph**: Advanced triple extraction with Neo4j integration
+- **⚙️ Dynamic Tool Generation**: Create custom tools from natural language
+- **📈 Financial Modeling**: Black-Scholes option pricing and Greeks calculation
+- **🔍 Document Processing**: OCR, NER+EL, and relationship extraction
+- **🐳 Docker Ready**: Full containerization with docker-compose
+
+---
+
+## 🐳 **Quick Start with Docker**
+
+1. **Clone and setup:**
    ```bash
-   git clone https://github.com/samvid-ai/samvid-mcp-server.git
-   cd samvid-mcp-server
+   git clone <repository-url>
+   cd samvid-mcp
+   cp env.example .env
+   # Edit .env with your API keys
    ```
 
-2. **Run with Docker Compose:**
+2. **Start with Docker Compose:**
    ```bash
    docker-compose up -d
    ```
-   This will start:
-   - Samvid MCP Server on `http://localhost:8000`
-   - Neo4j (and optionally PostgreSQL) for agent storage
+   This starts:
+   - **MCP Server** on `http://localhost:8000`
+   - **Neo4j** on `http://localhost:7474` (if enabled)
 
-3. **Verify it's running:**
+3. **Verify running:**
    ```bash
    curl http://localhost:8000/health
    ```
 
+4. **View interactive docs:**
+   Open `http://localhost:8000/docs` for Swagger UI
+
 ---
 
-## 📋 API Endpoints
+## 🤖 **Available Agents**
 
-### Health & Discovery
-- `GET /health` — Server health status
-- `POST /discover` — Auto-discover and register all available agents
+### **1. Knowledge Graph Agent** (`knowledge_management`)
+Extract knowledge from documents and build graph relationships.
 
-### Agent Management
-- `POST /agents` — Register a new agent (by class name and config)
+**Capabilities:**
+- `extract_triples` - Extract subject-predicate-object relationships from text
+- `detect_document_type` - Classify document structure (7-point scale)
+- `preprocess_document` - Clean and normalize documents with OCR support
+- `run_ner_el` - Named Entity Recognition + Entity Linking using GPT-4
+- `run_relation_extraction` - Extract relationships using GPT-4o
+- `process_file_to_ner` - Complete pipeline from file to knowledge graph
+
+### **2. Tool Generator Agent** (`tool_generation`)
+Generate dynamic tools from natural language queries.
+
+**Capabilities:**
+- `generate_and_execute` - Complete workflow with complexity assessment
+- `assess_complexity` - Determine if query is simple or complex
+- `generate_direct` - Quick generation for simple queries
+- `analyze_and_plan` - Plan complex multi-step solutions
+- `get_pending_tools` / `approve_tool` - Tool approval workflow
+
+### **3. Options Agent** (`financial_modeling`)
+Black-Scholes option pricing and risk calculations.
+
+**Capabilities:**
+- `calculate_option_price` - Call/put option prices
+- `calculate_greeks` - Delta, gamma, theta, vega, rho
+- `calculate_implied_volatility` - Reverse-engineer volatility
+- `calculate_all` - Complete option analysis
+
+### **4. Meta Agent** (`analysis`)
+Intent analysis and execution planning coordinator.
+
+**Capabilities:**
+- `analyze_intent` - Determine user intent from queries
+- `create_execution_plan` - Multi-agent coordination plans
+
+### **5. Statistics Agent** (`analysis`)
+Statistical analysis and data processing.
+
+**Capabilities:**
+- `calculate_statistics` - Mean, median, std dev, etc.
+- `correlation_analysis` - Correlation between variables
+
+### **6. Vector Search Agent** (`search`)
+Semantic document search (placeholder implementation).
+
+**Capabilities:**
+- `semantic_search` - Semantic document search
+- `find_similar` - Find similar documents
+
+---
+
+## 🔄 **LLM Provider System**
+
+Flexible multi-provider LLM system with runtime switching:
+
+### **Supported Providers:**
+- **OpenAI**: GPT-4o, GPT-4o-mini, GPT-3.5-turbo
+- **Claude**: Claude-3-5-sonnet, Claude-3-haiku
+- **Grok**: (Ready for future integration)
+
+### **Configuration:**
+```bash
+# .env
+DEFAULT_LLM_MODEL=openai:gpt-4o
+OPENAI_API_KEY=sk-...
+CLAUDE_API_KEY=sk-ant-...
+```
+
+### **Usage Examples:**
+```python
+# Use global default
+await llm_service.simple_completion("Hello")
+
+# Override provider
+await llm_service.simple_completion("Complex analysis", provider="claude")
+
+# Override model for cost optimization
+await llm_service.simple_completion("Simple task", model="gpt-4o-mini")
+```
+
+See **[LLM_SERVICE_GUIDE.md](./LLM_SERVICE_GUIDE.md)** for complete usage guide.
+
+---
+
+## 📡 **API Endpoints**
+
+### **Core Endpoints:**
+- `GET /health` — Server health and stats
+- `GET /docs` — Interactive API documentation
+- `POST /agents` — Register new agent instances
 - `GET /agents` — List all registered agents
-- `GET /agents/{agent_id}` — Get info about a specific agent
+- `GET /agents/{agent_id}` — Get specific agent info
 
-### Routing
-- `POST /routes/{primitive_name}` — Register a route (primitive → agent)
-- `DELETE /routes/{primitive_name}` — Unregister a route
-- `GET /routes` — List all registered routes
+### **Agent Execution:**
+- `POST /execute/{agent_name}/{capability}` — Execute agent capability
+- `POST /tool-generator/execute` — Convenience endpoint for tool generation
 
-### Primitive Invocation
-- `POST /primitives/{primitive_name}` — Route a request to the agent responsible for a primitive
+### **Resource Discovery:**
+- `GET /mcp/resources` — List all available MCP resources
+- `POST /discover` — Auto-discover and register agents
 
-### Resource Discovery
-- `GET /mcp/resources` — List all available MCP resources (agents and their capabilities)
-
-### API Documentation
-- Visit `http://localhost:8000/docs` for interactive API documentation (Swagger UI)
+See **[API_ENDPOINTS_GUIDE.md](./API_ENDPOINTS_GUIDE.md)** for detailed documentation with examples.
 
 ---
 
-## 🧑‍💻 Creating New Agents
+## ⚙️ **Configuration**
 
-### Quick Start
-Creating a new agent is now streamlined with our template system:
+### **Required Environment Variables:**
+```bash
+# LLM Configuration
+OPENAI_API_KEY=sk-...
+DEFAULT_LLM_MODEL=openai:gpt-4o
 
-1. **Copy the template:**
+# Neo4j (for Knowledge Graph Agent)
+NEO4J_URI=bolt://localhost:7687
+NEO4J_USER=neo4j
+NEO4J_PASSWORD=your_password
+
+# Server Configuration
+PORT=8000
+LOG_LEVEL=INFO
+```
+
+### **Optional Variables:**
+```bash
+# Additional LLM Providers
+CLAUDE_API_KEY=sk-ant-...
+GROK_API_KEY=... # When available
+
+# Database (if using external)
+DATABASE_URL=postgresql://...
+```
+
+---
+
+## 🛠️ **Development**
+
+### **Manual Installation:**
+```bash
+# Python 3.11+ required
+python3 -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+cp env.example .env
+# Edit .env with your configuration
+python -m src.server.mcp_server
+```
+
+### **Creating New Agents:**
+1. **Copy template:**
    ```bash
-   cp src/agents/template_agent.py src/agents/your_agent_name_agent.py
+   cp src/agents/template_agent.py src/agents/my_agent.py
    ```
 
-2. **Follow the customization guide:**
-   - See [`AGENT_DEVELOPMENT_GUIDE.md`](./AGENT_DEVELOPMENT_GUIDE.md) for detailed instructions
-   - The template includes all required standardized attributes and methods
-   - Clear comments guide you through each customization step
+2. **Customize the template:**
+   - Update `_agent_id_str`, `_name`, `_description`
+   - Set appropriate `category`
+   - Implement `process_request()` logic
+   - Define `get_capabilities()`
 
-3. **Register your agent:**
+3. **Register agent:**
    ```python
    # Add to src/agents/__init__.py
-   from .your_agent_name_agent import YourAgentNameAgent
+   from .my_agent import MyAgent
+   __all__ = [..., "MyAgent"]
    ```
 
-4. **Test and deploy:**
-   - Your agent will be auto-discovered on server startup
-   - Use the API endpoints to verify functionality
+4. **Auto-discovery:**
+   - Agents are automatically discovered on server startup
+   - No manual registration required
 
-### Agent Standards
-All agents in the system follow these standards:
-- **Tab indentation** for consistency
-- **Standard attributes**: `agent_id`, `category`, `status`, `_tools`
-- **Error handling patterns** with consistent response formats
-- **Comprehensive logging** and documentation
-- **Async/await patterns** for I/O operations
-
-### Available Agent Categories
-- `analysis` — Data analysis and statistical operations
-- `search` — Search and retrieval operations
+### **Agent Categories:**
+- `knowledge_management` — Knowledge extraction and graphs
 - `financial_modeling` — Financial calculations and modeling
-- `knowledge_management` — Knowledge graphs and information extraction
 - `tool_generation` — Dynamic tool creation
+- `analysis` — Data analysis and statistics
+- `search` — Search and retrieval
 - `communication` — External API integrations
-- `data_processing` — Data transformation and processing
-- `machine_learning` — ML model training and inference
-
-### Current Agents
-- **Knowledge Graph Agent** (`knowledge_management`) — Triple extraction and graph operations
-- **Meta Agent** (`analysis`) — Intent analysis and execution planning
-- **Options Agent** (`financial_modeling`) — Black-Scholes option pricing
-- **Statistics Agent** (`analysis`) — Statistical analysis and modeling
-- **Tool Generator Agent** (`tool_generation`) — Dynamic tool creation
-- **Vector Search Agent** (`search`) — Semantic document search
-
-For detailed development instructions, examples, and best practices, see the [**Agent Development Guide**](./AGENT_DEVELOPMENT_GUIDE.md).
+- `data_processing` — Data transformation
 
 ---
 
-## 🔧 Configuration
+## 🏗️ **Architecture**
 
-Environment variables:
-- `PORT` — Server port (default: 8000)
-- `LOG_LEVEL` — Logging level (default: INFO)
-- `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD` — Neo4j connection (for KG agent)
-- `OPENAI_API_KEY` — OpenAI API key (for NLP tools)
-- See `env.example` for more
+```
+samvid-mcp/
+├── src/
+│   ├── agents/           # Agent implementations
+│   │   ├── tools/       # Agent-specific tools
+│   │   └── *.py         # Individual agents
+│   ├── interfaces/      # Abstract interfaces
+│   ├── providers/       # LLM provider implementations
+│   ├── services/        # Core services (LLM, Neo4j, config)
+│   ├── registry/        # Agent registration system
+│   ├── discovery/       # Auto-discovery system
+│   └── server/          # FastAPI server
+├── docker-compose.yml   # Container orchestration
+├── Dockerfile          # Container definition
+└── requirements.txt    # Python dependencies
+```
 
----
-
-## 🛠️ Development & Manual Installation
-
-### Prerequisites
-- Python 3.11+
-- Virtual environment (recommended)
-
-### Installation Steps
-1. **Create and activate virtual environment:**
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-2. **Install dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
-3. **Set up environment variables:**
-   ```bash
-   cp env.example .env
-   # Edit .env with your configuration
-   ```
-
-### Running the Server
-- **Development:**
-  ```bash
-  python -m src.server
-  ```
-- **Production:**
-  ```bash
-  uvicorn src.server:app --host 0.0.0.0 --port 8000
-  ```
+### **Key Components:**
+- **FastAPI Server**: HTTP API with auto-generated docs
+- **Agent Registry**: Manages agent lifecycle and routing
+- **LLM Service**: Multi-provider LLM abstraction layer
+- **Neo4j Service**: Graph database for knowledge graphs
+- **Discovery System**: Auto-finds and registers agents
 
 ---
 
-## 🤝 Contributing
+## 🧪 **Testing**
 
-### Agent Development
-- Use the provided `template_agent.py` as your starting point
-- Follow the [Agent Development Guide](./AGENT_DEVELOPMENT_GUIDE.md) for best practices
-- All agents must implement the `AgentInterface` with standardized attributes
-- Include comprehensive tests and documentation
+### **Basic Testing:**
+```bash
+# Health check
+curl http://localhost:8000/health
 
-### Code Standards
-- **Indentation**: Use tabs (converted from spaces during standardization)
-- **Naming**: Follow Python conventions (snake_case for files, PascalCase for classes)
-- **Error handling**: Use consistent error response formats
-- **Documentation**: Include docstrings and inline comments
+# List agents
+curl http://localhost:8000/agents
 
-### Testing
-- Write unit tests for new agents
-- Test API endpoints with realistic scenarios
-- Verify agent discovery and registration
-- Check error handling and edge cases
+# Execute capability
+curl -X POST http://localhost:8000/execute/Knowledge\ Graph\ Agent/extract_triples \
+  -H "Content-Type: application/json" \
+  -d '{"text": "John works at OpenAI in San Francisco"}'
+```
 
----
-
-## 📚 Documentation
-
-- **[Agent Development Guide](./AGENT_DEVELOPMENT_GUIDE.md)** — Complete guide for creating new agents
-- **[Architecture Guide](./ARCHITECTURE.md)** — System architecture and design patterns
-- **[API Documentation](http://localhost:8000/docs)** — Interactive API documentation (when server is running)
+### **Interactive Testing:**
+- Open `http://localhost:8000/docs` for Swagger UI
+- Test all endpoints with built-in forms
+- View request/response schemas
 
 ---
 
-For a full architecture and onboarding guide, see `ARCHITECTURE.md`.
+## 🐳 **Docker Configuration**
+
+### **Services:**
+- **mcp-server**: Main application (port 8000)
+- **neo4j**: Graph database (ports 7474, 7687) [optional]
+- **db**: PostgreSQL database [optional]
+
+### **Volumes:**
+- `./generated_tools:/app/generated_tools` — Dynamic tool storage
+- `./logs:/app/logs` — Application logs
+- `./sunworld_test_data:/app/sunworld_test_data` — Test documents
+
+### **Networks:**
+- `mcp-network`: Internal Docker network for service communication
+
+---
+
+## 📚 **Documentation**
+
+- **[API_ENDPOINTS_GUIDE.md](./API_ENDPOINTS_GUIDE.md)** — Complete API reference
+- **[LLM_SERVICE_GUIDE.md](./LLM_SERVICE_GUIDE.md)** — LLM provider usage guide
+- **[AGENT_DEVELOPMENT_GUIDE.md](./AGENT_DEVELOPMENT_GUIDE.md)** — Agent development guide
+- **[ARCHITECTURE.md](./ARCHITECTURE.md)** — System architecture overview
+
+---
+
+## 🤝 **Contributing**
+
+### **Development Workflow:**
+1. Create feature branch
+2. Follow coding standards (tabs, consistent naming)
+3. Implement comprehensive error handling
+4. Add logging and documentation
+5. Test with multiple agents
+6. Submit pull request
+
+### **Code Standards:**
+- **Python 3.11+** with type hints
+- **Tab indentation** for consistency
+- **Async/await** for I/O operations
+- **Comprehensive logging** with structured messages
+- **Error handling** with user-friendly messages
+
+---
+
+## 📄 **License**
+
+See [LICENSE](./LICENSE) for details.
+
+---
+
+## 🚀 **Quick Examples**
+
+### **Extract Knowledge from Text:**
+```bash
+curl -X POST http://localhost:8000/execute/Knowledge\ Graph\ Agent/extract_triples \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "Apple Inc. was founded by Steve Jobs in Cupertino, California.",
+    "confidence_threshold": 0.8
+  }'
+```
+
+### **Generate Dynamic Tool:**
+```bash
+curl -X POST http://localhost:8000/tool-generator/execute \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "Calculate average of numbers",
+    "data": [1, 2, 3, 4, 5]
+  }'
+```
+
+### **Option Pricing:**
+```bash
+curl -X POST http://localhost:8000/execute/Options\ Pricing\ Agent/calculate_option_price \
+  -H "Content-Type: application/json" \
+  -d '{
+    "spot_price": 100,
+    "strike_price": 105,
+    "time_to_expiry": 0.25,
+    "risk_free_rate": 0.05,
+    "volatility": 0.2
+  }'
+```
+
+**🎯 Ready to build intelligent multi-agent systems with flexible LLM providers!**

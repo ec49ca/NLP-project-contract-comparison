@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 from uuid import uuid4
 
-from ...services.openai_service import OpenAIService
+from ...services.llm_service import llm_service
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +16,7 @@ class RelationExtractionTool:
 
     def __init__(self):
         self.name = "relation_extraction"
-        self.openai_service = OpenAIService()
+        self.llm_service = llm_service
 
     async def execute_tool(self, arguments: Dict[str, Any]) -> Any:
         """
@@ -202,8 +202,8 @@ class RelationExtractionTool:
         prompt = self._build_relation_extraction_prompt(chunk, relation_types)
 
         try:
-            # Call GPT-4o
-            response = await self.openai_service.chat_completion(
+            # Call LLM service
+            response = await self.llm_service.chat_completion(
                 messages=[{"role": "user", "content": prompt}],
                 model="gpt-4o",
                 temperature=0.1,

@@ -1,11 +1,14 @@
 """
 OpenAI LLM Provider Implementation
+Note about langfuse: using drop in replacement for openai via langfuse; wont work with other providers as of time of development
 """
 
 import logging
 import os
 from typing import Dict, List, Any, Optional
-from openai import OpenAI
+from langfuse.openai import openai
+
+# from openai import OpenAI
 from ..services.config import (
     OPENAI_API_KEY,
     validate_openai_config,
@@ -14,7 +17,8 @@ from ..services.config import (
     get_provider_available_models,
 )
 from ..interfaces.llm_interface import LLMInterface
-from langfuse import observe
+
+# from langfuse import observe
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +30,7 @@ class OpenAIProvider(LLMInterface):
         logger.info("Initializing OpenAI Provider")
         validate_openai_config()
 
-        self.client = OpenAI(api_key=OPENAI_API_KEY)
+        self.client = openai.OpenAI(api_key=OPENAI_API_KEY)
         self.provider_name = "openai"
 
         # Get model configurations from central config
@@ -43,7 +47,6 @@ class OpenAIProvider(LLMInterface):
             f"OpenAI Provider initialized with default model: {self.default_model}"
         )
 
-    @observe(name="openai_chat_completion", as_type="generation")
     async def chat_completion(
         self,
         messages: List[Dict[str, Any]],
@@ -97,7 +100,6 @@ class OpenAIProvider(LLMInterface):
             logger.error(f"OpenAI chat completion failed: {e}")
             raise
 
-    @observe(name="openai_simple_completion", as_type="generation")
     async def simple_completion(
         self,
         prompt: str,

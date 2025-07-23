@@ -161,4 +161,6 @@ logs/
 *.tmp
 *.temp
 
+/generated_tools
+
 sohum-todo

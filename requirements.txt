@@ -58,3 +58,6 @@ scipy>=1.10.0
 
 # Testing dependencies
 # Note: httpx is already included above for OpenAI compatibility
+
+# Langfuse
+langfuse>=3.0.0

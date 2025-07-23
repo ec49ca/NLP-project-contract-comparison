@@ -1,5 +1,6 @@
 """
 Claude LLM Provider Implementation
+NOTE: NOT IMPLEMENTED YET, DO NOT USE CLAUDE MODELS
 """
 
 import logging

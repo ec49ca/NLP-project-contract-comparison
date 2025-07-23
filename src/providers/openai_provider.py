@@ -14,6 +14,7 @@ from ..services.config import (
     get_provider_available_models,
 )
 from ..interfaces.llm_interface import LLMInterface
+from langfuse import observe
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +43,7 @@ class OpenAIProvider(LLMInterface):
             f"OpenAI Provider initialized with default model: {self.default_model}"
         )
 
+    @observe(name="openai_chat_completion", as_type="generation")
     async def chat_completion(
         self,
         messages: List[Dict[str, Any]],
@@ -95,6 +97,7 @@ class OpenAIProvider(LLMInterface):
             logger.error(f"OpenAI chat completion failed: {e}")
             raise
 
+    @observe(name="openai_simple_completion", as_type="generation")
     async def simple_completion(
         self,
         prompt: str,

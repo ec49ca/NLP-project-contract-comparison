@@ -265,7 +265,33 @@ samvid-mcp/
 
 ## 🧪 **Testing**
 
-### **Basic Testing:**
+### **Test Suite Status**
+**✅ 113 tests passing** | **⚠️ 19 tests skipped** (import conflicts)
+
+The project includes a comprehensive test suite covering all major components:
+
+```bash
+# Run all tests
+./test
+
+# Run specific categories
+./test agents      # Agent tests (47 tests)
+./test services    # Service layer tests (28 tests)
+./test registry    # Registry system tests (15 tests)
+./test tools       # Agent tools tests (13 tests)
+./test config      # Configuration tests (12 tests)
+./test server      # Server endpoint tests (12 tests)
+```
+
+### **Test Coverage**
+- **🧠 Agents**: Knowledge Graph Agent, Tool Generator Agent (47 tests)
+- **📝 Registry**: Agent registration and management (15 tests)
+- **🔧 Services**: LLM service, prompt service (28 tests)
+- **🛠️ Tools**: Document detection, triple extraction (13 tests)
+- **⚙️ Config**: Configuration management (12 tests)
+- **🌐 Server**: API endpoints and error handling (12 tests)
+
+### **Basic API Testing:**
 ```bash
 # Health check
 curl http://localhost:8000/health
@@ -283,6 +309,13 @@ curl -X POST http://localhost:8000/execute/Knowledge\ Graph\ Agent/extract_tripl
 - Open `http://localhost:8000/docs` for Swagger UI
 - Test all endpoints with built-in forms
 - View request/response schemas
+
+### **Test Documentation**
+See [tests/README.md](./tests/README.md) for detailed test documentation, including:
+- Test categories and coverage
+- Known issues and workarounds
+- Development testing guidelines
+- CI/CD integration
 
 ---
 

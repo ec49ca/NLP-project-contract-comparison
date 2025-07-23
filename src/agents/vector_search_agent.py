@@ -4,109 +4,151 @@ Vector Search Agent - Placeholder Implementation
 This is a placeholder implementation. You should replace this with your actual vector search agent logic.
 """
 
-from typing import Dict, List, Any
-from .base_agent import BaseAgent, Tool
+from typing import Dict, List, Any, Optional
+from ..interfaces.agent import AgentInterface
+from uuid import UUID
 
-class VectorSearchAgent(BaseAgent):
-    """Vector search agent for semantic document search"""
-    
-    def __init__(self):
-        super().__init__("vector_search")
-        self.name = "Vector Search Agent"
-        self.description = "Performs semantic search through document collections"
-        self.category = "search"
-    
-    async def get_tools(self) -> List[Tool]:
-        """Get the tools provided by this agent"""
-        return [
-            Tool(
-                name="semantic_search",
-                description="Perform semantic document search",
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "query": {"type": "string", "description": "Search query"},
-                        "collection_id": {"type": "string", "description": "Collection to search in"},
-                        "limit": {"type": "integer", "description": "Maximum number of results", "default": 10}
-                    },
-                    "required": ["query"]
-                }
-            ),
-            Tool(
-                name="find_similar",
-                description="Find similar documents",
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "document_id": {"type": "string", "description": "Reference document ID"},
-                        "limit": {"type": "integer", "description": "Maximum number of results", "default": 5}
-                    },
-                    "required": ["document_id"]
-                }
-            )
-        ]
-    
-    async def execute_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Any:
-        """Execute a specific tool"""
-        if tool_name == "semantic_search":
-            query = arguments.get("query", "")
-            limit = arguments.get("limit", 10)
-            # Placeholder implementation
-            return {
-                "results": [
-                    {
-                        "id": "doc_1",
-                        "title": f"Document about {query}",
-                        "content": f"This is a sample document that matches '{query}'",
-                        "score": 0.95
-                    },
-                    {
-                        "id": "doc_2", 
-                        "title": f"Related to {query}",
-                        "content": f"Another document related to '{query}'",
-                        "score": 0.87
-                    }
-                ][:limit],
-                "total_found": 2,
-                "query": query
-            }
-        
-        elif tool_name == "find_similar":
-            document_id = arguments.get("document_id", "")
-            limit = arguments.get("limit", 5)
-            # Placeholder implementation
-            return {
-                "similar_documents": [
-                    {
-                        "id": "similar_1",
-                        "title": f"Similar to {document_id}",
-                        "similarity_score": 0.92
-                    },
-                    {
-                        "id": "similar_2",
-                        "title": f"Also similar to {document_id}",
-                        "similarity_score": 0.85
-                    }
-                ][:limit],
-                "reference_document": document_id
-            }
-        
-        else:
-            raise ValueError(f"Unknown tool: {tool_name}")
-    
-    async def execute(self, input_data: Dict[str, Any], context: Dict[str, Any]) -> Any:
-        """Execute the vector search agent"""
-        query = input_data.get("query", "")
-        collection_id = input_data.get("collection_id")
-        
-        # Perform semantic search
-        search_result = await self.execute_tool("semantic_search", {
-            "query": query,
-            "collection_id": collection_id,
-            "limit": 10
-        })
-        
-        return {
-            "search_results": search_result,
-            "agent": "vector_search"
-        } 
+class VectorSearchAgent(AgentInterface):
+	"""Vector search agent for semantic document search"""
+
+	def __init__(self):
+		self._agent_id_str = "vector_search"
+		self._uuid = None
+		self.agent_id = "vector_search"
+		self._name = "Vector Search Agent"
+		self._description = "Performs semantic search through document collections"
+		self.category = "search"
+		self.status = "initialized"
+		self._tools = {}
+
+	@property
+	def agent_id_str(self) -> str:
+		return self._agent_id_str
+
+	@property
+	def uuid(self) -> UUID:
+		if self._uuid is None:
+			raise ValueError("UUID has not been set yet.")
+		return self._uuid
+
+	@uuid.setter
+	def uuid(self, value: UUID):
+		if self._uuid is not None:
+			raise ValueError("UUID can only be set once.")
+		self._uuid = value
+
+	@property
+	def name(self) -> str:
+		"""Agent's unique identifier."""
+		return self._name
+
+	@property
+	def description(self) -> str:
+		"""Brief description of the agent's purpose."""
+		return self._description
+
+	async def initialize(self, config: Dict[str, Any]) -> None:
+		"""Initialize the agent with configuration"""
+		self.status = "ready"
+
+	async def process_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
+		"""Process a request using the vector search agent"""
+		tool_name = request.get("tool", "semantic_search")
+
+		if tool_name == "semantic_search":
+			return await self._semantic_search(
+				request.get("query", ""),
+				request.get("collection_id"),
+				request.get("limit", 10)
+			)
+		elif tool_name == "find_similar":
+			return await self._find_similar(
+				request.get("document_id", ""),
+				request.get("limit", 5)
+			)
+		else:
+			return {"error": f"Unknown tool: {tool_name}"}
+
+	async def shutdown(self) -> None:
+		"""Shutdown the agent"""
+		self.status = "shutdown"
+
+	def get_capabilities(self) -> List[Dict[str, Any]]:
+		"""Get the capabilities provided by this agent"""
+		return [
+			{
+				"name": "semantic_search",
+				"description": "Perform semantic document search",
+				"parameters": {
+					"query": "string - Search query",
+					"collection_id": "string - Collection to search in",
+					"limit": "integer - Maximum number of results (default: 10)"
+				}
+			},
+			{
+				"name": "find_similar",
+				"description": "Find similar documents",
+				"parameters": {
+					"document_id": "string - Reference document ID",
+					"limit": "integer - Maximum number of results (default: 5)"
+				}
+			}
+		]
+
+	def get_status(self) -> Dict[str, Any]:
+		"""Get the current status of the agent"""
+		return {
+			"status": self.status,
+			"agent_id": self.agent_id,
+			"name": self.name,
+			"category": self.category,
+			"capabilities": self.get_capabilities()
+		}
+
+	async def _semantic_search(self, query: str, collection_id: Optional[str], limit: int) -> Dict[str, Any]:
+		"""Perform semantic document search"""
+		if not query:
+			return {"error": "No query provided"}
+
+		# Placeholder implementation
+		return {
+			"results": [
+				{
+					"id": "doc_1",
+					"title": f"Document about {query}",
+					"content": f"This is a sample document that matches '{query}'",
+					"score": 0.95
+				},
+				{
+					"id": "doc_2",
+					"title": f"Related to {query}",
+					"content": f"Another document related to '{query}'",
+					"score": 0.87
+				}
+			][:limit],
+			"total_found": 2,
+			"query": query,
+			"collection_id": collection_id
+		}
+
+	async def _find_similar(self, document_id: str, limit: int) -> Dict[str, Any]:
+		"""Find similar documents"""
+		if not document_id:
+			return {"error": "No document ID provided"}
+
+		# Placeholder implementation
+		return {
+			"similar_documents": [
+				{
+					"id": "similar_1",
+					"title": f"Similar to {document_id}",
+					"similarity_score": 0.92
+				},
+				{
+					"id": "similar_2",
+					"title": f"Also similar to {document_id}",
+					"similarity_score": 0.85
+				}
+			][:limit],
+			"reference_document": document_id
+		}

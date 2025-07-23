@@ -3,290 +3,373 @@
 ![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.11+-green.svg)
 ![Docker](https://img.shields.io/badge/docker-supported-blue.svg)
+![Neo4j](https://img.shields.io/badge/neo4j-5.19+-orange.svg)
 
-A standalone HTTP API server for Samvid's Model Context Protocol (MCP) agents.
-
-## Overview
-
-This server provides REST endpoints for the main Samvid application to communicate with MCP agents. It's designed to run independently from the main Next.js application, making it compatible with Vercel's serverless deployment.
-
-## Features
-
-- **Agent Discovery**: Find available agents and their capabilities
-- **Tool Discovery**: Discover tools provided by agents
-- **Agent Invocation**: Execute agents with input data
-- **Tool Invocation**: Execute specific tools
-- **Session Management**: Create, update, and manage user sessions
-- **Health Monitoring**: Health check endpoint for monitoring
-
-## 🐳 Quick Start with Docker (Recommended)
-
-### Option 1: Docker Compose (Full Setup with Database)
-
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/samvid-ai/samvid-mcp-server.git
-   cd samvid-mcp-server
-   ```
-
-2. **Run with Docker Compose:**
-   ```bash
-   docker-compose up -d
-   ```
-
-   This will start:
-   - Samvid MCP Server on `http://localhost:8000`
-   - PostgreSQL database on port `5432`
-
-3. **Verify it's running:**
-   ```bash
-   curl http://localhost:8000/health
-   ```
-
-### Option 2: Docker Only (Standalone)
-
-1. **Clone and build:**
-   ```bash
-   git clone https://github.com/samvid-ai/samvid-mcp-server.git
-   cd samvid-mcp-server
-   docker build -t samvid-mcp-server .
-   ```
-
-2. **Run the container:**
-   ```bash
-   docker run -d --name samvid-mcp-server -p 8000:8000 samvid-mcp-server
-   ```
-
-3. **Test the API:**
-   ```bash
-   curl http://localhost:8000/health
-   ```
-
-### Option 3: Pre-built Image (Coming Soon)
-
-```bash
-# Pull and run the pre-built image
-docker run -d --name samvid-mcp-server -p 8000:8000 samvidai/mcp-server:0.1.0
-```
-
-## 🚀 Manual Installation
-
-### Prerequisites
-
-- Python 3.11+ (tested with Python 3.13)
-- Virtual environment (recommended)
-
-### Installation Steps
-
-1. **Create and activate virtual environment:**
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-
-2. **Install dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. **Set up environment variables:**
-   ```bash
-   cp env.example .env
-   # Edit .env with your configuration
-   ```
-
-### Running the Server
-
-**Development mode:**
-```bash
-python -m src.http_server
-```
-
-**Production mode:**
-```bash
-uvicorn src.http_server:app --host 0.0.0.0 --port 8000
-```
-
-## 📋 API Endpoints
-
-### Health Check
-- `GET /health` - Server health status
-
-### Agent Management
-- `POST /agents/discover` - Discover available agents
-- `POST /agents/invoke` - Invoke an agent
-
-### Tool Management
-- `POST /tools/discover` - Discover available tools
-- `POST /tools/invoke` - Invoke a specific tool
-
-### Session Management
-- `POST /sessions/create` - Create a new session
-- `GET /sessions/{session_id}` - Get session details
-- `PUT /sessions/{session_id}` - Update session
-- `DELETE /sessions/{session_id}` - Terminate session
-
-### API Documentation
-Visit `http://localhost:8000/docs` for interactive API documentation (Swagger UI).
-
-## 🔧 Configuration
-
-Environment variables:
-
-- `PORT` - Server port (default: 8000)
-- `LOG_LEVEL` - Logging level (default: INFO)
-- `ALLOWED_ORIGINS` - CORS allowed origins (default: http://localhost:3000)
-- `DATABASE_URL` - PostgreSQL connection string (optional)
-- `NODE_ENV` - Environment mode (development/production)
-
-## 🧪 Testing the API
-
-### Basic Health Check
-```bash
-curl http://localhost:8000/health
-```
-
-### Discover Available Agents
-```bash
-curl -X POST http://localhost:8000/agents/discover \
-  -H "Content-Type: application/json" \
-  -d '{}'
-```
-
-### Invoke an Agent
-```bash
-curl -X POST http://localhost:8000/agents/invoke \
-  -H "Content-Type: application/json" \
-  -d '{
-    "agent_id": "knowledge_graph",
-    "input_data": {"entity": "Python"},
-    "context": {"depth": 2}
-  }'
-```
-
-### Create a Session
-```bash
-curl -X POST http://localhost:8000/sessions/create \
-  -H "Content-Type: application/json" \
-  -d '{
-    "user_id": "test_user",
-    "context": {"test": "data"}
-  }'
-```
-
-## 🛠️ Development
-
-### Current Implementation
-
-The server currently includes these agents:
-- **MetaAgent** - Orchestration agent for managing other agents
-- **VectorSearchAgent** - Semantic search capabilities
-- **KnowledgeGraphAgent** - Knowledge graph traversal and analysis
-- **StatsAgent** - Analytics and statistics
-
-### Docker Commands for Development
-
-```bash
-# View logs
-docker-compose logs -f mcp-server
-
-# Access container shell
-docker-compose exec mcp-server bash
-
-# Rebuild after changes
-docker-compose up -d --build
-
-# Stop all services
-docker-compose down
-
-# Clean up
-docker-compose down -v  # Removes volumes too
-```
-
-### Adding Real Agents
-
-To replace mock agents with real implementations:
-
-1. Create agent classes in `src/agents/`
-2. Implement the required methods:
-   - `get_agent_info()`
-   - `get_tools()`
-   - `execute(input_data, context)`
-   - `execute_tool(tool_name, arguments)`
-3. Update the agent initialization in `src/http_server.py`
-
-## 🏗️ Architecture
-
-```
-┌─────────────────┐    HTTP/REST    ┌──────────────────┐
-│   Samvid App    │ ──────────────► │   MCP Server     │
-│   (Next.js)     │                 │   (FastAPI)      │
-│   on Vercel     │                 │   Standalone     │
-└─────────────────┘                 └──────────────────┘
-                                            │
-                                            ▼
-                                    ┌──────────────────┐
-                                    │     Agents       │
-                                    │  • MetaAgent     │
-                                    │  • VectorSearch  │
-                                    │  • KnowledgeGraph│
-                                    │  • StatsAgent    │
-                                    └──────────────────┘
-```
-
-## 📦 Production Deployment
-
-### Docker Production Setup
-
-1. **Build production image:**
-   ```bash
-   docker build -t samvid-mcp-server:0.1.0 .
-   ```
-
-2. **Run with production settings:**
-   ```bash
-   docker run -d \
-     --name samvid-mcp-server \
-     -p 8000:8000 \
-     -e NODE_ENV=production \
-     -e LOG_LEVEL=WARNING \
-     --restart unless-stopped \
-     samvid-mcp-server:0.1.0
-   ```
-
-### Production Considerations
-
-- Use a process manager like PM2 or systemd
-- Set up reverse proxy (nginx/Apache)
-- Configure proper logging and monitoring
-- Use environment-specific configuration
-- Set up health checks and auto-restart policies
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Add tests
-5. Commit your changes (`git commit -m 'Add some amazing feature'`)
-6. Push to the branch (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🆘 Support
-
-- **Issues**: [GitHub Issues](https://github.com/samvid-ai/samvid-mcp-server/issues)
-- **Documentation**: [API Docs](http://localhost:8000/docs)
-- **Discord**: [Samvid Community](https://discord.gg/samvid-ai)
-
-## 🔗 Related Projects
-
-- [Samvid Main Application](https://github.com/samvid-ai/samvid)
-- [Samvid Documentation](https://docs.samvid.ai)
+A multi-agent HTTP API server implementing the Model Context Protocol (MCP) with flexible LLM provider support and specialized agents for knowledge extraction, financial modeling, and dynamic tool generation.
 
 ---
 
-Made with ❤️ by [Samvid AI](https://samvid.ai) 
+## 🚀 **Key Features**
+
+- **🤖 Multi-Agent System**: 6 specialized agents for different domains
+- **🔄 LLM Provider Hotswapping**: Support for OpenAI, Claude, and Grok with runtime switching
+- **📊 Knowledge Graph**: Advanced triple extraction with Neo4j integration
+- **⚙️ Dynamic Tool Generation**: Create custom tools from natural language
+- **📈 Financial Modeling**: Black-Scholes option pricing and Greeks calculation
+- **🔍 Document Processing**: OCR, NER+EL, and relationship extraction
+- **🐳 Docker Ready**: Full containerization with docker-compose
+
+---
+
+## 🐳 **Quick Start with Docker**
+
+1. **Clone and setup:**
+   ```bash
+   git clone <repository-url>
+   cd samvid-mcp
+   cp env.example .env
+   # Edit .env with your API keys
+   ```
+
+2. **Start with Docker Compose:**
+   ```bash
+   docker-compose up -d
+   ```
+   This starts:
+   - **MCP Server** on `http://localhost:8000`
+   - **Neo4j** on `http://localhost:7474` (if enabled)
+
+3. **Verify running:**
+   ```bash
+   curl http://localhost:8000/health
+   ```
+
+4. **View interactive docs:**
+   Open `http://localhost:8000/docs` for Swagger UI
+
+---
+
+## 🤖 **Available Agents**
+
+### **1. Knowledge Graph Agent** (`knowledge_management`)
+Extract knowledge from documents and build graph relationships.
+
+**Capabilities:**
+- `extract_triples` - Extract subject-predicate-object relationships from text
+- `detect_document_type` - Classify document structure (7-point scale)
+- `preprocess_document` - Clean and normalize documents with OCR support
+- `run_ner_el` - Named Entity Recognition + Entity Linking using GPT-4
+- `run_relation_extraction` - Extract relationships using GPT-4o
+- `process_file_to_ner` - Complete pipeline from file to knowledge graph
+
+### **2. Tool Generator Agent** (`tool_generation`)
+Generate dynamic tools from natural language queries.
+
+**Capabilities:**
+- `generate_and_execute` - Complete workflow with complexity assessment
+- `assess_complexity` - Determine if query is simple or complex
+- `generate_direct` - Quick generation for simple queries
+- `analyze_and_plan` - Plan complex multi-step solutions
+- `get_pending_tools` / `approve_tool` - Tool approval workflow
+
+### **3. Options Agent** (`financial_modeling`)
+Black-Scholes option pricing and risk calculations.
+
+**Capabilities:**
+- `calculate_option_price` - Call/put option prices
+- `calculate_greeks` - Delta, gamma, theta, vega, rho
+- `calculate_implied_volatility` - Reverse-engineer volatility
+- `calculate_all` - Complete option analysis
+
+### **4. Meta Agent** (`analysis`)
+Intent analysis and execution planning coordinator.
+
+**Capabilities:**
+- `analyze_intent` - Determine user intent from queries
+- `create_execution_plan` - Multi-agent coordination plans
+
+### **5. Statistics Agent** (`analysis`)
+Statistical analysis and data processing.
+
+**Capabilities:**
+- `calculate_statistics` - Mean, median, std dev, etc.
+- `correlation_analysis` - Correlation between variables
+
+### **6. Vector Search Agent** (`search`)
+Semantic document search (placeholder implementation).
+
+**Capabilities:**
+- `semantic_search` - Semantic document search
+- `find_similar` - Find similar documents
+
+---
+
+## 🔄 **LLM Provider System**
+
+Flexible multi-provider LLM system with runtime switching:
+
+### **Supported Providers:**
+- **OpenAI**: GPT-4o, GPT-4o-mini, GPT-3.5-turbo
+- **Claude**: Claude-3-5-sonnet, Claude-3-haiku
+- **Grok**: (Ready for future integration)
+
+### **Configuration:**
+```bash
+# .env
+DEFAULT_LLM_MODEL=openai:gpt-4o
+OPENAI_API_KEY=sk-...
+CLAUDE_API_KEY=sk-ant-...
+```
+
+### **Usage Examples:**
+```python
+# Use global default
+await llm_service.simple_completion("Hello")
+
+# Override provider
+await llm_service.simple_completion("Complex analysis", provider="claude")
+
+# Override model for cost optimization
+await llm_service.simple_completion("Simple task", model="gpt-4o-mini")
+```
+
+See **[LLM_SERVICE_GUIDE.md](./LLM_SERVICE_GUIDE.md)** for complete usage guide.
+
+---
+
+## 📡 **API Endpoints**
+
+### **Core Endpoints:**
+- `GET /health` — Server health and stats
+- `GET /docs` — Interactive API documentation
+- `POST /agents` — Register new agent instances
+- `GET /agents` — List all registered agents
+- `GET /agents/{agent_id}` — Get specific agent info
+
+### **Agent Execution:**
+- `POST /execute/{agent_name}/{capability}` — Execute agent capability
+- `POST /tool-generator/execute` — Convenience endpoint for tool generation
+
+### **Resource Discovery:**
+- `GET /mcp/resources` — List all available MCP resources
+- `POST /discover` — Auto-discover and register agents
+
+See **[API_ENDPOINTS_GUIDE.md](./API_ENDPOINTS_GUIDE.md)** for detailed documentation with examples.
+
+---
+
+## ⚙️ **Configuration**
+
+### **Required Environment Variables:**
+```bash
+# LLM Configuration
+OPENAI_API_KEY=sk-...
+DEFAULT_LLM_MODEL=openai:gpt-4o
+
+# Neo4j (for Knowledge Graph Agent)
+NEO4J_URI=bolt://localhost:7687
+NEO4J_USER=neo4j
+NEO4J_PASSWORD=your_password
+
+# Server Configuration
+PORT=8000
+LOG_LEVEL=INFO
+```
+
+### **Optional Variables:**
+```bash
+# Additional LLM Providers
+CLAUDE_API_KEY=sk-ant-...
+GROK_API_KEY=... # When available
+
+# Database (if using external)
+DATABASE_URL=postgresql://...
+```
+
+---
+
+## 🛠️ **Development**
+
+### **Manual Installation:**
+```bash
+# Python 3.11+ required
+python3 -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+cp env.example .env
+# Edit .env with your configuration
+python -m src.server.mcp_server
+```
+
+### **Creating New Agents:**
+1. **Copy template:**
+   ```bash
+   cp src/agents/template_agent.py src/agents/my_agent.py
+   ```
+
+2. **Customize the template:**
+   - Update `_agent_id_str`, `_name`, `_description`
+   - Set appropriate `category`
+   - Implement `process_request()` logic
+   - Define `get_capabilities()`
+
+3. **Register agent:**
+   ```python
+   # Add to src/agents/__init__.py
+   from .my_agent import MyAgent
+   __all__ = [..., "MyAgent"]
+   ```
+
+4. **Auto-discovery:**
+   - Agents are automatically discovered on server startup
+   - No manual registration required
+
+### **Agent Categories:**
+- `knowledge_management` — Knowledge extraction and graphs
+- `financial_modeling` — Financial calculations and modeling
+- `tool_generation` — Dynamic tool creation
+- `analysis` — Data analysis and statistics
+- `search` — Search and retrieval
+- `communication` — External API integrations
+- `data_processing` — Data transformation
+
+---
+
+## 🏗️ **Architecture**
+
+```
+samvid-mcp/
+├── src/
+│   ├── agents/           # Agent implementations
+│   │   ├── tools/       # Agent-specific tools
+│   │   └── *.py         # Individual agents
+│   ├── interfaces/      # Abstract interfaces
+│   ├── providers/       # LLM provider implementations
+│   ├── services/        # Core services (LLM, Neo4j, config)
+│   ├── registry/        # Agent registration system
+│   ├── discovery/       # Auto-discovery system
+│   └── server/          # FastAPI server
+├── docker-compose.yml   # Container orchestration
+├── Dockerfile          # Container definition
+└── requirements.txt    # Python dependencies
+```
+
+### **Key Components:**
+- **FastAPI Server**: HTTP API with auto-generated docs
+- **Agent Registry**: Manages agent lifecycle and routing
+- **LLM Service**: Multi-provider LLM abstraction layer
+- **Neo4j Service**: Graph database for knowledge graphs
+- **Discovery System**: Auto-finds and registers agents
+
+---
+
+## 🧪 **Testing**
+
+### **Basic Testing:**
+```bash
+# Health check
+curl http://localhost:8000/health
+
+# List agents
+curl http://localhost:8000/agents
+
+# Execute capability
+curl -X POST http://localhost:8000/execute/Knowledge\ Graph\ Agent/extract_triples \
+  -H "Content-Type: application/json" \
+  -d '{"text": "John works at OpenAI in San Francisco"}'
+```
+
+### **Interactive Testing:**
+- Open `http://localhost:8000/docs` for Swagger UI
+- Test all endpoints with built-in forms
+- View request/response schemas
+
+---
+
+## 🐳 **Docker Configuration**
+
+### **Services:**
+- **mcp-server**: Main application (port 8000)
+- **neo4j**: Graph database (ports 7474, 7687) [optional]
+- **db**: PostgreSQL database [optional]
+
+### **Volumes:**
+- `./generated_tools:/app/generated_tools` — Dynamic tool storage
+- `./logs:/app/logs` — Application logs
+- `./sunworld_test_data:/app/sunworld_test_data` — Test documents
+
+### **Networks:**
+- `mcp-network`: Internal Docker network for service communication
+
+---
+
+## 📚 **Documentation**
+
+- **[API_ENDPOINTS_GUIDE.md](./API_ENDPOINTS_GUIDE.md)** — Complete API reference
+- **[LLM_SERVICE_GUIDE.md](./LLM_SERVICE_GUIDE.md)** — LLM provider usage guide
+- **[AGENT_DEVELOPMENT_GUIDE.md](./AGENT_DEVELOPMENT_GUIDE.md)** — Agent development guide
+- **[ARCHITECTURE.md](./ARCHITECTURE.md)** — System architecture overview
+
+---
+
+## 🤝 **Contributing**
+
+### **Development Workflow:**
+1. Create feature branch
+2. Follow coding standards (tabs, consistent naming)
+3. Implement comprehensive error handling
+4. Add logging and documentation
+5. Test with multiple agents
+6. Submit pull request
+
+### **Code Standards:**
+- **Python 3.11+** with type hints
+- **Tab indentation** for consistency
+- **Async/await** for I/O operations
+- **Comprehensive logging** with structured messages
+- **Error handling** with user-friendly messages
+
+---
+
+## 📄 **License**
+
+See [LICENSE](./LICENSE) for details.
+
+---
+
+## 🚀 **Quick Examples**
+
+### **Extract Knowledge from Text:**
+```bash
+curl -X POST http://localhost:8000/execute/Knowledge\ Graph\ Agent/extract_triples \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "Apple Inc. was founded by Steve Jobs in Cupertino, California.",
+    "confidence_threshold": 0.8
+  }'
+```
+
+### **Generate Dynamic Tool:**
+```bash
+curl -X POST http://localhost:8000/tool-generator/execute \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "Calculate average of numbers",
+    "data": [1, 2, 3, 4, 5]
+  }'
+```
+
+### **Option Pricing:**
+```bash
+curl -X POST http://localhost:8000/execute/Options\ Pricing\ Agent/calculate_option_price \
+  -H "Content-Type: application/json" \
+  -d '{
+    "spot_price": 100,
+    "strike_price": 105,
+    "time_to_expiry": 0.25,
+    "risk_free_rate": 0.05,
+    "volatility": 0.2
+  }'
+```
+
+**🎯 Ready to build intelligent multi-agent systems with flexible LLM providers!**

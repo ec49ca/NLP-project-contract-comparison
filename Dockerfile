@@ -9,9 +9,19 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app
 
-# Install system dependencies
+# Install system dependencies including Tesseract OCR and PDF processing
 RUN apt-get update && apt-get install -y \
     gcc \
+    curl \
+    tesseract-ocr \
+    tesseract-ocr-eng \
+    libtesseract-dev \
+    libleptonica-dev \
+    libpng-dev \
+    libjpeg-dev \
+    libtiff-dev \
+    zlib1g-dev \
+    poppler-utils \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching
@@ -23,7 +33,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the application code
 COPY src/ ./src/
 COPY version.py ./
-COPY env.example .env
+
+# Copy environment file (will be overridden by runtime env vars)
+COPY .env .env
 
 # Create a non-root user for security
 RUN adduser --disabled-password --gecos '' appuser && \
@@ -33,9 +45,9 @@ USER appuser
 # Expose the port
 EXPOSE 8000
 
-# Health check
+# Health check - use curl instead of Python requests
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD python -c "import requests; requests.get('http://localhost:8000/health')" || exit 1
+  CMD curl -f http://localhost:8000/health || exit 1
 
 # Default command to run the application
-CMD ["python", "src/http_server.py"] 
+CMD ["python", "-m", "src.server.mcp_server"]

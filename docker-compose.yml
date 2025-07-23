@@ -1,38 +1,58 @@
-version: '3.8'
+version: "3.8"
 
 services:
   mcp-server:
     build: .
     ports:
       - "8000:8000"
+    env_file:
+      - .env
     environment:
       - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:password@db:5432/samvid}
       - SAMVID_API_URL=${SAMVID_API_URL:-http://host.docker.internal:3000/api}
       - PORT=8000
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
-    depends_on:
-      - db
+    volumes:
+      - ./generated_tools:/app/generated_tools
+      - ./logs:/app/logs
+      - ./sunworld_test_data:/app/sunworld_test_data
+    # depends_on:
+    #   - db
     restart: unless-stopped
     networks:
       - mcp-network
 
   # Optional: Local PostgreSQL for development
-  db:
-    image: postgres:15-alpine
-    environment:
-      - POSTGRES_DB=samvid
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=password
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - mcp-network
+  # db:
+  #   image: postgres:15-alpine
+  #   environment:
+  #     - POSTGRES_DB=samvid
+  #     - POSTGRES_USER=postgres
+  #     - POSTGRES_PASSWORD=password
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   networks:
+  #     - mcp-network
+
+  # neo4j:
+  #   image: neo4j:5.19-community
+  #   ports:
+  #     - "7474:7474" # HTTP
+  #     - "7687:7687" # Bolt
+  #   environment:
+  #     # TODO: more secure password
+  #     - NEO4J_AUTH=neo4j/samvidneo4j # username=neo4j, password=samvid
+  #   volumes:
+  #     - neo4j_data:/data
+  #   networks:
+  #     - mcp-network
 
 volumes:
   postgres_data:
+  neo4j_data:
 
 networks:
   mcp-network:
-    driver: bridge 
+    driver: bridge

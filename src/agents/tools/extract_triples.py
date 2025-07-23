@@ -1,0 +1,332 @@
+"""
+Extract Triples Tool
+
+This tool extracts triples (subject-predicate-object relationships) from unstructured text using OpenAI.
+"""
+
+import json
+import logging
+from typing import Dict, Any, List, Optional
+from ...services.llm_service import llm_service
+
+logger = logging.getLogger(__name__)
+
+
+# this is the extract_triples tool. it is used to extract triples from unstructured text using OpenAI.
+class ExtractTriplesTool:
+    """Tool for extracting triples from unstructured text using OpenAI"""
+
+    def __init__(self):
+        self.name = "extract_triples"
+        self.description = "Extract triples from unstructured text using LLM"
+        self.llm_service = llm_service
+
+    async def execute_tool(self, arguments: Dict[str, Any]) -> Any:
+        """Execute the extract_triples tool"""
+        text = arguments.get("text", "")
+        confidence_threshold = arguments.get("confidence_threshold", 0.7)
+        max_triples = arguments.get("max_triples", 100)
+
+        try:
+            # Step 1: Text Preprocessing
+            processed_text = self._preprocess_text(text)
+
+            # Step 2: Entity Extraction using LLM
+            entities = await self._extract_entities(processed_text)
+
+            # Step 3: Relationship Extraction using LLM
+            relationships = await self._extract_relationships(processed_text, entities)
+
+            # Step 4: Triple Generation
+            triples = self._generate_triples(entities, relationships)
+
+            # Step 5: Confidence Scoring & Filtering
+            scored_triples = self._score_and_filter_triples(
+                triples, confidence_threshold, max_triples
+            )
+
+            return {
+                "triples": scored_triples,
+                "confidence_threshold": confidence_threshold,
+                "max_triples_requested": max_triples,
+                "total_extracted": len(scored_triples),
+                "entities_found": len(entities),
+                "relationships_found": len(relationships),
+            }
+
+        except Exception as e:
+            logger.error(f"Error in extract_triples: {e}")
+            # Fallback to placeholder implementation
+            return self._fallback_response(confidence_threshold, max_triples)
+
+    def _preprocess_text(self, text: str) -> str:
+        """Preprocess the input text"""
+        # Remove extra whitespace and normalize
+        processed = " ".join(text.split())
+
+        # Limit text length to avoid token limits
+        if len(processed) > 12000:
+            processed = processed[:12000]
+            logger.info("Text truncated to 12000 characters to avoid token limits")
+
+        return processed
+
+    def _generate_triples(
+        self, entities: List[Dict[str, Any]], relationships: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """Generate triples from entities and relationships"""
+        triples = []
+
+        # Generate triples from entities (type and attribute triples)
+        for entity in entities:
+            # Entity type triple
+            triples.append(
+                {
+                    "subject": entity["name"],
+                    "predicate": "is_a",
+                    "object": entity["type"],
+                    "confidence": entity.get("confidence", 0.8),
+                    "source": "entity_extraction",
+                }
+            )
+
+        # Generate triples from relationships
+        for rel in relationships:
+            triples.append(
+                {
+                    "subject": rel["source"],
+                    "predicate": rel["relationship"],
+                    "object": rel["target"],
+                    "confidence": rel.get("confidence", 0.8),
+                    "source": "relationship_extraction",
+                }
+            )
+
+        return triples
+
+    def _score_and_filter_triples(
+        self,
+        triples: List[Dict[str, Any]],
+        confidence_threshold: float,
+        max_triples: int,
+    ) -> List[Dict[str, Any]]:
+        """Score and filter triples based on confidence and limits"""
+        # Filter by confidence threshold
+        filtered_triples = [
+            triple
+            for triple in triples
+            if triple.get("confidence", 0) >= confidence_threshold
+        ]
+
+        # Sort by confidence (highest first)
+        filtered_triples.sort(key=lambda x: x.get("confidence", 0), reverse=True)
+
+        # Limit to max_triples
+        if len(filtered_triples) > max_triples:
+            filtered_triples = filtered_triples[:max_triples]
+
+        return filtered_triples
+
+    async def _extract_entities(self, text: str) -> List[Dict[str, Any]]:
+        """Extract entities from text using LLM service (replaces openai_service.extract_entities)"""
+        try:
+            prompt = self._build_entity_extraction_prompt(text)
+            response = await self._make_llm_call(prompt)
+            return self._parse_entity_response(response)
+        except Exception as e:
+            logger.error(f"Error extracting entities: {e}")
+            return []
+
+    async def _extract_relationships(
+        self, text: str, entities: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """Extract relationships between entities using LLM service (replaces openai_service.extract_relationships)"""
+        try:
+            if not entities or len(entities) < 2:
+                return []
+
+            prompt = self._build_relationship_extraction_prompt(text, entities)
+            response = await self._make_llm_call(prompt)
+            return self._parse_relationship_response(response)
+        except Exception as e:
+            logger.error(f"Error extracting relationships: {e}")
+            return []
+
+    def _build_entity_extraction_prompt(self, text: str) -> str:
+        """Build prompt for entity extraction (from original openai_service)"""
+        return f"""
+Extract all named entities from this document. For each entity, provide:
+1. Entity name (the exact text as it appears in the document)
+2. Entity type (Person, Organization, Location, Date, Product, Event, Technology, Concept, etc.)
+3. Context (a brief phrase or sentence where the entity appears, limited to 100 characters)
+4. Confidence score (0.0 to 1.0 based on how certain you are about the entity)
+
+Focus on identifying:
+- People (individuals, roles)
+- Organizations (companies, institutions, departments)
+- Locations (addresses, cities, countries)
+- Dates and Times
+- Products and Services
+- Legal Entities and Terms
+- Financial Terms and Amounts
+- Events
+- Technologies
+- Concepts and Ideas
+
+Document text:
+{text}
+
+Respond with a JSON array of entities in this exact format:
+{{
+  "entities": [
+    {{
+      "name": "entity name",
+      "type": "entity type",
+      "context": "brief context where entity appears",
+      "confidence": 0.95
+    }}
+  ]
+}}
+
+Only include each unique entity once with its most representative context.
+"""
+
+    def _build_relationship_extraction_prompt(
+        self, text: str, entities: List[Dict[str, Any]]
+    ) -> str:
+        """Build prompt for relationship extraction (from original openai_service)"""
+        entity_list = "\n".join(
+            [f"- {entity['name']} ({entity['type']})" for entity in entities]
+        )
+
+        return f"""
+Extract relationships between the following entities from the document. For each relationship, provide:
+1. Source entity (from the list below)
+2. Target entity (from the list below)
+3. Relationship type (created, works_at, is_a, part_of, located_in, etc.)
+4. Confidence score (0.0 to 1.0)
+
+Available entities:
+{entity_list}
+
+Document text:
+{text}
+
+Respond with a JSON array of relationships in this exact format:
+{{
+  "relationships": [
+    {{
+      "source": "source entity name",
+      "source_type": "source entity type",
+      "target": "target entity name",
+      "target_type": "target entity type",
+      "relationship": "relationship type",
+      "confidence": 0.85
+    }}
+  ]
+}}
+
+Only include relationships that are clearly supported by the text.
+"""
+
+    async def _make_llm_call(self, prompt: str) -> str:
+        """Make LLM API call using llm_service (replaces openai_service._make_openai_call)"""
+        try:
+            logger.info("Making LLM API call")
+            response = await self.llm_service.simple_completion(
+                prompt=prompt, response_format={"type": "json_object"}
+            )
+
+            if not response:
+                raise ValueError("Empty response from LLM")
+
+            logger.info("LLM API call successful")
+            return response
+        except Exception as e:
+            logger.error(f"LLM API call failed: {e}")
+            raise
+
+    def _parse_entity_response(self, response: str) -> List[Dict[str, Any]]:
+        """Parse entity extraction response (from original openai_service)"""
+        try:
+            import json
+
+            parsed = json.loads(response)
+            entities = parsed.get("entities", [])
+
+            # Validate entity format
+            validated_entities = []
+            for entity in entities:
+                if all(
+                    key in entity for key in ["name", "type", "context", "confidence"]
+                ):
+                    validated_entities.append(entity)
+                else:
+                    logger.warning(f"Skipping invalid entity: {entity}")
+
+            logger.info(f"Extracted {len(validated_entities)} entities")
+            return validated_entities
+
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse entity response: {e}")
+            return []
+
+    def _parse_relationship_response(self, response: str) -> List[Dict[str, Any]]:
+        """Parse relationship extraction response (from original openai_service)"""
+        try:
+            import json
+
+            parsed = json.loads(response)
+            relationships = parsed.get("relationships", [])
+
+            # Validate relationship format
+            validated_relationships = []
+            for rel in relationships:
+                if all(
+                    key in rel
+                    for key in [
+                        "source",
+                        "source_type",
+                        "target",
+                        "target_type",
+                        "relationship",
+                        "confidence",
+                    ]
+                ):
+                    validated_relationships.append(rel)
+                else:
+                    logger.warning(f"Skipping invalid relationship: {rel}")
+
+            logger.info(f"Extracted {len(validated_relationships)} relationships")
+            return validated_relationships
+
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse relationship response: {e}")
+            return []
+
+    def _fallback_response(
+        self, confidence_threshold: float, max_triples: int
+    ) -> Dict[str, Any]:
+        """Fallback response when extraction fails"""
+        return {
+            "triples": [
+                {
+                    "subject": "Python",
+                    "predicate": "is_a",
+                    "object": "programming_language",
+                    "confidence": 0.95,
+                },
+                {
+                    "subject": "Python",
+                    "predicate": "created_by",
+                    "object": "Guido_van_Rossum",
+                    "confidence": 0.92,
+                },
+            ],
+            "confidence_threshold": confidence_threshold,
+            "max_triples_requested": max_triples,
+            "total_extracted": 2,
+            "entities_found": 2,
+            "relationships_found": 1,
+            "note": "Fallback response due to extraction error",
+        }

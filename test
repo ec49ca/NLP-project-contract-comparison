@@ -36,6 +36,7 @@ show_help() {
     echo "  ./test config       - Run configuration tests only"
     echo "  ./test server       - Run server endpoint tests only"
     echo "  ./test llm          - Run LLM service tests only"
+    echo "  ./test agents       - Run agent functionality tests only"
     echo "  ./test unit         - Run unit tests only"
     echo "  ./test integration  - Run integration tests only"
     echo "  ./test quick        - Run fastest tests only"
@@ -74,6 +75,11 @@ case "${1:-all}" in
     "llm")
         print_status "Running LLM service tests..."
         pytest -m llm ${@:2}
+        ;;
+
+    "agents")
+        print_status "Running agent functionality tests..."
+        pytest -m agents ${@:2}
         ;;
 
     "unit")

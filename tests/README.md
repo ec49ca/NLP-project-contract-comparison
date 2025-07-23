@@ -1,6 +1,6 @@
 # Test Suite
 
-Simple, comprehensive test suite for the MCP multi-agent system. Tests configuration, server endpoints, and LLM service functionality.
+Simple, comprehensive test suite for the MCP multi-agent system. Tests configuration, server endpoints, LLM service, and agent functionality.
 
 ## Usage
 
@@ -12,11 +12,12 @@ Simple, comprehensive test suite for the MCP multi-agent system. Tests configura
 ./test config       # Configuration tests
 ./test server       # Server endpoint tests
 ./test llm         # LLM service tests
+./test agents       # Agent functionality tests
 ./test unit        # Unit tests only
 ./test integration # Integration tests only
 ```
 
-## Test Coverage (43 tests)
+## Test Coverage (62 tests)
 
 ### Configuration Tests (12 tests)
 **What**: Configuration parsing, provider setup, environment variables
@@ -70,12 +71,34 @@ Simple, comprehensive test suite for the MCP multi-agent system. Tests configura
 - `test_service_ready_for_use` - Service is ready for typical usage
 - `test_end_to_end_completion_flow` - Complete workflow from init to completion
 
+### Agent Tests (19 tests)
+**What**: Knowledge Graph Agent functionality, document processing, triple extraction
+- `test_agent_creation` - Basic agent creation and properties
+- `test_uuid_property` - UUID property management and validation
+- `test_agent_initialization` - Agent initialization with configuration
+- `test_agent_shutdown` - Clean agent shutdown process
+- `test_get_status` - Agent status and health reporting
+- `test_get_capabilities` - Agent capabilities listing
+- `test_tools_available` - Tool availability verification
+- `test_process_request_uninitialized` - Handle requests when not initialized
+- `test_process_request_unknown_command` - Handle unknown command requests
+- `test_process_extract_triples_request` - Triple extraction request processing
+- `test_process_detect_document_request` - Document type detection processing
+- `test_process_preprocess_document_request` - Document preprocessing
+- `test_ner_el_integration` - Named Entity Recognition integration
+- `test_relation_extraction_integration` - Relation extraction integration
+- `test_tool_error_handling` - Tool failure error handling
+- `test_document_processing_workflow` - End-to-end document processing
+- `test_ner_to_relation_workflow` - NER to relation extraction workflow
+- `test_neo4j_service_available` - Neo4j database service integration
+- `test_agent_ready_for_production` - Production readiness verification
+
 ## Test Architecture
 
 - **Unit tests**: Individual component testing with mocks
 - **Integration tests**: API endpoint and service interaction testing
 - **Fixtures**: Reusable test data and mock objects in `conftest.py`
-- **Markers**: `@pytest.mark.config`, `@pytest.mark.server`, `@pytest.mark.llm`
+- **Markers**: `@pytest.mark.config`, `@pytest.mark.server`, `@pytest.mark.llm`, `@pytest.mark.agents`
 - **Async support**: Full async/await testing with pytest-asyncio
 
 ## Adding Tests

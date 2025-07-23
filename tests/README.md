@@ -17,7 +17,7 @@ Simple, comprehensive test suite for the MCP multi-agent system. Tests configura
 ./test integration # Integration tests only
 ```
 
-## Test Coverage (62 tests)
+## Test Coverage (87 tests)
 
 ### Configuration Tests (12 tests)
 **What**: Configuration parsing, provider setup, environment variables
@@ -71,7 +71,9 @@ Simple, comprehensive test suite for the MCP multi-agent system. Tests configura
 - `test_service_ready_for_use` - Service is ready for typical usage
 - `test_end_to_end_completion_flow` - Complete workflow from init to completion
 
-### Agent Tests (19 tests)
+### Agent Tests (44 tests)
+
+#### Knowledge Graph Agent (19 tests)
 **What**: Knowledge Graph Agent functionality, document processing, triple extraction
 - `test_agent_creation` - Basic agent creation and properties
 - `test_uuid_property` - UUID property management and validation
@@ -92,6 +94,34 @@ Simple, comprehensive test suite for the MCP multi-agent system. Tests configura
 - `test_ner_to_relation_workflow` - NER to relation extraction workflow
 - `test_neo4j_service_available` - Neo4j database service integration
 - `test_agent_ready_for_production` - Production readiness verification
+
+#### Tool Generator Agent (25 tests)
+**What**: Dynamic tool creation, complexity assessment, code generation and execution
+- `test_agent_creation` - Basic agent creation and properties
+- `test_agent_initialization` - Agent initialization with OpenAI API key
+- `test_agent_initialization_no_api_key` - Handle missing API key requirement
+- `test_agent_shutdown` - Agent shutdown process
+- `test_get_status` - Agent status reporting with tool counts
+- `test_get_capabilities` - Agent capabilities for tool generation
+- `test_debug_logging` - Debug logging functionality
+- `test_process_request_uninitialized` - Handle requests when not initialized
+- `test_process_request_unknown_command` - Handle unknown command requests
+- `test_assess_complexity_request` - Query complexity assessment
+- `test_generate_direct_request` - Direct tool generation for simple queries
+- `test_generate_and_execute_request` - Complete generation and execution workflow
+- `test_get_pending_tools` - Retrieve pending tools awaiting approval
+- `test_approve_tool` - Approve pending tools for use
+- `test_reject_tool` - Reject unsuitable tools
+- `test_get_approved_tools` - Retrieve approved tools list
+- `test_approve_nonexistent_tool` - Handle approval of non-existent tools
+- `test_execute_code_basic` - Basic code execution functionality
+- `test_execute_code_with_data` - Code execution with data parameters
+- `test_execute_code_error_handling` - Error handling in code execution
+- `test_simple_tool_generation_workflow` - End-to-end simple tool generation
+- `test_tool_approval_workflow` - Complete tool approval workflow
+- `test_agent_ready_for_production` - Production readiness verification
+- `test_session_management` - Session ID generation and management
+- `test_error_resilience` - Agent resilience to error conditions
 
 ## Test Architecture
 

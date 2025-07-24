@@ -8,6 +8,7 @@ from ..registry.registry import AgentRegistrySystem
 from ..discovery.agent_discovery import AgentDiscovery
 from ..interfaces.agent import AgentInterface
 from ..registry.registry_models import AgentStatus
+from langfuse import get_client
 
 # Initialize core components
 registry = AgentRegistrySystem()
@@ -29,10 +30,8 @@ async def lifespan(app: FastAPI):
     # Startup
     # Initialize Langfuse
     try:
-        from langfuse import get_client
-
-        langfuse = get_client()
-        if langfuse.auth_check():
+        langfuse_client = get_client()
+        if langfuse_client.auth_check():
             logger.info("Langfuse auth check passed")
         else:
             raise Exception("Langfuse auth check failed")
@@ -42,9 +41,8 @@ async def lifespan(app: FastAPI):
 
     await auto_register_agents()
     yield
+
     # Shutdown
-    # if app.state.langfuse:
-    # 	app.state.langfuse.flush()
     logger.info("Shutting down MCP server")
 
 

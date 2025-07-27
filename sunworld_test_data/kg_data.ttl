@@ -168,7 +168,7 @@ swf:SpainInnovationCenter a sw:ResearchFacility ;
 
 # Varieties
 sw:SWC-1001 a sw:Variety ;
-    rdfs:label "Cotton Candy™ Grapes" ;
+    rdfs:label "Cotton Candy Grapes" ;
     sw:type "Table Grape" ;
     sw:developmentYear "2011"^^xsd:gYear ;
     sw:patent sw:USPP24509P3 ;
@@ -180,7 +180,7 @@ sw:SWC-1001 a sw:Variety ;
     sw:testedAt swf:BakersfieldLab .
 
 sw:SWC-1002 a sw:Variety ;
-    rdfs:label "SunnyGlo™ Apricots" ;
+    rdfs:label "SunnyGlo Apricots" ;
     sw:type "Apricot" ;
     sw:developmentYear "2018"^^xsd:gYear ;
     sw:patent sw:USPP28976P3 ;
@@ -192,7 +192,7 @@ sw:SWC-1002 a sw:Variety ;
     sw:testedAt swf:FresnoFieldStation .
 
 sw:SWC-1003 a sw:Variety ;
-    rdfs:label "Midnight™ Blueberries" ;
+    rdfs:label "Midnight Blueberries" ;
     sw:type "Blueberry" ;
     sw:developmentYear "2020"^^xsd:gYear ;
     sw:patent sw:USPP31245P3 ;
@@ -204,7 +204,7 @@ sw:SWC-1003 a sw:Variety ;
     sw:testedAt swf:FresnoFieldStation .
 
 sw:SWC-1004 a sw:Variety ;
-    rdfs:label "Crimson Crisp™ Grapes" ;
+    rdfs:label "Crimson Crisp Grapes" ;
     sw:type "Table Grape" ;
     sw:developmentYear "2015"^^xsd:gYear ;
     sw:patent sw:USPP27890P3 ;
@@ -216,7 +216,7 @@ sw:SWC-1004 a sw:Variety ;
     sw:testedAt swf:BakersfieldLab .
 
 sw:SWC-1005 a sw:Variety ;
-    rdfs:label "Golden Delight™ Peaches" ;
+    rdfs:label "Golden Delight Peaches" ;
     sw:type "Peach" ;
     sw:developmentYear "2019"^^xsd:gYear ;
     sw:patent sw:USPP30123P3 ;
@@ -228,7 +228,7 @@ sw:SWC-1005 a sw:Variety ;
     sw:testedAt swf:FresnoFieldStation .
 
 sw:SWC-1006 a sw:Variety ;
-    rdfs:label "Evergreen™ Kiwi" ;
+    rdfs:label "Evergreen Kiwi" ;
     sw:type "Kiwi" ;
     sw:developmentYear "2021"^^xsd:gYear ;
     sw:patent sw:USPP32456P3 ;
@@ -240,7 +240,7 @@ sw:SWC-1006 a sw:Variety ;
     sw:testedAt swf:ChileResearchFarm .
 
 sw:SWC-1007 a sw:Variety ;
-    rdfs:label "Desert Bloom™ Citrus" ;
+    rdfs:label "Desert Bloom Citrus" ;
     sw:type "Citrus" ;
     sw:developmentYear "2022"^^xsd:gYear ;
     sw:patent sw:USPP33500P3 ;
@@ -252,7 +252,7 @@ sw:SWC-1007 a sw:Variety ;
     sw:testedAt swf:SpainInnovationCenter .
 
 sw:SWC-1008 a sw:Variety ;
-    rdfs:label "Arctic Berry™ Strawberries" ;
+    rdfs:label "Arctic Berry Strawberries" ;
     sw:type "Strawberry" ;
     sw:developmentYear "2023"^^xsd:gYear ;
     sw:patent sw:USPP34000P3 ;

@@ -35,6 +35,10 @@ How tools work:
 # TODO: add real time kg updates so news from around the world gets updated into kg as well
 # TODO: add different prompts for retrieval vs extraction ner
 # TODO: find all passwords and move to env. update for prod or dev env
+# TODO: refactor entity traversal and all hybrid retrievals into a single tool and use that.
+# TODO: remove get capabilities dependence in mcp_server.py, shouldn't have to write capabilities twice.
+# TODO: create neo4j db migration scripts
+# TODO: preprocessor needs to check for typos and clean text as well
 
 
 import logging
@@ -50,6 +54,8 @@ from ..services.llm_service import llm_service
 from ..services.prompt_service import prompt_service
 from uuid import UUID
 import json
+import os
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -927,7 +933,12 @@ class KnowledgeGraphAgent(AgentInterface):
 
         return response
 
-    async def _retrieve_information(self, request: Dict[str, Any]) -> Dict[str, Any]:
+    async def _execute_cypher_query(self, cypher_query: str) -> Dict[str, Any]:
+        response = await self._graphdb_.run_cypher_query(cypher_query)
+        # logger.warning(f"Cypher response: {response}")
+        return response
+
+    async def _retrieve_information(self, request: Dict[str, Any]) -> Any:
         """Main retrieval method that follows the 4-step pipeline.
 
         Args:
@@ -961,16 +972,57 @@ class KnowledgeGraphAgent(AgentInterface):
             request["for_retrieval"] = True
             # entity/relationship extraction
             ner_el_info = await self._run_ner_el(request)
-            with open("logs/ner_el_info_test", "w") as f:
-                json.dump(ner_el_info, f)
             if ner_el_info["status"] != "success":
                 raise ValueError("NER+EL failed")
-            logger.warning(
+            entities = ner_el_info["data"]["entities"]
+            relationships = ner_el_info["data"]["relationships"]
+
+            logger.info(
                 f"NER_EL_INFO: \nEntities:{ner_el_info['data']['entities']} \nRelationships:{ner_el_info['data']['relationships']}"
             )
 
-            # Step 2: Multi-strategy retrieva
+            # Step 1->2: Entity linking and reconciliation
+            # have lookup table
+            # may need vectorized lookup -> kg
+
+            # Step 2: Multi-strategy retrieval
             # Entity Traversal
+
+            all_cypher_results = []
+            for entity in entities:
+                entity_name = entity.get("text")
+                if entity_name:
+                    # Construct Cypher query for the extracted entity
+                    # Note: This assumes a direct match between extracted entity text and Neo4j entity name.
+                    # As discussed, exact matching with URIs might be an issue.
+                    cypher_query = f"""
+                    MATCH (label_entity:Entity {{name: \"{entity_name}\"}})
+                    OPTIONAL MATCH (uri_entity:Entity)-[label_rel:RELATION {{type: \"http://www.w3.org/2000/01/rdf-schema#label\"}}]->(label_entity)
+                    WITH COALESCE(uri_entity, label_entity) AS start_node
+                    MATCH (start_node)-[r]-(n)
+                    RETURN start_node.name AS Source, r.type AS RelationshipType, n.name AS TargetName
+                    LIMIT 10
+                    """
+                    logger.info(
+                        f"Executing Cypher query for entity '{entity_name}': {cypher_query}"
+                    )
+                    cypher_response = await self._graphdb_.run_cypher_query(
+                        cypher_query
+                    )
+                    all_cypher_results.append(
+                        {
+                            "entity": entity_name,
+                            "query": cypher_query,
+                            "results": cypher_response,
+                        }
+                    )
+
+            # Write all Cypher query results to a log file
+            log_file_path = "logs/cypher_query_results.log"
+            with open(log_file_path, "w", encoding="utf-8") as f:
+                f.write(json.dumps(all_cypher_results, indent=2, ensure_ascii=False))
+                f.write("\n")
+            logger.info(f"Wrote all Cypher query results to {log_file_path}")
 
             # todo: Semantic/Vector Search
             # todo: Tool generator agent: Cypher generation
@@ -981,8 +1033,8 @@ class KnowledgeGraphAgent(AgentInterface):
             return {
                 "intent": intent,
                 "intent_confidence": intent_confidence,
-                "extracted_entities": ner_el_info["data"]["entities"],
-                "extracted_relationships": ner_el_info["data"]["relationships"],
+                "extracted_entities": entities,
+                "extracted_relationships": relationships,
                 "results": [],  # Will contain final results
                 "metadata": {},  # Will contain execution metadata
             }

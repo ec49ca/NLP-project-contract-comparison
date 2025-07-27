@@ -11,6 +11,8 @@ from typing import List, Dict, Any
 
 logger = logging.getLogger(__name__)
 
+# TODO: create script for importing ttl data, don't just run it and comment it out.
+
 
 class Neo4jService:
     def __init__(self):
@@ -21,12 +23,13 @@ class Neo4jService:
         logger.info(f"Connected to Neo4j at {uri} as {user}")
 
         # Import initial data from TTL file
-        try:
-            self.import_ttl_data("sunworld_test_data/kg_data.ttl")
-        except Exception as e:
-            logger.error(f"Failed to import initial KG data: {e}")
+        # try:
+        #     self.import_ttl_data("sunworld_test_data/kg_data.ttl")
+        #     logger.info("Sucessfully imported synthetic KG data")
+        # except Exception as e:
+        #     logger.error(f"Failed to import initial KG data: {e}")
 
-        self.test_connection_and_data()
+        # self.test_connection_and_data()
 
     def close(self):
         self.driver.close()
@@ -54,7 +57,7 @@ class Neo4jService:
             source=triple.get("source", "unknown"),
         )
 
-    def run_cypher_query(
+    async def run_cypher_query(
         self, query: str, parameters: Dict[str, Any] = None
     ) -> List[Dict[str, Any]]:
         """Runs a Cypher query and returns the results."""

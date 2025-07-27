@@ -1,0 +1,158 @@
+@prefix sw: <http: //sunworld.com/ns#> .
+@prefix rdf: <http: //www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd: <http: //www.w3.org/2001/XMLSchema#> .
+@prefix rdfs: <http: //www.w3.org/2000/01/rdf-schema#> .
+@prefix foaf: <http: //xmlns.com/foaf/0.1/> .
+@prefix org: <http: //www.w3.org/ns/org#> .
+@prefix dct: <http: //purl.org/dc/terms/> .
+@prefix skos: <http: //www.w3.org/2004/02/skos/core#> .
+
+# Company Information
+sw:SunWorld a org:Organization ;
+    foaf:name "SunWorld International" ;
+    dct:created "1983"^^xsd:gYear ;
+    org:hasRegisteredSite [
+        a org:Site ;
+        org:siteAddress "Bakersfield, California, USA" ;
+        org:siteOf sw:SunWorld
+] ;
+    org:hasPrimarySite [
+        a org:Site ;
+        org:siteAddress "Bakersfield, California, USA" ;
+        org:siteOf sw:SunWorld
+] ;
+    org:hasUnit [
+        a org:OrganizationalUnit ;
+        foaf:name "Executive Team" ;
+        org:member [
+            a foaf:Person ;
+            foaf:name "David Marguleas" ;
+            org:role "CEO"
+	]
+] ;
+    dct:description "Global leader in premium fruit varieties development and licensing, specializing in seedless citrus and proprietary table grape varieties." ;
+    sw:revenue "$450M" ;
+    sw:employeeCount "1500"^^xsd:integer .
+
+# Varieties
+sw:SWC-1001 a sw:Variety ;
+    rdfs:label "Cotton Candy™ Grapes" ;
+    sw:type "Table Grape" ;
+    sw:developmentYear "2011"^^xsd:gYear ;
+    sw:patent "USPP24509P3" ;
+    sw:licensingStatus "Active" ;
+    sw:yieldPerAcre "8-10 tons" ;
+    sw:characteristic "seedless",
+"sweet flavor",
+"cotton candy aroma" ;
+    sw:availableInMarket "North America",
+"Europe",
+"Asia" .
+
+sw:SWC-1002 a sw:Variety ;
+    rdfs:label "SunnyGlo™ Apricots" ;
+    sw:type "Apricot" ;
+    sw:developmentYear "2018"^^xsd:gYear ;
+    sw:patent "USPP28976P3" ;
+    sw:licensingStatus "Active" ;
+    sw:yieldPerAcre "12-15 tons" ;
+    sw:characteristic "sweet-tart balance",
+"firm texture",
+"extended shelf life" ;
+    sw:availableInMarket "North America",
+"Europe" .
+
+sw:SWC-1003 a sw:Variety ;
+    rdfs:label "Midnight™ Blueberries" ;
+    sw:type "Blueberry" ;
+    sw:developmentYear "2020"^^xsd:gYear ;
+    sw:patent "USPP31245P3" ;
+    sw:licensingStatus "Active" ;
+    sw:yieldPerAcre "10-12 tons" ;
+    sw:characteristic "large size",
+"sweet flavor",
+"high antioxidant content" ;
+    sw:availableInMarket "North America",
+"Asia",
+"Middle East" .
+
+# Licensees
+sw:LIC-1001 a sw:Licensee ;
+    foaf:name "Global Fruit Growers Inc." ;
+    sw:country "United States" ;
+    sw:licenseType "Exclusive" ;
+    sw:territory "North America" ;
+    sw:hasLicenseFor sw:SWC-1001, sw:SWC-1002 ;
+    sw:contractStartDate "2020-01-15"^^xsd:date ;
+    sw:contractEndDate "2030-12-31"^^xsd:date .
+
+sw:LIC-1002 a sw:Licensee ;
+    foaf:name "EuroHarvest AG" ;
+    sw:country "Netherlands" ;
+    sw:licenseType "Non-exclusive" ;
+    sw:territory "European Union",
+"UK" ;
+    sw:hasLicenseFor sw:SWC-1001, sw:SWC-1003 ;
+    sw:contractStartDate "2019-06-01"^^xsd:date ;
+    sw:contractEndDate "2029-05-31"^^xsd:date .
+
+# Research Projects
+sw:RND-2023-001 a sw:ResearchProject ;
+    rdfs:label "Drought-Resistant Citrus" ;
+    dct:startDate "2023-03-15"^^xsd:date ;
+    sw:status "Active" ;
+    sw:leadResearcher "Dr. Maria Rodriguez" ;
+    sw:collaborator "University of California, Davis",
+"Spanish National Research Council" ;
+    dct:description "Development of citrus varieties with enhanced drought tolerance for water-scarce regions." .
+
+sw:RND-2022-045 a sw:ResearchProject ;
+    rdfs:label "Extended Shelf-Life Berries" ;
+    dct:startDate "2022-09-01"^^xsd:date ;
+    dct:endDate "2023-08-30"^^xsd:date ;
+    sw:status "Completed" ;
+    sw:outcome "Successfully developed new blueberry variety with 40% longer shelf life" .
+
+# Patents
+sw:USPP24509P3 a sw:Patent ;
+    dct:title "Novel Grapevine Plant Named 'SWC-1001'" ;
+    dct:issued "2012-06-05"^^xsd:date ;
+    dct:dateSubmitted "2011-03-15"^^xsd:date ;
+    sw:status "Active" ;
+    sw:inventor "John Peterson",
+"Sarah Chen" .
+
+sw:US10470456B2 a sw:Patent ;
+    dct:title "Method for Extending Shelf Life of Stone Fruits" ;
+    dct:issued "2019-11-05"^^xsd:date ;
+    dct:dateSubmitted "2018-07-20"^^xsd:date ;
+    sw:status "Active" ;
+    sw:inventor "Robert Kim",
+"Emily Watson" .
+
+# Supply Chain
+sw:GRW-1001 a sw:Grower ;
+    foaf:name "Central Valley Orchards" ;
+    sw:location "California, USA" ;
+    sw:grows sw:SWC-1001, sw:SWC-1002 ;
+    sw:certification "GlobalGAP",
+"Organic" .
+
+sw:GRW-1002 a sw:Grower ;
+    foaf:name "Andalusian Fruit Co." ;
+    sw:location "Andalusia, Spain" ;
+    sw:grows sw:SWC-1001, sw:SWC-1003 ;
+    sw:certification "GRASP",
+"GlobalGAP" .
+
+sw:DIST-1001 a sw:Distributor ;
+    foaf:name "Global Fresh Distributors" ;
+    sw:servesRegion "North America",
+"Asia" ;
+    sw:partnershipSince "2015"^^xsd:gYear .
+
+# Relationships
+sw:SunWorld sw:develops sw:SWC-1001, sw:SWC-1002, sw:SWC-1003 .
+sw:SunWorld sw:conducts sw:RND-2023-001, sw:RND-2022-045 .
+sw:SunWorld sw:holdsPatent sw:USPP24509P3, sw:US10470456B2 .
+sw:SunWorld sw:worksWith sw:GRW-1001, sw:GRW-1002, sw:DIST-1001 .

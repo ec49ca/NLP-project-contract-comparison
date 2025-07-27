@@ -1,3 +1,4 @@
+Extraction:
 Raw Document (structured / semi / unstructured)
     ↓
 Document Preprocessing (cleaning, normalization)
@@ -37,3 +38,35 @@ POST /execute/Knowledge Graph Agent/process_file_to_ner
 
 
 check logs after.
+
+
+
+
+--
+Retrieval:
+User query  ->
+    Step 1:
+        intent recognition: figure out if fact seeking, comparative, aggregative, or explanatory query
+        entity and relationship recognition: figure out entities and relationships that are present with NER
+
+    Step 2:
+        Entity Traversal: Start with entities from step 1 and go 1-2 layers away to find other relevant entities
+        Semantic/Vector Search: Generate embedding for user query and perform vector search against precomputed vector embeddings for other nodes/relationships in Graph
+        Tool generator agent: Cypher Generation (Risky, but high payoff): make llm turn use query into cypher query and retrieve
+        Output: large net of possibly useful information (some duplicates and some irrelevant information)
+
+    Step 3:
+        Relevance Scoring: use fast and cheap LLM (or something else) to perform a rerank across all retrieved info (Ask it for 1-10 how relevant certain information is)
+        Prioritization: prioritise closer information (less hops), more recent information
+        Deduplicate data
+        Output: clean scored and ranked list of most relevant information snippets (or subgraphs)
+
+    Step 4: (optimization for context)
+        Context engineering and synthesis: don't just dump all data into context window, convert it back to natural language, summarize it, and possibly add metadata
+
+	---
+	Later improvements:
+		caching
+		custom trained ML/RL model based on intent (if fact seeking, then this kind of KG data is more likely to be useful; if comparative...)
+			progressive retrieval (based on intent, figure out which type of retrieval to start with first, only if not enough information, move on to other methods)
+		feedback RL loop (rhema)

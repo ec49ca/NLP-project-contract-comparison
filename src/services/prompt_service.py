@@ -308,3 +308,84 @@ Extract kwargs and generate metadata for this function.
 """
 
         return {"system": system_prompt.strip(), "user": user_prompt.strip()}
+
+    @staticmethod
+    def get_intent_classification_prompt(query: str) -> Dict[str, str]:
+        """
+        PROMPT: Classify the user's intent for a knowledge graph query.
+        """
+        system_prompt = """
+You are an intent classification expert for knowledge graph queries.
+Your task is to classify the user's query into one of the following categories:
+- "fact seeking": The user is looking for a specific fact or piece of information.
+- "comparative": The user is comparing two or more entities.
+- "aggregative": The user is asking for a summary or aggregation of information.
+- "explanatory": The user is asking for an explanation of a concept or entity.
+
+Respond with a JSON object with the following format:
+{
+    "intent": "fact seeking" | "comparative" | "aggregative" | "explanatory",
+    "confidence": 0.0 to 1.0
+}
+"""
+        user_prompt = f"""
+Classify the intent of the following query:
+"{query}"
+"""
+        return {"system": system_prompt.strip(), "user": user_prompt.strip()}
+
+    @staticmethod
+    def get_ner_el_prompt(
+        entity_types_text: str, chunk: str, confidence_threshold: str
+    ) -> Dict[str, str]:
+        """
+        PROMPT for Named Entity Recognition and Entity Linking.
+        """
+        system_prompt = """
+You are an expert Named Entity Recognition system. Extract entities from the following preprocessed document content.
+
+ENTITY TYPES TO EXTRACT:
+""" + entity_types_text + """
+
+PREPROCESSED CONTENT:
+""" + chunk + """
+
+INSTRUCTIONS:
+1. Extract ALL entities of the specified types
+2. For each entity, provide:
+   - text: exact text as it appears
+   - type: one of the specified entity types
+   - confidence: 0.0-1.0 (how confident you are)
+   - context: surrounding text for disambiguation
+   - normalized_value: standardized form (e.g., "John Smith" for "Mr. John Smith")
+   - record_id: which RECORD_X the entity came from
+
+3. Only include entities with confidence >= """ + confidence_threshold + """
+4. Be precise - don't extract partial names or incomplete information
+5. For dates, normalize to YYYY-MM-DD format when possible
+6. For money, include currency and amount
+7. For IDs, preserve exact format
+
+OUTPUT FORMAT (JSON):
+{{
+  "entities": [
+    {{
+      "text": "John Smith",
+      "type": "PERSON",
+      "confidence": 0.95,
+      "context": "Customer Name: John Smith, Email: john@email.com",
+      "normalized_value": "John Smith",
+      "record_id": "RECORD_1",
+      "start_position": 45,
+      "end_position": 55
+    }}
+  ]
+}}
+
+RESPOND ONLY WITH VALID JSON:"""
+        user_prompt = ""
+        return {"system": system_prompt.strip(), "user": user_prompt.strip()}
+
+
+# Global prompt service instance
+prompt_service = PromptService()

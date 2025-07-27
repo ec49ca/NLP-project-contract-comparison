@@ -21,6 +21,11 @@ How tools work:
 2. Tool discovery:
 """
 
+# TODO: Parallelize all gpt prompts for better scatter gather.
+# TODO: (experiment with this, maybe it is already correct, but don't know for sure) ner_el_tool does not need to only extract entities. it can also get relationships but because of bad prompting it only gets simple relationships. this was initially the reason i created the relation_extraction tool, but it is redundant (test this assumption as well)
+# TODO: remove entity types dependence
+
+
 import logging
 from typing import Dict, List, Any, Optional
 from ..interfaces.agent import AgentInterface
@@ -30,7 +35,10 @@ from .tools.ner_el_tool import NEREntityLinkingTool
 from .tools.preprocess_document_tool import PreprocessDocumentTool
 from .tools.relation_extraction_tool import RelationExtractionTool
 from ..services.neo4j_service import Neo4jService
+from ..services.llm_service import llm_service
+from ..services.prompt_service import prompt_service
 from uuid import UUID
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -204,6 +212,15 @@ class KnowledgeGraphAgent(AgentInterface):
                     "log_file_name": "Custom log file name (optional, auto-generated if not provided)",
                 },
             },
+            {
+                "name": "retrieve",
+                "description": "Retrieve information from the knowledge graph based on the user's query",
+                "parameters": {
+                    "query": "User query to retrieve information (required)",
+                    "intent": "Intent of the user query (optional)",
+                    "context": "Additional context for the query (optional)",
+                },
+            },
         ]
 
     async def process_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
@@ -227,6 +244,8 @@ class KnowledgeGraphAgent(AgentInterface):
             return await self._create_quadruples(request)
         elif command == "process_file_to_ner":
             return await self._process_file_to_ner(request)
+        elif command == "retrieve":
+            return await self._retrieve_information(request)
         else:
             return {
                 "error": f"Unknown command: {command}",
@@ -238,6 +257,7 @@ class KnowledgeGraphAgent(AgentInterface):
                     "run_relation_extraction",
                     "create_quadruples",
                     "process_file_to_ner",
+                    "retrieve",
                 ],
             }
 
@@ -340,18 +360,27 @@ class KnowledgeGraphAgent(AgentInterface):
         """Run Named Entity Recognition and Entity Linking on preprocessed text."""
         try:
             text = request.get("text", "")
+            if not text:
+                return {"error": "Missing text parameter"}
             entity_types = request.get(
-                "entity_types", ["PERSON", "ORGANIZATION", "LOCATION", "DATE", "MONEY"]
+                "entity_types",
+                [
+                    "PERSON",
+                    "ORGANIZATION",
+                    "LOCATION",
+                    "DATE",
+                    "ABSTRACT_TIME",
+                    "MONEY",
+                    "PRODUCT",
+                ],
             )
             confidence_threshold = request.get("confidence_threshold", 0.8)
             enable_linking = request.get("enable_linking", True)
             chunk_size = request.get("chunk_size", 2000)
             enable_logging = request.get("enable_logging", False)
+            for_retrieval = request.get("for_retrieval", False)
             log_file_path = request.get("log_file_path", "/app/logs")
             log_file_name = request.get("log_file_name", "")
-
-            if not text:
-                return {"error": "Missing text parameter"}
 
             # Use the NER+EL tool
             tool_args = {
@@ -361,6 +390,7 @@ class KnowledgeGraphAgent(AgentInterface):
                 "enable_linking": enable_linking,
                 "chunk_size": chunk_size,
                 "enable_logging": enable_logging,
+                "for_retrieval": for_retrieval,
                 "log_file_path": log_file_path,
             }
 
@@ -846,3 +876,101 @@ class KnowledgeGraphAgent(AgentInterface):
 
         except Exception as e:
             logger.error(f"Error logging pipeline result: {e}")
+
+    async def _classify_intent(self, request: Dict[str, Any]) -> Dict[str, Any]:
+        """Classify the intent of a user query into one of several categories."""
+        confidence_threshold = 0.6
+        query = request.get("query")
+        if not query:
+            raise ValueError("Missing required parameter: query")
+
+        intent = request.get("intent")
+        allowed_intents = ["comparative", "fact seeking", "aggregative", "explanatory"]
+
+        if intent and intent in allowed_intents:
+            return {
+                "intent": intent,
+                "confidence": 0.99,
+            }
+
+        # returns 1 word for the intent
+        # TODO: very much need to improve prompt for this if it fails, right it is zero shotting
+        prompt = prompt_service.get_intent_classification_prompt(query)
+        full_prompt = prompt["system"] + "\n\n" + prompt["user"]
+
+        response = await llm_service.simple_completion(
+            prompt=full_prompt, response_format={"type": "json_object"}
+        )
+
+        if (
+            not response
+            or response["intent"] not in allowed_intents
+            or response["confidence"] < confidence_threshold
+        ):
+            raise ValueError(
+                "Invalid intent found: "
+                + response["intent"]
+                + " with confidence: "
+                + str(response["confidence"])
+            )
+
+        return response
+
+    async def _retrieve_information(self, request: Dict[str, Any]) -> Dict[str, Any]:
+        """Main retrieval method that follows the 4-step pipeline.
+
+        Args:
+            request: Dictionary containing the request parameters
+                - query: The user's natural language query (required)
+
+        Returns:
+            Dict containing:
+                - intent: Result from _classify_intent
+                - results: List of retrieved information
+                - metadata: Additional execution metadata
+
+        Raises:
+            ValueError: If required parameters are missing
+        """
+        try:
+            # Step 1: Intent and entity recognition
+            # intent
+            # error handling for intent confidence being low or intent not being in allowed_intents is in classify_intent
+            # parallelize step 1 with 2 lambdas: 1 for classify intent and one for ner
+            intent_info = await self._classify_intent(request)
+            # logger.info(
+            #     f"INTENT_INFO: {intent_info['intent']} with confidence: {intent_info['confidence']}"
+            # )
+            intent = intent_info["intent"]
+            intent_confidence = intent_info["confidence"]
+            request["intent"] = intent
+            request["intent_confidence"] = intent_confidence
+
+            request["text"] = request["query"]
+            request["for_retrieval"] = True
+            # entity/relationship extraction
+            ner_el_info = await self._run_ner_el(request)
+            with open("logs/ner_el_info_test", "w") as f:
+                json.dump(ner_el_info, f)
+            if ner_el_info["status"] != "success":
+                raise ValueError("NER+EL failed")
+            logger.warning(
+                f"NER_EL_INFO: \nEntities:{ner_el_info['data']['entities']} \nRelationships:{ner_el_info['data']['relationships']}"
+            )
+
+            # TODO: Implement remaining steps
+            # Step 2: Multi-strategy retrieval
+            # Step 3: Result processing and ranking
+            # Step 4: Context optimization
+
+            return {
+                "intent": intent,
+                "intent_confidence": intent_confidence,
+                "extracted_entities": ner_el_info["data"]["entities"],
+                "extracted_relationships": ner_el_info["data"]["relationships"],
+                "results": [],  # Will contain final results
+                "metadata": {},  # Will contain execution metadata
+            }
+
+        except ValueError as e:
+            return {"error": str(e), "available_parameters": ["query"]}

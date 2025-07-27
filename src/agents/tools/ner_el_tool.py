@@ -13,6 +13,7 @@ import os
 from datetime import datetime
 from typing import Dict, Any, List, Tuple, Optional
 from ...services.llm_service import llm_service
+from ...services.prompt_service import prompt_service
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +32,7 @@ class NEREntityLinkingTool:
             "ORGANIZATION": "Companies, institutions, government agencies, non-profits",
             "LOCATION": "Countries, cities, states, addresses, geographical locations",
             "DATE": "Dates, times, temporal expressions (2023-01-15, January 2023, etc.)",
+            "ABSTRACT_TIME": "Abstract time expressions that don't refer to any particular date, but are still related to time ('week', 'year', 'month', 'a few days', etc)",
             "MONEY": "Monetary amounts, currencies, financial values ($1000, €500, etc.)",
             "PRODUCT": "Product names, service names, brand names",
             "EMAIL": "Email addresses",
@@ -52,6 +54,8 @@ class NEREntityLinkingTool:
             confidence_threshold = arguments.get("confidence_threshold", 0.7)
             enable_linking = arguments.get("enable_linking", True)
             chunk_size = arguments.get("chunk_size", 2000)  # Process in chunks
+            for_retrieval = arguments.get("for_retrieval", False)
+            # TODO: add different prompt if retrieval vs extraction.
 
             # Logging parameters
             enable_logging = arguments.get("enable_logging", False)
@@ -98,6 +102,7 @@ class NEREntityLinkingTool:
                 "processing_errors": 0,
             }
 
+            # TODO: if using chunks, can parallelize
             for chunk_num, chunk in enumerate(chunks, 1):
                 logger.info(f"Processing chunk {chunk_num}/{len(chunks)}")
 
@@ -212,61 +217,15 @@ class NEREntityLinkingTool:
 
         entity_types_text = "\n".join(type_descriptions)
 
-        # Build prompt safely without f-string formatting issues
-        prompt = (
-            """You are an expert Named Entity Recognition system. Extract entities from the following preprocessed document content.
-
-ENTITY TYPES TO EXTRACT:
-"""
-            + entity_types_text
-            + """
-
-PREPROCESSED CONTENT:
-"""
-            + chunk
-            + """
-
-INSTRUCTIONS:
-1. Extract ALL entities of the specified types
-2. For each entity, provide:
-   - text: exact text as it appears
-   - type: one of the specified entity types
-   - confidence: 0.0-1.0 (how confident you are)
-   - context: surrounding text for disambiguation
-   - normalized_value: standardized form (e.g., "John Smith" for "Mr. John Smith")
-   - record_id: which RECORD_X the entity came from
-
-3. Only include entities with confidence >= """
-            + str(confidence_threshold)
-            + """
-4. Be precise - don't extract partial names or incomplete information
-5. For dates, normalize to YYYY-MM-DD format when possible
-6. For money, include currency and amount
-7. For IDs, preserve exact format
-
-OUTPUT FORMAT (JSON):
-{{
-  "entities": [
-    {{
-      "text": "John Smith",
-      "type": "PERSON",
-      "confidence": 0.95,
-      "context": "Customer Name: John Smith, Email: john@email.com",
-      "normalized_value": "John Smith",
-      "record_id": "RECORD_1",
-      "start_position": 45,
-      "end_position": 55
-    }}
-  ]
-}}
-
-RESPOND ONLY WITH VALID JSON:"""
+        # Build prompt using prompt_service
+        prompt_data = prompt_service.get_ner_el_prompt(
+            entity_types_text, chunk, str(confidence_threshold)
         )
 
         try:
             # Use LLM service
             content = await self.llm_service.simple_completion(
-                prompt=prompt, response_format={"type": "json_object"}
+                prompt=prompt_data["system"], response_format={"type": "json_object"}
             )
 
             # Parse JSON response

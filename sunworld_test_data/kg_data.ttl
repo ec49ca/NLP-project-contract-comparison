@@ -1,80 +1,267 @@
-@prefix sw: <http: //sunworld.com/ns#> .
-@prefix rdf: <http: //www.w3.org/1999/02/22-rdf-syntax-ns#> .
-@prefix xsd: <http: //www.w3.org/2001/XMLSchema#> .
-@prefix rdfs: <http: //www.w3.org/2000/01/rdf-schema#> .
-@prefix foaf: <http: //xmlns.com/foaf/0.1/> .
-@prefix org: <http: //www.w3.org/ns/org#> .
-@prefix dct: <http: //purl.org/dc/terms/> .
-@prefix skos: <http: //www.w3.org/2004/02/skos/core#> .
+@prefix sw: <http://sunworld.com/ns#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix foaf: <http://xmlns.com/foaf/0.1/> .
+@prefix org: <http://www.w3.org/ns/org#> .
+@prefix dct: <http://purl.org/dc/terms/> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix swc: <http://sunworld.com/contract#> .
+@prefix swp: <http://sunworld.com/project#> .
+@prefix swf: <http://sunworld.com/facility#> .
+@prefix swl: <http://sunworld.com/location#> .
 
 # Company Information
 sw:SunWorld a org:Organization ;
     foaf:name "SunWorld International" ;
     dct:created "1983"^^xsd:gYear ;
-    org:hasRegisteredSite [
-        a org:Site ;
-        org:siteAddress "Bakersfield, California, USA" ;
-        org:siteOf sw:SunWorld
-] ;
-    org:hasPrimarySite [
-        a org:Site ;
-        org:siteAddress "Bakersfield, California, USA" ;
-        org:siteOf sw:SunWorld
-] ;
-    org:hasUnit [
-        a org:OrganizationalUnit ;
-        foaf:name "Executive Team" ;
-        org:member [
-            a foaf:Person ;
-            foaf:name "David Marguleas" ;
-            org:role "CEO"
-	]
-] ;
+    org:hasRegisteredSite swl:BakersfieldHQ ;
+    org:hasPrimarySite swl:BakersfieldHQ ;
+    org:hasUnit sw:ExecutiveTeam, sw:RDDepartment, sw:SalesDepartment, sw:LegalDepartment, sw:OperationsDepartment ;
     dct:description "Global leader in premium fruit varieties development and licensing, specializing in seedless citrus and proprietary table grape varieties." ;
-    sw:revenue "$450M" ;
-    sw:employeeCount "1500"^^xsd:integer .
+    sw:revenue "$550M" ;
+    sw:employeeCount "1800"^^xsd:integer .
+
+# Locations
+swl:BakersfieldHQ a org:Site ;
+    org:siteAddress "Bakersfield, California, USA" ;
+    org:siteOf sw:SunWorld ;
+    sw:hasResearchFacility swf:BakersfieldLab .
+
+swl:FresnoOffice a org:Site ;
+    org:siteAddress "Fresno, California, USA" ;
+    org:siteOf sw:SunWorld ;
+    sw:hasResearchFacility swf:FresnoFieldStation .
+
+swl:SantiagoOffice a org:Site ;
+    org:siteAddress "Santiago, Chile" ;
+    org:siteOf sw:SunWorld ;
+    sw:hasResearchFacility swf:ChileResearchFarm .
+
+swl:ValenciaOffice a org:Site ;
+    org:siteAddress "Valencia, Spain" ;
+    org:siteOf sw:SunWorld ;
+    sw:hasResearchFacility swf:SpainInnovationCenter .
+
+# Organizational Units
+sw:ExecutiveTeam a org:OrganizationalUnit ;
+    foaf:name "Executive Team" ;
+    org:member sw:DavidMarguleas, sw:MariaRodriguez, sw:RobertKim .
+
+sw:RDDepartment a org:OrganizationalUnit ;
+    foaf:name "Research & Development" ;
+    org:member sw:MariaRodriguez, sw:JohnPeterson, sw:SarahChen, sw:EmilyWatson, sw:DrChenLi .
+
+sw:SalesDepartment a org:OrganizationalUnit ;
+    foaf:name "Sales & Licensing" ;
+    org:member sw:AnnaLopez, sw:MichaelBrown .
+
+sw:LegalDepartment a org:OrganizationalUnit ;
+    foaf:name "Legal Affairs" ;
+    org:member sw:RobertKim, sw:LauraDavis .
+
+sw:OperationsDepartment a org:OrganizationalUnit ;
+    foaf:name "Operations" ;
+    org:member sw:CarlosGomez, sw:SophiaMiller .
+
+# People
+sw:DavidMarguleas a foaf:Person ;
+    foaf:name "David Marguleas" ;
+    org:role "CEO" ;
+    org:memberOf sw:ExecutiveTeam ;
+    sw:managesContract swc:C-2020-001, swc:C-2021-005 .
+
+sw:MariaRodriguez a foaf:Person ;
+    foaf:name "Dr. Maria Rodriguez" ;
+    org:role "Head of R&D" ;
+    org:memberOf sw:RDDepartment ;
+    sw:leadsProject swp:RND-2023-001, swp:RND-2024-003 .
+
+sw:RobertKim a foaf:Person ;
+    foaf:name "Robert Kim" ;
+    org:role "General Counsel" ;
+    org:memberOf sw:LegalDepartment ;
+    sw:approvesContract swc:C-2020-001, swc:C-2022-010 .
+
+sw:JohnPeterson a foaf:Person ;
+    foaf:name "John Peterson" ;
+    org:role "Senior Plant Breeder" ;
+    org:memberOf sw:RDDepartment ;
+    sw:developedVariety sw:SWC-1001, sw:SWC-1004 ;
+    sw:inventedPatent sw:USPP24509P3 .
+
+sw:SarahChen a foaf:Person ;
+    foaf:name "Sarah Chen" ;
+    org:role "Geneticist" ;
+    org:memberOf sw:RDDepartment ;
+    sw:developedVariety sw:SWC-1002, sw:SWC-1005 ;
+    sw:inventedPatent sw:USPP28976P3 .
+
+sw:EmilyWatson a foaf:Person ;
+    foaf:name "Emily Watson" ;
+    org:role "Horticulturist" ;
+    org:memberOf sw:RDDepartment ;
+    sw:developedVariety sw:SWC-1003, sw:SWC-1006 ;
+    sw:inventedPatent sw:USPP31245P3 .
+
+sw:DrChenLi a foaf:Person ;
+    foaf:name "Dr. Chen Li" ;
+    org:role "Biotechnologist" ;
+    org:memberOf sw:RDDepartment ;
+    sw:developedVariety sw:SWC-1007, sw:SWC-1008 ;
+    sw:leadsProject swp:RND-2024-005 .
+
+sw:AnnaLopez a foaf:Person ;
+    foaf:name "Anna Lopez" ;
+    org:role "VP Sales" ;
+    org:memberOf sw:SalesDepartment ;
+    sw:managesLicensee sw:LIC-1001, sw:LIC-1003 .
+
+sw:MichaelBrown a foaf:Person ;
+    foaf:name "Michael Brown" ;
+    org:role "Regional Sales Manager" ;
+    org:memberOf sw:SalesDepartment ;
+    sw:managesLicensee sw:LIC-1002, sw:LIC-1004 .
+
+sw:LauraDavis a foaf:Person ;
+    foaf:name "Laura Davis" ;
+    org:role "Legal Counsel" ;
+    org:memberOf sw:LegalDepartment ;
+    sw:draftsContract swc:C-2021-005, swc:C-2023-015 .
+
+sw:CarlosGomez a foaf:Person ;
+    foaf:name "Carlos Gomez" ;
+    org:role "Director of Operations" ;
+    org:memberOf sw:OperationsDepartment ;
+    sw:overseesGrower sw:GRW-1001, sw:GRW-1003 .
+
+sw:SophiaMiller a foaf:Person ;
+    foaf:name "Sophia Miller" ;
+    org:role "Supply Chain Manager" ;
+    org:memberOf sw:OperationsDepartment ;
+    sw:managesDistributor sw:DIST-1001, sw:DIST-1002 .
+
+# Research Facilities
+swf:BakersfieldLab a sw:ResearchFacility ;
+    rdfs:label "Bakersfield R&D Lab" ;
+    sw:location swl:BakersfieldHQ ;
+    sw:focus "Grape Breeding", "Genomics" ;
+    sw:hasResearcher sw:JohnPeterson, sw:SarahChen .
+
+swf:FresnoFieldStation a sw:ResearchFacility ;
+    rdfs:label "Fresno Field Station" ;
+    sw:location swl:FresnoOffice ;
+    sw:focus "Stone Fruit Trials", "Pest Management" ;
+    sw:hasResearcher sw:EmilyWatson .
+
+swf:ChileResearchFarm a sw:ResearchFacility ;
+    rdfs:label "Chile Research Farm" ;
+    sw:location swl:SantiagoOffice ;
+    sw:focus "Southern Hemisphere Trials", "Early Season Varieties" ;
+    sw:hasResearcher sw:DrChenLi .
+
+swf:SpainInnovationCenter a sw:ResearchFacility ;
+    rdfs:label "Spain Innovation Center" ;
+    sw:location swl:ValenciaOffice ;
+    sw:focus "Citrus Development", "Drought Resistance" ;
+    sw:hasResearcher sw:MariaRodriguez .
 
 # Varieties
 sw:SWC-1001 a sw:Variety ;
     rdfs:label "Cotton Candy™ Grapes" ;
     sw:type "Table Grape" ;
     sw:developmentYear "2011"^^xsd:gYear ;
-    sw:patent "USPP24509P3" ;
+    sw:patent sw:USPP24509P3 ;
     sw:licensingStatus "Active" ;
     sw:yieldPerAcre "8-10 tons" ;
-    sw:characteristic "seedless",
-"sweet flavor",
-"cotton candy aroma" ;
-    sw:availableInMarket "North America",
-"Europe",
-"Asia" .
+    sw:characteristic "seedless", "sweet flavor", "cotton candy aroma" ;
+    sw:availableInMarket "North America", "Europe", "Asia" ;
+    sw:developedBy sw:JohnPeterson ;
+    sw:testedAt swf:BakersfieldLab .
 
 sw:SWC-1002 a sw:Variety ;
     rdfs:label "SunnyGlo™ Apricots" ;
     sw:type "Apricot" ;
     sw:developmentYear "2018"^^xsd:gYear ;
-    sw:patent "USPP28976P3" ;
+    sw:patent sw:USPP28976P3 ;
     sw:licensingStatus "Active" ;
     sw:yieldPerAcre "12-15 tons" ;
-    sw:characteristic "sweet-tart balance",
-"firm texture",
-"extended shelf life" ;
-    sw:availableInMarket "North America",
-"Europe" .
+    sw:characteristic "sweet-tart balance", "firm texture", "extended shelf life" ;
+    sw:availableInMarket "North America", "Europe" ;
+    sw:developedBy sw:SarahChen ;
+    sw:testedAt swf:FresnoFieldStation .
 
 sw:SWC-1003 a sw:Variety ;
     rdfs:label "Midnight™ Blueberries" ;
     sw:type "Blueberry" ;
     sw:developmentYear "2020"^^xsd:gYear ;
-    sw:patent "USPP31245P3" ;
+    sw:patent sw:USPP31245P3 ;
     sw:licensingStatus "Active" ;
     sw:yieldPerAcre "10-12 tons" ;
-    sw:characteristic "large size",
-"sweet flavor",
-"high antioxidant content" ;
-    sw:availableInMarket "North America",
-"Asia",
-"Middle East" .
+    sw:characteristic "large size", "sweet flavor", "high antioxidant content" ;
+    sw:availableInMarket "North America", "Asia", "Middle East" ;
+    sw:developedBy sw:EmilyWatson ;
+    sw:testedAt swf:FresnoFieldStation .
+
+sw:SWC-1004 a sw:Variety ;
+    rdfs:label "Crimson Crisp™ Grapes" ;
+    sw:type "Table Grape" ;
+    sw:developmentYear "2015"^^xsd:gYear ;
+    sw:patent sw:USPP27890P3 ;
+    sw:licensingStatus "Active" ;
+    sw:yieldPerAcre "9-11 tons" ;
+    sw:characteristic "crisp texture", "tart flavor", "deep red color" ;
+    sw:availableInMarket "North America", "South America" ;
+    sw:developedBy sw:JohnPeterson ;
+    sw:testedAt swf:BakersfieldLab .
+
+sw:SWC-1005 a sw:Variety ;
+    rdfs:label "Golden Delight™ Peaches" ;
+    sw:type "Peach" ;
+    sw:developmentYear "2019"^^xsd:gYear ;
+    sw:patent sw:USPP30123P3 ;
+    sw:licensingStatus "Active" ;
+    sw:yieldPerAcre "14-16 tons" ;
+    sw:characteristic "juicy", "aromatic", "golden flesh" ;
+    sw:availableInMarket "Europe", "Asia" ;
+    sw:developedBy sw:SarahChen ;
+    sw:testedAt swf:FresnoFieldStation .
+
+sw:SWC-1006 a sw:Variety ;
+    rdfs:label "Evergreen™ Kiwi" ;
+    sw:type "Kiwi" ;
+    sw:developmentYear "2021"^^xsd:gYear ;
+    sw:patent sw:USPP32456P3 ;
+    sw:licensingStatus "Trial" ;
+    sw:yieldPerAcre "11-13 tons" ;
+    sw:characteristic "smooth skin", "tropical flavor", "long storage" ;
+    sw:availableInMarket "Trial Markets" ;
+    sw:developedBy sw:EmilyWatson ;
+    sw:testedAt swf:ChileResearchFarm .
+
+sw:SWC-1007 a sw:Variety ;
+    rdfs:label "Desert Bloom™ Citrus" ;
+    sw:type "Citrus" ;
+    sw:developmentYear "2022"^^xsd:gYear ;
+    sw:patent sw:USPP33500P3 ;
+    sw:licensingStatus "Development" ;
+    sw:yieldPerAcre "10-12 tons" ;
+    sw:characteristic "drought resistant", "sweet", "thin peel" ;
+    sw:availableInMarket "N/A" ;
+    sw:developedBy sw:DrChenLi ;
+    sw:testedAt swf:SpainInnovationCenter .
+
+sw:SWC-1008 a sw:Variety ;
+    rdfs:label "Arctic Berry™ Strawberries" ;
+    sw:type "Strawberry" ;
+    sw:developmentYear "2023"^^xsd:gYear ;
+    sw:patent sw:USPP34000P3 ;
+    sw:licensingStatus "Early Trial" ;
+    sw:yieldPerAcre "7-9 tons" ;
+    sw:characteristic "cold tolerant", "intense flavor", "vibrant red" ;
+    sw:availableInMarket "N/A" ;
+    sw:developedBy sw:DrChenLi ;
+    sw:testedAt swf:ChileResearchFarm .
 
 # Licensees
 sw:LIC-1001 a sw:Licensee ;
@@ -82,36 +269,186 @@ sw:LIC-1001 a sw:Licensee ;
     sw:country "United States" ;
     sw:licenseType "Exclusive" ;
     sw:territory "North America" ;
-    sw:hasLicenseFor sw:SWC-1001, sw:SWC-1002 ;
-    sw:contractStartDate "2020-01-15"^^xsd:date ;
-    sw:contractEndDate "2030-12-31"^^xsd:date .
+    sw:hasLicenseFor sw:SWC-1001, sw:SWC-1002, sw:SWC-1004 ;
+    sw:hasContract swc:C-2020-001, swc:C-2023-015 .
 
 sw:LIC-1002 a sw:Licensee ;
     foaf:name "EuroHarvest AG" ;
     sw:country "Netherlands" ;
     sw:licenseType "Non-exclusive" ;
-    sw:territory "European Union",
-"UK" ;
-    sw:hasLicenseFor sw:SWC-1001, sw:SWC-1003 ;
+    sw:territory "European Union", "UK" ;
+    sw:hasLicenseFor sw:SWC-1001, sw:SWC-1003, sw:SWC-1005 ;
+    sw:hasContract swc:C-2019-003, swc:C-2022-010 .
+
+sw:LIC-1003 a sw:Licensee ;
+    foaf:name "Asia Pacific Produce Ltd." ;
+    sw:country "Australia" ;
+    sw:licenseType "Exclusive" ;
+    sw:territory "Asia Pacific" ;
+    sw:hasLicenseFor sw:SWC-1001, sw:SWC-1003, sw:SWC-1006 ;
+    sw:hasContract swc:C-2021-005, swc:C-2024-020 .
+
+sw:LIC-1004 a sw:Licensee ;
+    foaf:name "South American Fresh" ;
+    sw:country "Chile" ;
+    sw:licenseType "Non-exclusive" ;
+    sw:territory "South America" ;
+    sw:hasLicenseFor sw:SWC-1004, sw:SWC-1006, sw:SWC-1008 ;
+    sw:hasContract swc:C-2022-012, swc:C-2023-018 .
+
+# Contracts
+swc:C-2020-001 a swc:Contract ;
+    rdfs:label "Global Fruit Growers - Cotton Candy & SunnyGlo License" ;
+    sw:contractValue "$10M" ;
+    sw:performanceMetric "90% yield consistency" ;
+    sw:contractStartDate "2020-01-15"^^xsd:date ;
+    sw:contractEndDate "2030-12-31"^^xsd:date ;
+    sw:hasLicensee sw:LIC-1001 ;
+    sw:coversVariety sw:SWC-1001, sw:SWC-1002 ;
+    sw:signedBy sw:DavidMarguleas ;
+    sw:approvedBy sw:RobertKim .
+
+swc:C-2019-003 a swc:Contract ;
+    rdfs:label "EuroHarvest - Cotton Candy & Midnight License" ;
+    sw:contractValue "$8M" ;
+    sw:performanceMetric "85% market penetration" ;
     sw:contractStartDate "2019-06-01"^^xsd:date ;
-    sw:contractEndDate "2029-05-31"^^xsd:date .
+    sw:contractEndDate "2029-05-31"^^xsd:date ;
+    sw:hasLicensee sw:LIC-1002 ;
+    sw:coversVariety sw:SWC-1001, sw:SWC-1003 ;
+    sw:signedBy sw:AnnaLopez ;
+    sw:approvedBy sw:RobertKim .
+
+swc:C-2021-005 a swc:Contract ;
+    rdfs:label "Asia Pacific Produce - Exclusive Grape & Berry License" ;
+    sw:contractValue "$15M" ;
+    sw:performanceMetric "75% growth in 3 years" ;
+    sw:contractStartDate "2021-03-01"^^xsd:date ;
+    sw:contractEndDate "2036-02-28"^^xsd:date ;
+    sw:hasLicensee sw:LIC-1003 ;
+    sw:coversVariety sw:SWC-1001, sw:SWC-1003, sw:SWC-1006 ;
+    sw:signedBy sw:DavidMarguleas ;
+    sw:approvedBy sw:RobertKim .
+
+swc:C-2022-010 a swc:Contract ;
+    rdfs:label "EuroHarvest - Golden Delight Expansion" ;
+    sw:contractValue "$5M" ;
+    sw:performanceMetric "60% customer satisfaction" ;
+    sw:contractStartDate "2022-01-01"^^xsd:date ;
+    sw:contractEndDate "2032-12-31"^^xsd:date ;
+    sw:hasLicensee sw:LIC-1002 ;
+    sw:coversVariety sw:SWC-1005 ;
+    sw:signedBy sw:MichaelBrown ;
+    sw:approvedBy sw:RobertKim .
+
+swc:C-2022-012 a swc:Contract ;
+    rdfs:label "South American Fresh - Grape & Kiwi License" ;
+    sw:contractValue "$7M" ;
+    sw:performanceMetric "80% yield in Chile" ;
+    sw:contractStartDate "2022-07-01"^^xsd:date ;
+    sw:contractEndDate "2032-06-30"^^xsd:date ;
+    sw:hasLicensee sw:LIC-1004 ;
+    sw:coversVariety sw:SWC-1004, sw:SWC-1006 ;
+    sw:signedBy sw:AnnaLopez ;
+    sw:approvedBy sw:RobertKim .
+
+swc:C-2023-015 a swc:Contract ;
+    rdfs:label "Global Fruit Growers - Crimson Crisp Expansion" ;
+    sw:contractValue "$3M" ;
+    sw:performanceMetric "95% quality rating" ;
+    sw:contractStartDate "2023-02-01"^^xsd:date ;
+    sw:contractEndDate "2033-01-31"^^xsd:date ;
+    sw:hasLicensee sw:LIC-1001 ;
+    sw:coversVariety sw:SWC-1004 ;
+    sw:signedBy sw:MichaelBrown ;
+    sw:approvedBy sw:RobertKim .
+
+swc:C-2023-018 a swc:Contract ;
+    rdfs:label "South American Fresh - Arctic Berry Trial" ;
+    sw:contractValue "$1M" ;
+    sw:performanceMetric "Successful trial completion" ;
+    sw:contractStartDate "2023-09-01"^^xsd:date ;
+    sw:contractEndDate "2025-08-31"^^xsd:date ;
+    sw:hasLicensee sw:LIC-1004 ;
+    sw:coversVariety sw:SWC-1008 ;
+    sw:signedBy sw:AnnaLopez ;
+    sw:approvedBy sw:RobertKim .
+
+swc:C-2024-020 a swc:Contract ;
+    rdfs:label "Asia Pacific Produce - Evergreen Kiwi Trial" ;
+    sw:contractValue "$2M" ;
+    sw:performanceMetric "Market acceptance" ;
+    sw:contractStartDate "2024-01-01"^^xsd:date ;
+    sw:contractEndDate "2026-12-31"^^xsd:date ;
+    sw:hasLicensee sw:LIC-1003 ;
+    sw:coversVariety sw:SWC-1006 ;
+    sw:signedBy sw:MichaelBrown ;
+    sw:approvedBy sw:RobertKim .
 
 # Research Projects
-sw:RND-2023-001 a sw:ResearchProject ;
+swp:RND-2023-001 a sw:ResearchProject ;
     rdfs:label "Drought-Resistant Citrus" ;
     dct:startDate "2023-03-15"^^xsd:date ;
     sw:status "Active" ;
-    sw:leadResearcher "Dr. Maria Rodriguez" ;
-    sw:collaborator "University of California, Davis",
-"Spanish National Research Council" ;
-    dct:description "Development of citrus varieties with enhanced drought tolerance for water-scarce regions." .
+    sw:leadResearcher sw:MariaRodriguez ;
+    sw:collaborator "University of California, Davis", "Spanish National Research Council" ;
+    dct:description "Development of citrus varieties with enhanced drought tolerance for water-scarce regions." ;
+    sw:hasPhase swp:RND-2023-001-Phase1, swp:RND-2023-001-Phase2 ;
+    sw:developedVariety sw:SWC-1007 ;
+    sw:conductedAt swf:SpainInnovationCenter .
 
-sw:RND-2022-045 a sw:ResearchProject ;
+swp:RND-2022-045 a sw:ResearchProject ;
     rdfs:label "Extended Shelf-Life Berries" ;
     dct:startDate "2022-09-01"^^xsd:date ;
     dct:endDate "2023-08-30"^^xsd:date ;
     sw:status "Completed" ;
-    sw:outcome "Successfully developed new blueberry variety with 40% longer shelf life" .
+    sw:outcome "Successfully developed new blueberry variety with 40% longer shelf life" ;
+    sw:leadResearcher sw:EmilyWatson ;
+    sw:developedVariety sw:SWC-1003 ;
+    sw:conductedAt swf:FresnoFieldStation .
+
+swp:RND-2024-003 a sw:ResearchProject ;
+    rdfs:label "Next-Gen Seedless Grapes" ;
+    dct:startDate "2024-01-10"^^xsd:date ;
+    sw:status "Active" ;
+    sw:leadResearcher sw:MariaRodriguez ;
+    sw:collaborator "CSIRO Australia" ;
+    dct:description "Breeding program for new seedless grape varieties with improved disease resistance and flavor profiles." ;
+    sw:hasPhase swp:RND-2024-003-Phase1 ;
+    sw:conductedAt swf:BakersfieldLab .
+
+swp:RND-2024-005 a sw:ResearchProject ;
+    rdfs:label "Cold-Tolerant Berry Development" ;
+    dct:startDate "2024-04-01"^^xsd:date ;
+    sw:status "Active" ;
+    sw:leadResearcher sw:DrChenLi ;
+    sw:collaborator "University of Florida" ;
+    dct:description "Developing berry varieties that can withstand colder climates, extending growing seasons." ;
+    sw:developedVariety sw:SWC-1008 ;
+    sw:conductedAt swf:ChileResearchFarm .
+
+# Research Project Phases
+swp:RND-2023-001-Phase1 a swp:ProjectPhase ;
+    rdfs:label "Drought-Resistant Citrus - Phase 1: Gene Identification" ;
+    dct:startDate "2023-03-15"^^xsd:date ;
+    dct:endDate "2024-03-14"^^xsd:date ;
+    sw:status "Completed" ;
+    sw:outcome "Identified 5 key drought-tolerance genes" ;
+    sw:partOf swp:RND-2023-001 .
+
+swp:RND-2023-001-Phase2 a swp:ProjectPhase ;
+    rdfs:label "Drought-Resistant Citrus - Phase 2: Breeding & Trials" ;
+    dct:startDate "2024-03-15"^^xsd:date ;
+    sw:status "Active" ;
+    sw:outcome "Ongoing field trials of new citrus crosses" ;
+    sw:partOf swp:RND-2023-001 .
+
+swp:RND-2024-003-Phase1 a swp:ProjectPhase ;
+    rdfs:label "Next-Gen Seedless Grapes - Phase 1: Germplasm Screening" ;
+    dct:startDate "2024-01-10"^^xsd:date ;
+    sw:status "Active" ;
+    sw:outcome "Screening thousands of germplasm lines for desired traits" ;
+    sw:partOf swp:RND-2024-003 .
 
 # Patents
 sw:USPP24509P3 a sw:Patent ;
@@ -119,40 +456,115 @@ sw:USPP24509P3 a sw:Patent ;
     dct:issued "2012-06-05"^^xsd:date ;
     dct:dateSubmitted "2011-03-15"^^xsd:date ;
     sw:status "Active" ;
-    sw:inventor "John Peterson",
-"Sarah Chen" .
+    sw:inventor sw:JohnPeterson, sw:SarahChen ;
+    sw:protectsVariety sw:SWC-1001 .
 
-sw:US10470456B2 a sw:Patent ;
-    dct:title "Method for Extending Shelf Life of Stone Fruits" ;
-    dct:issued "2019-11-05"^^xsd:date ;
-    dct:dateSubmitted "2018-07-20"^^xsd:date ;
+sw:USPP28976P3 a sw:Patent ;
+    dct:title "Apricot Variety 'SunnyGlo'" ;
+    dct:issued "2018-09-10"^^xsd:date ;
+    dct:dateSubmitted "2017-05-20"^^xsd:date ;
     sw:status "Active" ;
-    sw:inventor "Robert Kim",
-"Emily Watson" .
+    sw:inventor sw:SarahChen ;
+    sw:protectsVariety sw:SWC-1002 .
 
-# Supply Chain
+sw:USPP31245P3 a sw:Patent ;
+    dct:title "Blueberry Plant 'Midnight'" ;
+    dct:issued "2020-03-20"^^xsd:date ;
+    dct:dateSubmitted "2019-01-01"^^xsd:date ;
+    sw:status "Active" ;
+    sw:inventor sw:EmilyWatson ;
+    sw:protectsVariety sw:SWC-1003 .
+
+sw:USPP27890P3 a sw:Patent ;
+    dct:title "Grape Variety 'Crimson Crisp'" ;
+    dct:issued "2016-01-15"^^xsd:date ;
+    dct:dateSubmitted "2015-04-01"^^xsd:date ;
+    sw:status "Active" ;
+    sw:inventor sw:JohnPeterson ;
+    sw:protectsVariety sw:SWC-1004 .
+
+sw:USPP30123P3 a sw:Patent ;
+    dct:title "Peach Variety 'Golden Delight'" ;
+    dct:issued "2020-05-01"^^xsd:date ;
+    dct:dateSubmitted "2019-08-10"^^xsd:date ;
+    sw:status "Active" ;
+    sw:inventor sw:SarahChen ;
+    sw:protectsVariety sw:SWC-1005 .
+
+sw:USPP32456P3 a sw:Patent ;
+    dct:title "Kiwi Variety 'Evergreen'" ;
+    dct:issued "2022-02-28"^^xsd:date ;
+    dct:dateSubmitted "2021-06-01"^^xsd:date ;
+    sw:status "Pending" ;
+    sw:inventor sw:EmilyWatson ;
+    sw:protectsVariety sw:SWC-1006 .
+
+sw:USPP33500P3 a sw:Patent ;
+    dct:title "Drought-Resistant Citrus 'Desert Bloom'" ;
+    dct:issued "2023-07-10"^^xsd:date ;
+    dct:dateSubmitted "2022-11-01"^^xsd:date ;
+    sw:status "Pending" ;
+    sw:inventor sw:DrChenLi ;
+    sw:protectsVariety sw:SWC-1007 .
+
+sw:USPP34000P3 a sw:Patent ;
+    dct:title "Cold-Tolerant Strawberry 'Arctic Berry'" ;
+    dct:issued "2024-06-01"^^xsd:date ;
+    dct:dateSubmitted "2023-10-15"^^xsd:date ;
+    sw:status "Pending" ;
+    sw:inventor sw:DrChenLi ;
+    sw:protectsVariety sw:SWC-1008 .
+
+# Supply Chain - Growers
 sw:GRW-1001 a sw:Grower ;
     foaf:name "Central Valley Orchards" ;
     sw:location "California, USA" ;
-    sw:grows sw:SWC-1001, sw:SWC-1002 ;
-    sw:certification "GlobalGAP",
-"Organic" .
+    sw:grows sw:SWC-1001, sw:SWC-1002, sw:SWC-1004 ;
+    sw:certification "GlobalGAP", "Organic" ;
+    sw:suppliesTo sw:DIST-1001 .
 
 sw:GRW-1002 a sw:Grower ;
     foaf:name "Andalusian Fruit Co." ;
     sw:location "Andalusia, Spain" ;
-    sw:grows sw:SWC-1001, sw:SWC-1003 ;
-    sw:certification "GRASP",
-"GlobalGAP" .
+    sw:grows sw:SWC-1001, sw:SWC-1003, sw:SWC-1005 ;
+    sw:certification "GRASP", "GlobalGAP" ;
+    sw:suppliesTo sw:DIST-1002 .
 
+sw:GRW-1003 a sw:Grower ;
+    foaf:name "Southern Hemisphere Farms" ;
+    sw:location "Valparaíso, Chile" ;
+    sw:grows sw:SWC-1004, sw:SWC-1006, sw:SWC-1008 ;
+    sw:certification "ChileGAP" ;
+    sw:suppliesTo sw:DIST-1001, sw:DIST-1003 .
+
+sw:GRW-1004 a sw:Grower ;
+    foaf:name "Mediterranean Produce" ;
+    sw:location "Sicily, Italy" ;
+    sw:grows sw:SWC-1005, sw:SWC-1007 ;
+    sw:certification "GlobalGAP" ;
+    sw:suppliesTo sw:DIST-1002 .
+
+# Supply Chain - Distributors
 sw:DIST-1001 a sw:Distributor ;
     foaf:name "Global Fresh Distributors" ;
-    sw:servesRegion "North America",
-"Asia" ;
-    sw:partnershipSince "2015"^^xsd:gYear .
+    sw:servesRegion "North America", "Asia" ;
+    sw:partnershipSince "2015"^^xsd:gYear ;
+    sw:distributes sw:SWC-1001, sw:SWC-1002, sw:SWC-1004, sw:SWC-1006, sw:SWC-1008 .
 
-# Relationships
-sw:SunWorld sw:develops sw:SWC-1001, sw:SWC-1002, sw:SWC-1003 .
-sw:SunWorld sw:conducts sw:RND-2023-001, sw:RND-2022-045 .
-sw:SunWorld sw:holdsPatent sw:USPP24509P3, sw:US10470456B2 .
-sw:SunWorld sw:worksWith sw:GRW-1001, sw:GRW-1002, sw:DIST-1001 .
+sw:DIST-1002 a sw:Distributor ;
+    foaf:name "European Market Link" ;
+    sw:servesRegion "Europe", "UK" ;
+    sw:partnershipSince "2017"^^xsd:gYear ;
+    sw:distributes sw:SWC-1001, sw:SWC-1003, sw:SWC-1005, sw:SWC-1007 .
+
+sw:DIST-1003 a sw:Distributor ;
+    foaf:name "Latin America Produce Co." ;
+    sw:servesRegion "South America", "Central America" ;
+    sw:partnershipSince "2020"^^xsd:gYear ;
+    sw:distributes sw:SWC-1004, sw:SWC-1006, sw:SWC-1008 .
+
+# Relationships (Summary - detailed above)
+sw:SunWorld sw:develops sw:SWC-1001, sw:SWC-1002, sw:SWC-1003, sw:SWC-1004, sw:SWC-1005, sw:SWC-1006, sw:SWC-1007, sw:SWC-1008 .
+sw:SunWorld sw:conducts swp:RND-2023-001, swp:RND-2022-045, swp:RND-2024-003, swp:RND-2024-005 .
+sw:SunWorld sw:holdsPatent sw:USPP24509P3, sw:USPP28976P3, sw:USPP31245P3, sw:USPP27890P3, sw:USPP30123P3, sw:USPP32456P3, sw:USPP33500P3, sw:USPP34000P3 .
+sw:SunWorld sw:worksWith sw:GRW-1001, sw:GRW-1002, sw:GRW-1003, sw:GRW-1004, sw:DIST-1001, sw:DIST-1002, sw:DIST-1003 .

@@ -23,7 +23,18 @@ How tools work:
 
 # TODO: Parallelize all gpt prompts for better scatter gather.
 # TODO: (experiment with this, maybe it is already correct, but don't know for sure) ner_el_tool does not need to only extract entities. it can also get relationships but because of bad prompting it only gets simple relationships. this was initially the reason i created the relation_extraction tool, but it is redundant (test this assumption as well)
+# TODO: make the ner tool much cleaner and refactor it
+# TODO: optimize prompts for cost and performance (more tokens is more expensive but might give better value)
+# TODO: actually move everything to prompt service and create files for each prompt
 # TODO: remove entity types dependence
+# TODO: cross user feedback loop for entity deduplication (people within an org might call a specific product by some name or osmething else)
+# TODO: tenant based entities using key lookups
+# TODO: for orchestrator: alignment for enterprise chat
+# TODO: create data cold start for new enterprises. need to be able to ocmpletely download all data into KG
+# TODO: add global data so anything on wikipedia can be referenced
+# TODO: add real time kg updates so news from around the world gets updated into kg as well
+# TODO: add different prompts for retrieval vs extraction ner
+# TODO: find all passwords and move to env. update for prod or dev env
 
 
 import logging
@@ -958,8 +969,12 @@ class KnowledgeGraphAgent(AgentInterface):
                 f"NER_EL_INFO: \nEntities:{ner_el_info['data']['entities']} \nRelationships:{ner_el_info['data']['relationships']}"
             )
 
-            # TODO: Implement remaining steps
-            # Step 2: Multi-strategy retrieval
+            # Step 2: Multi-strategy retrieva
+            # Entity Traversal
+
+            # todo: Semantic/Vector Search
+            # todo: Tool generator agent: Cypher generation
+
             # Step 3: Result processing and ranking
             # Step 4: Context optimization
 

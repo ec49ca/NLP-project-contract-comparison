@@ -41,6 +41,7 @@ check logs after.
 
 
 
+burden of figuring out what is happening in the query is in the kg agent.
 
 --
 Retrieval:

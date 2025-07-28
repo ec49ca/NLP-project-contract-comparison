@@ -1,0 +1,7 @@
+Analyze this query:
+"{query}"
+
+Data sample:
+{data_sample}
+
+Classify the complexity and provide reasoning.

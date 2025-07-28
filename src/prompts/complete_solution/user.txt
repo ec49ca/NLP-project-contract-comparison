@@ -1,0 +1,9 @@
+Query: "{query}"
+
+Data structure:
+{data_sample}
+
+Analysis:
+{analysis}
+
+Generate a complete function that implements this complex query using the analysis.

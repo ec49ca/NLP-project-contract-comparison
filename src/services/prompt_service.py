@@ -13,378 +13,179 @@ Max calls: 3 (vs 27 in original system)
 """
 
 import json
+import os
 from typing import Dict, List, Any, Optional
 
 
 class PromptService:
     """Service for managing simplified dynamic prompt templates"""
 
-    @staticmethod
+    def __init__(self, prompt_dir: str = "src/prompts"):
+        """
+        Initializes the PromptService by loading prompt templates from a directory.
+        """
+        self._prompt_dir = prompt_dir
+        self._prompts = self._load_prompts()
+
+    def _load_prompts(self) -> Dict[str, Dict[str, str]]:
+        """
+        Loads all prompts from the directory structure into memory.
+        Each subdirectory in the prompt_dir is considered a prompt,
+        containing system.txt and user.txt files.
+        """
+        prompts = {}
+        if not os.path.isdir(self._prompt_dir):
+            return prompts
+
+        for prompt_name in os.listdir(self._prompt_dir):
+            prompt_path = os.path.join(self._prompt_dir, prompt_name)
+            if os.path.isdir(prompt_path):
+                system_path = os.path.join(prompt_path, "system.txt")
+                user_path = os.path.join(prompt_path, "user.txt")
+
+                system_prompt = ""
+                if os.path.exists(system_path):
+                    with open(system_path, "r") as f:
+                        system_prompt = f.read()
+
+                user_prompt = ""
+                if os.path.exists(user_path):
+                    with open(user_path, "r") as f:
+                        user_prompt = f.read()
+
+                prompts[prompt_name] = {
+                    "system": system_prompt,
+                    "user": user_prompt,
+                }
+        return prompts
+
+    def get_prompt(self, prompt_name: str, **kwargs) -> Dict[str, str]:
+        """
+        Gets a prompt by name and formats it with the provided keyword arguments.
+        """
+        prompt_template = self._prompts.get(prompt_name)
+        if not prompt_template:
+            raise ValueError(f"Prompt '{prompt_name}' not found in {self._prompt_dir}.")
+
+        system_prompt = prompt_template["system"].format(**kwargs)
+        user_prompt = prompt_template["user"].format(**kwargs)
+
+        return {"system": system_prompt.strip(), "user": user_prompt.strip()}
+
     def get_complexity_assessment_prompt(
-        query: str, data_sample: List[Dict[str, Any]]
+        self, query: str, data_sample: List[Dict[str, Any]]
     ) -> Dict[str, str]:
         """
-        PROMPT 1: Assess query complexity and determine processing path
-        Routes queries to either simple direct generation or complex analysis path.
+        PROMPT 1: Assess query complexity and determine processing path.
         """
-        system_prompt = """
-You are a query complexity classifier for data analysis tasks.
+        return self.get_prompt(
+            "complexity_assessment",
+            query=query,
+            data_sample=json.dumps(data_sample[:5], indent=2),
+        )
 
-Your job is to determine if a query is SIMPLE or COMPLEX based on these criteria:
-
-## SIMPLE QUERIES (Direct generation path):
-- Single operation or calculation
-- No interdependent steps
-- No intermediate variables needed
-- Can be solved with one cohesive function
-
-Examples:
-- "Find all customers with orders > $100"
-- "Calculate average order value"
-- "Filter products by category"
-- "Group sales by region"
-- "Find top 10 customers by spending"
-
-## COMPLEX QUERIES (Analysis & planning path):
-- Multiple dependent operations
-- Requires intermediate calculations
-- Needs step-by-step breakdown for clarity
-- Benefits from understanding dependencies
-
-Examples:
-- "Find customers above average order value and compare to overall average"
-- "Calculate category averages, then find products above their category average"
-- "Analyze customer segments and compare performance across segments"
-- "Find outliers based on multiple criteria and show their impact"
-
-## OUTPUT FORMAT:
-Return JSON with:
-{
-  "complexity": "SIMPLE" or "COMPLEX",
-  "reasoning": "Brief explanation of why this query is simple or complex",
-  "operations": ["list", "of", "main", "operations", "needed"],
-  "dependencies": "Description of any interdependencies"
-}
-
-Be decisive - err on the side of SIMPLE when uncertain.
-"""
-
-        user_prompt = f"""
-Analyze this query:
-"{query}"
-
-Data sample:
-{json.dumps(data_sample[:5], indent=2)}
-
-Classify the complexity and provide reasoning.
-"""
-
-        return {"system": system_prompt.strip(), "user": user_prompt.strip()}
-
-    @staticmethod
     def get_direct_generation_prompt(
-        query: str, data_sample: List[Dict[str, Any]]
+        self, query: str, data_sample: List[Dict[str, Any]]
     ) -> Dict[str, str]:
         """
-        PROMPT 2A: Direct code generation for simple queries
-        Generates complete solution in one step for straightforward queries.
+        PROMPT 2A: Direct code generation for simple queries.
         """
-        system_prompt = """
-You are a Python code generator for data analysis tasks.
+        return self.get_prompt(
+            "direct_generation",
+            query=query,
+            data_sample=json.dumps(data_sample[:3], indent=2),
+        )
 
-Generate a complete, production-ready function that:
-1. Takes (data, kwargs) as parameters
-2. Processes the data according to the query
-3. Returns the appropriate result
-4. Handles edge cases gracefully
-5. Uses descriptive variable names
-6. Includes basic error handling
-
-## FUNCTION STRUCTURE:
-```python
-def generated_function(data, kwargs):
-    # Clear, efficient implementation
-    # Handle edge cases
-    # Return appropriate result
-    return result
-
-# KWARGS NEEDED:
-# - paramName: description of parameter
-# - fieldName: description of field reference
-```
-
-## REQUIREMENTS:
-- Function name must be 'generated_function'
-- Use kwargs for any configurable values
-- All kwargs keys should end with 'Var' (e.g., thresholdVar, fieldVar)
-- Access data using kwargs['fieldVar'] pattern
-- Return data that answers the query
-- No hardcoded values in function body
-- Include kwargs documentation comment
-
-## ERROR HANDLING:
-- Check for empty data
-- Handle missing fields gracefully
-- Return appropriate defaults for edge cases
-"""
-
-        user_prompt = f"""
-Query: "{query}"
-
-Data structure:
-{json.dumps(data_sample[:3], indent=2)}
-
-Generate a complete function that processes this data according to the query.
-Include the kwargs documentation comment.
-"""
-
-        return {"system": system_prompt.strip(), "user": user_prompt.strip()}
-
-    @staticmethod
     def get_analyze_and_plan_prompt(
-        query: str, data_sample: List[Dict[str, Any]]
+        self, query: str, data_sample: List[Dict[str, Any]]
     ) -> Dict[str, str]:
         """
-        PROMPT 2B: Analyze complex query and create execution plan
-        Breaks down complex queries for understanding while planning holistic execution.
+        PROMPT 2B: Analyze complex query and create execution plan.
         """
-        system_prompt = """
-You are a data analysis architect breaking down complex queries for implementation.
+        return self.get_prompt(
+            "analyze_and_plan",
+            query=query,
+            data_sample=json.dumps(data_sample[:3], indent=2)
+        )
 
-Your goal is to understand the query deeply and create a clear execution plan that will be used to generate a single holistic function.
-
-## ANALYSIS APPROACH:
-1. Break down the query into logical components
-2. Identify key operations and their relationships
-3. Plan data flow and intermediate calculations
-4. Consider edge cases and error handling
-5. Design the overall solution architecture
-
-## OUTPUT FORMAT:
-Return JSON with:
-{
-  "understanding": "Clear explanation of what the query asks for",
-  "components": [
-    {
-      "operation": "Description of operation",
-      "purpose": "Why this operation is needed",
-      "input": "What data this operation works with",
-      "output": "What this operation produces"
-    }
-  ],
-  "data_flow": "Description of how data flows through the operations",
-  "edge_cases": ["List of potential edge cases to handle"],
-  "solution_approach": "High-level strategy for implementing this as a single function"
-}
-
-Focus on understanding rather than implementation details.
-"""
-
-        user_prompt = f"""
-Complex query: "{query}"
-
-Data structure:
-{json.dumps(data_sample[:3], indent=2)}
-
-Analyze this query and create a comprehensive execution plan.
-"""
-
-        return {"system": system_prompt.strip(), "user": user_prompt.strip()}
-
-    @staticmethod
     def get_complete_solution_prompt(
-        query: str, data_sample: List[Dict[str, Any]], analysis: Dict[str, Any]
+        self, query: str, data_sample: List[Dict[str, Any]], analysis: Dict[str, Any]
     ) -> Dict[str, str]:
         """
-        PROMPT 3: Generate complete solution for complex queries
-        Uses analysis to generate a holistic function that handles all complexity.
+        PROMPT 3: Generate complete solution for complex queries.
         """
-        system_prompt = """
-You are a Python expert generating production-ready data analysis functions.
+        return self.get_prompt(
+            "complete_solution",
+            query=query,
+            data_sample=json.dumps(data_sample[:3], indent=2),
+            analysis=json.dumps(analysis, indent=2)
+        )
 
-Using the provided analysis, generate a complete function that handles all aspects of the complex query in a single, cohesive implementation.
-
-## FUNCTION REQUIREMENTS:
-- Function name must be 'generated_function'
-- Takes (data, kwargs) as parameters
-- Implements all operations from the analysis
-- Handles data flow and dependencies internally
-- Manages edge cases appropriately
-- Returns final result that answers the query
-
-## IMPLEMENTATION STRATEGY:
-- Use the analysis to understand the full scope
-- Implement all operations in logical sequence
-- Handle intermediate calculations internally
-- Use descriptive variable names
-- Include appropriate error handling
-- Optimize for readability and efficiency
-
-## KWARGS PATTERN:
-- Extract configurable values to kwargs
-- All kwargs keys end with 'Var'
-- Use kwargs['fieldVar'] pattern for field access
-- No hardcoded values in function body
-
-## OUTPUT FORMAT:
-```python
-def generated_function(data, kwargs):
-    # Implementation based on analysis
-    # All operations handled internally
-    # Clear variable names and logic flow
-    return final_result
-
-# KWARGS NEEDED:
-# - paramName: description
-```
-
-Return ONLY the function code and kwargs documentation.
-"""
-
-        user_prompt = f"""
-Query: "{query}"
-
-Data structure:
-{json.dumps(data_sample[:3], indent=2)}
-
-Analysis:
-{json.dumps(analysis, indent=2)}
-
-Generate a complete function that implements this complex query using the analysis.
-"""
-
-        return {"system": system_prompt.strip(), "user": user_prompt.strip()}
-
-    @staticmethod
     def get_parameterize_and_document_prompt(
-        query: str, function_code: str, data_sample: List[Dict[str, Any]]
+        self, query: str, function_code: str, data_sample: List[Dict[str, Any]]
     ) -> Dict[str, str]:
         """
-        PROMPT 4: Add parameters and metadata to generated function
-        Extracts runtime parameters and generates metadata for the function.
+        PROMPT 4: Add parameters and metadata to generated function.
         """
-        system_prompt = """
-You are a code documentation specialist.
+        return self.get_prompt(
+            "parameterize_and_document",
+            query=query,
+            function_code=function_code,
+            data_sample=json.dumps(data_sample[:3], indent=2)
+        )
 
-Given a function and its context, determine:
-1. The runtime parameters (kwargs) needed
-2. Metadata about the function's purpose and capabilities
-
-## KWARGS EXTRACTION:
-- Identify all configurable values
-- Create kwargs for field references and thresholds
-- Use 'Var' suffix for all kwargs keys
-- Provide clear descriptions
-
-## METADATA GENERATION:
-- Intent summary: What the function does
-- Capabilities: Data operations performed
-- Tags: Descriptive labels for the function
-
-## OUTPUT FORMAT:
-Return JSON with:
-{
-  "kwargs": {
-    "paramNameVar": "description of parameter"
-  },
-  "metadata": {
-    "intent_summary": "Clear description of function purpose",
-    "capabilities": ["filtering", "aggregation", "transformation"],
-    "tags": ["descriptive", "tags"]
-  }
-}
-"""
-
-        user_prompt = f"""
-Query: "{query}"
-
-Function code:
-{function_code}
-
-Data structure:
-{json.dumps(data_sample[:3], indent=2)}
-
-Extract kwargs and generate metadata for this function.
-"""
-
-        return {"system": system_prompt.strip(), "user": user_prompt.strip()}
-
-    @staticmethod
-    def get_intent_classification_prompt(query: str) -> Dict[str, str]:
+    def get_intent_classification_prompt(self, query: str) -> Dict[str, str]:
         """
         PROMPT: Classify the user's intent for a knowledge graph query.
         """
-        system_prompt = """
-You are an intent classification expert for knowledge graph queries.
-Your task is to classify the user's query into one of the following categories:
-- "fact seeking": The user is looking for a specific fact or piece of information.
-- "comparative": The user is comparing two or more entities.
-- "aggregative": The user is asking for a summary or aggregation of information.
-- "explanatory": The user is asking for an explanation of a concept or entity.
+        return self.get_prompt(
+            "intent_classification",
+            query=query
+        )
 
-Respond with a JSON object with the following format:
-{
-    "intent": "fact seeking" | "comparative" | "aggregative" | "explanatory",
-    "confidence": 0.0 to 1.0
-}
-"""
-        user_prompt = f"""
-Classify the intent of the following query:
-"{query}"
-"""
-        return {"system": system_prompt.strip(), "user": user_prompt.strip()}
-
-    @staticmethod
     def get_ner_el_prompt(
-        entity_types_text: str, chunk: str, confidence_threshold: str
+        self, entity_types_text: str, chunk: str, confidence_threshold: str
     ) -> Dict[str, str]:
         """
         PROMPT for Named Entity Recognition and Entity Linking.
         """
-        system_prompt = """
-You are an expert Named Entity Recognition system. Extract entities from the following preprocessed document content.
+        return self.get_prompt(
+            "ner_el",
+            entity_types_text=entity_types_text,
+            chunk=chunk,
+            confidence_threshold=confidence_threshold
+        )
 
-ENTITY TYPES TO EXTRACT:
-""" + entity_types_text + """
 
-PREPROCESSED CONTENT:
-""" + chunk + """
+    def get_entity_extraction_prompt(self, text: str) -> Dict[str, str]:
+        """
+        PROMPT for entity extraction.
+        """
+        return self.get_prompt(
+            "entity_extraction",
+            text=text
+        )
 
-INSTRUCTIONS:
-1. Extract ALL entities of the specified types
-2. For each entity, provide:
-   - text: exact text as it appears
-   - type: one of the specified entity types
-   - confidence: 0.0-1.0 (how confident you are)
-   - context: surrounding text for disambiguation
-   - normalized_value: standardized form (e.g., "John Smith" for "Mr. John Smith")
-   - record_id: which RECORD_X the entity came from
+    def get_relationship_extraction_prompt(self, text: str, entity_list: str) -> Dict[str, str]:
+        """
+        PROMPT for relationship extraction.
+        """
+        return self.get_prompt(
+            "relationship_extraction",
+            text=text,
+            entity_list=entity_list
+        )
 
-3. Only include entities with confidence >= """ + confidence_threshold + """
-4. Be precise - don't extract partial names or incomplete information
-5. For dates, normalize to YYYY-MM-DD format when possible
-6. For money, include currency and amount
-7. For IDs, preserve exact format
 
-OUTPUT FORMAT (JSON):
-{{
-  "entities": [
-    {{
-      "text": "John Smith",
-      "type": "PERSON",
-      "confidence": 0.95,
-      "context": "Customer Name: John Smith, Email: john@email.com",
-      "normalized_value": "John Smith",
-      "record_id": "RECORD_1",
-      "start_position": 45,
-      "end_position": 55
-    }}
-  ]
-}}
-
-RESPOND ONLY WITH VALID JSON:"""
-        user_prompt = ""
-        return {"system": system_prompt.strip(), "user": user_prompt.strip()}
+    def get_relation_extraction_prompt(self, content: str, relation_types_text: str) -> Dict[str, str]:
+        """
+        PROMPT for relation extraction.
+        """
+        return self.get_prompt(
+            "relation_extraction",
+            content=content,
+            relation_types_text=relation_types_text
+        )
 
 
 # Global prompt service instance

@@ -1,0 +1,62 @@
+You are an expert at extracting relationships from structured text content.
+
+Your task is to extract ALL meaningful relationships from the provided content. The content is in a clean structured format with field-value pairs.
+
+CONTENT TO ANALYZE:
+{content}
+
+INSTRUCTIONS:
+1. Extract ALL meaningful relationships, including:
+   - Explicit relationships (directly stated)
+   - Implicit relationships (can be reasonably inferred)
+   - Attribute relationships (entity has attribute)
+   - Hierarchical relationships (reports to, part of)
+   - Temporal relationships (started on, ended on)
+   - Transactional relationships (bought from, sold to)
+   - Spatial relationships (located at, based in)
+   - Causal relationships (caused by, resulted in)
+
+2. {relation_types_text}
+
+3. For each relationship, provide:
+   - subject: The main entity (normalize to canonical form)
+   - predicate: The relationship type (use clear, consistent predicates)
+   - object: The related entity/value (normalize to canonical form)
+   - confidence: Float 0.0-1.0 (be realistic, not overly confident)
+   - context: The surrounding text that supports this relationship
+   - relationship_type: Category (attribute, hierarchical, temporal, etc.)
+   - metadata: Additional context like source_field, record_number, etc.
+
+4. Use consistent predicate naming:
+   - HAS_ATTRIBUTE (for properties)
+   - REPORTS_TO (for hierarchies)
+   - LOCATED_AT (for locations)
+   - STARTED_ON, ENDED_ON (for dates)
+   - WORKS_FOR (for employment)
+   - PURCHASED_FROM, SOLD_TO (for transactions)
+   - MEMBER_OF (for membership)
+   - OWNS (for ownership)
+
+5. Normalize entity names consistently across relationships.
+
+6. Be comprehensive but accurate - extract as many reasonable relationships as possible.
+
+RESPONSE FORMAT:
+Return ONLY a JSON array with this exact structure:
+[
+  {{
+    "subject": "normalized_entity_name",
+    "predicate": "RELATIONSHIP_TYPE",
+    "object": "normalized_target_entity",
+    "confidence": 0.85,
+    "context": "supporting text from source",
+    "relationship_type": "attribute|hierarchical|temporal|transactional|spatial|causal",
+    "metadata": {{
+      "source_field": "field_name_if_applicable",
+      "record_number": "record_id_if_applicable",
+      "extraction_method": "explicit|inferred"
+    }}
+  }}
+]
+
+Return the JSON array only, no other text.

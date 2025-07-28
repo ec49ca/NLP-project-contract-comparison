@@ -8,6 +8,7 @@ import json
 import logging
 from typing import Dict, Any, List, Optional
 from ...services.llm_service import llm_service
+from ...services.prompt_service import prompt_service
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +33,9 @@ class ExtractTriplesTool:
             processed_text = self._preprocess_text(text)
 
             # Step 2: Entity Extraction using LLM
-            entities = await self._extract_entities(processed_text)
+            prompt = prompt_service.get_entity_extraction_prompt(text=processed_text)
+            response = await self._make_llm_call(prompt)
+            entities = self._parse_entity_response(response)
 
             # Step 3: Relationship Extraction using LLM
             relationships = await self._extract_relationships(processed_text, entities)
@@ -127,16 +130,6 @@ class ExtractTriplesTool:
 
         return filtered_triples
 
-    async def _extract_entities(self, text: str) -> List[Dict[str, Any]]:
-        """Extract entities from text using LLM service (replaces openai_service.extract_entities)"""
-        try:
-            prompt = self._build_entity_extraction_prompt(text)
-            response = await self._make_llm_call(prompt)
-            return self._parse_entity_response(response)
-        except Exception as e:
-            logger.error(f"Error extracting entities: {e}")
-            return []
-
     async def _extract_relationships(
         self, text: str, entities: List[Dict[str, Any]]
     ) -> List[Dict[str, Any]]:
@@ -145,89 +138,17 @@ class ExtractTriplesTool:
             if not entities or len(entities) < 2:
                 return []
 
-            prompt = self._build_relationship_extraction_prompt(text, entities)
+            entity_list_str = "\n".join(
+                [f"- {entity['name']} ({entity['type']})" for entity in entities]
+            )
+            prompt = prompt_service.get_relationship_extraction_prompt(
+                text=text, entity_list=entity_list_str
+            )
             response = await self._make_llm_call(prompt)
             return self._parse_relationship_response(response)
         except Exception as e:
             logger.error(f"Error extracting relationships: {e}")
             return []
-
-    def _build_entity_extraction_prompt(self, text: str) -> str:
-        """Build prompt for entity extraction (from original openai_service)"""
-        return f"""
-Extract all named entities from this document. For each entity, provide:
-1. Entity name (the exact text as it appears in the document)
-2. Entity type (Person, Organization, Location, Date, Product, Event, Technology, Concept, etc.)
-3. Context (a brief phrase or sentence where the entity appears, limited to 100 characters)
-4. Confidence score (0.0 to 1.0 based on how certain you are about the entity)
-
-Focus on identifying:
-- People (individuals, roles)
-- Organizations (companies, institutions, departments)
-- Locations (addresses, cities, countries)
-- Dates and Times
-- Products and Services
-- Legal Entities and Terms
-- Financial Terms and Amounts
-- Events
-- Technologies
-- Concepts and Ideas
-
-Document text:
-{text}
-
-Respond with a JSON array of entities in this exact format:
-{{
-  "entities": [
-    {{
-      "name": "entity name",
-      "type": "entity type",
-      "context": "brief context where entity appears",
-      "confidence": 0.95
-    }}
-  ]
-}}
-
-Only include each unique entity once with its most representative context.
-"""
-
-    def _build_relationship_extraction_prompt(
-        self, text: str, entities: List[Dict[str, Any]]
-    ) -> str:
-        """Build prompt for relationship extraction (from original openai_service)"""
-        entity_list = "\n".join(
-            [f"- {entity['name']} ({entity['type']})" for entity in entities]
-        )
-
-        return f"""
-Extract relationships between the following entities from the document. For each relationship, provide:
-1. Source entity (from the list below)
-2. Target entity (from the list below)
-3. Relationship type (created, works_at, is_a, part_of, located_in, etc.)
-4. Confidence score (0.0 to 1.0)
-
-Available entities:
-{entity_list}
-
-Document text:
-{text}
-
-Respond with a JSON array of relationships in this exact format:
-{{
-  "relationships": [
-    {{
-      "source": "source entity name",
-      "source_type": "source entity type",
-      "target": "target entity name",
-      "target_type": "target entity type",
-      "relationship": "relationship type",
-      "confidence": 0.85
-    }}
-  ]
-}}
-
-Only include relationships that are clearly supported by the text.
-"""
 
     async def _make_llm_call(self, prompt: str) -> str:
         """Make LLM API call using llm_service (replaces openai_service._make_openai_call)"""

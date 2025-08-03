@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 class Neo4jService:
     def __init__(self):
+        return
         uri = os.getenv("NEO4J_URI", "bolt://neo4j:7687")
         user = os.getenv("NEO4J_USER", "neo4j")
         password = os.getenv("NEO4J_PASSWORD", "samvidneo4j")

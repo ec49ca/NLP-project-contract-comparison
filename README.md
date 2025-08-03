@@ -211,7 +211,7 @@ python -m src.server.mcp_server
    - Update `_agent_id_str`, `_name`, `_description`
    - Set appropriate `category`
    - Implement `process_request()` logic
-   - Define `get_capabilities()`
+   - Define `get_tools()`
 
 3. **Register agent:**
    ```python

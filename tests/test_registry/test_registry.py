@@ -55,7 +55,7 @@ class MockAgent(AgentInterface):
     async def shutdown(self):
         self._initialized = False
 
-    def get_capabilities(self):
+    def get_tools(self):
         return [{"name": "test", "description": "test capability"}]
 
     def get_status(self):

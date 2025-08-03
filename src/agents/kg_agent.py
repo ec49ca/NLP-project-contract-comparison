@@ -39,6 +39,15 @@ How tools work:
 # TODO: remove get capabilities dependence in mcp_server.py, shouldn't have to write capabilities twice.
 # TODO: create neo4j db migration scripts
 # TODO: preprocessor needs to check for typos and clean text as well
+# TODO: set up claude integration for auto tool generation.
+# TODO: parallelize cypher queries
+# TODO: create kg benchmarking suite
+# TODO: add validation so that any return value for a tool actually returns the returnValues field
+# TODO: make it not stupid to add/remove tools/agents
+
+# ideas:
+# add "from chunk" relation to lookup and add to context easily (possibly replaces quadruple necessity)
+# for client specific kg entities, bake in client specific context: sunworld is fruit development context
 
 
 import logging
@@ -137,98 +146,12 @@ class KnowledgeGraphAgent(AgentInterface):
             "initialized": self._initialized,
             "healthy": self._initialized,
             "tools_available": list(self._tools.keys()),
-            "capabilities": self.get_capabilities(),
+            "capabilities": self.get_tools(),
         }
 
-    def get_capabilities(self) -> List[Dict[str, Any]]:
+    def get_tools(self) -> List[Dict[str, Any]]:
         """Return agent's capabilities."""
         return [
-            {
-                "name": "extract_triples",
-                "description": "Extract triples (subject-predicate-object relationships) from unstructured text",
-                "parameters": {
-                    "text": "Text to extract triples from (required)",
-                    "confidence_threshold": "Minimum confidence score for triples (0.0-1.0, default: 0.7)",
-                    "max_triples": "Maximum number of triples to extract (default: 100)",
-                },
-            },
-            {
-                "name": "detect_document_type",
-                "description": "Detect document type with 7-point structure classification: highly_structured, structured, moderately_structured, semi_structured, lightly_structured, unstructured, highly_unstructured, plus scanned detection",
-                "parameters": {
-                    "document_content": "Document content or file path (required)",
-                    "content_type": "MIME type hint (optional)",
-                    "filename": "Original filename for extension-based detection (optional)",
-                    "file_path": "Path to the file for analysis (optional, alternative to document_content)",
-                },
-            },
-            {
-                "name": "preprocess_document",
-                "description": "Clean and preprocess document content for knowledge extraction with OCR support for scanned documents, type-specific preprocessing, text normalization, and stopword removal",
-                "parameters": {
-                    "document_content": "Raw document content (required if no file_path)",
-                    "document_type": "Document type from detect_document_type (required) - use 'scanned' for OCR processing",
-                    "remove_stopwords": "Whether to remove stopwords (default: false)",
-                    "normalize_text": "Whether to normalize text (default: true)",
-                    "file_path": "Path to file for OCR processing (optional, for scanned documents)",
-                },
-            },
-            {
-                "name": "run_ner_el",
-                "description": "Advanced Named Entity Recognition and Entity Linking using GPT-4 on preprocessed text with chunking support and optional logging",
-                "parameters": {
-                    "text": "Preprocessed text content (required)",
-                    "entity_types": "List of entity types to extract (optional, default: ['PERSON', 'ORGANIZATION', 'LOCATION', 'DATE', 'MONEY']. Available: PERSON, ORGANIZATION, LOCATION, DATE, MONEY, PRODUCT, EMAIL, PHONE, ID_NUMBER, PERCENTAGE, QUANTITY, EVENT, DOCUMENT, JOB_TITLE, SKILL)",
-                    "confidence_threshold": "Minimum confidence score for entities (0.0-1.0, default: 0.8)",
-                    "enable_linking": "Whether to perform entity linking (default: true)",
-                    "chunk_size": "Size of text chunks for processing (default: 2000)",
-                    "enable_logging": "Whether to log query and output to file (default: false)",
-                    "log_file_path": "Directory path for log files (default: '/app/logs')",
-                    "log_file_name": "Custom log file name (optional, auto-generated if not provided)",
-                },
-            },
-            {
-                "name": "run_relation_extraction",
-                "description": "Extract comprehensive relationships from preprocessed text using GPT-4o with rich metadata for RDF quadruples",
-                "parameters": {
-                    "text": "Preprocessed text content (required)",
-                    "relation_types": "List of specific relation types to focus on (optional, default: extracts all types)",
-                    "confidence_threshold": "Minimum confidence score for relations (0.0-1.0, default: 0.7)",
-                    "chunk_size": "Size of text chunks for processing (default: 2000)",
-                    "enable_logging": "Whether to log query and output to file (default: false)",
-                    "log_file_path": "Directory path for log files (default: '/app/logs')",
-                    "log_file_name": "Custom log file name (optional, auto-generated if not provided)",
-                },
-            },
-            {
-                "name": "create_quadruples",
-                "description": "Create quadruples from relation extraction and NER+EL results",
-                "parameters": {
-                    "relations": "List of relations from run_relation_extraction (required)",
-                    "entities": "List of entities from run_ner_el (required)",
-                    "confidence_threshold": "Minimum confidence score for quadruples (0.0-1.0, default: 0.7)",
-                    "max_quadruples": "Maximum number of quadruples to create (default: 100)",
-                },
-            },
-            {
-                "name": "process_file_to_ner",
-                "description": "Complete pipeline: takes a file, preprocesses it, extracts entities using NER+EL, and extracts relationships using RE",
-                "parameters": {
-                    "file_path": "Path to the file to process (required)",
-                    "auto_detect_type": "Whether to auto-detect document type (default: true)",
-                    "document_type": "Manual document type override (optional, use if auto_detect_type is false)",
-                    "entity_types": "List of entity types to extract (optional, default: ['PERSON', 'ORGANIZATION', 'LOCATION', 'DATE', 'MONEY'])",
-                    "relation_types": "List of relation types to focus on (optional, default: extracts all types)",
-                    "ner_confidence_threshold": "Minimum confidence score for entities (0.0-1.0, default: 0.8)",
-                    "re_confidence_threshold": "Minimum confidence score for relations (0.0-1.0, default: 0.7)",
-                    "enable_linking": "Whether to perform entity linking (default: true)",
-                    "remove_stopwords": "Whether to remove stopwords during preprocessing (default: false)",
-                    "normalize_text": "Whether to normalize text during preprocessing (default: true)",
-                    "enable_logging": "Whether to log processing steps and results (default: false)",
-                    "log_file_path": "Directory path for log files (default: '/app/logs')",
-                    "log_file_name": "Custom log file name (optional, auto-generated if not provided)",
-                },
-            },
             {
                 "name": "retrieve",
                 "description": "Retrieve information from the knowledge graph based on the user's query",
@@ -236,6 +159,14 @@ class KnowledgeGraphAgent(AgentInterface):
                     "query": "User query to retrieve information (required)",
                     "intent": "Intent of the user query (optional)",
                     "context": "Additional context for the query (optional)",
+                },
+                "returnValues": {
+                    "intent": "string - Classified intent of the user query",
+                    "intent_confidence": "number - Confidence score for the intent classification (0.0-1.0)",
+                    "extracted_entities": "array - List of entities extracted from the query with text, type, and confidence",
+                    "extracted_relationships": "array - List of relationships extracted from the query",
+                    # "results": "array - Retrieved information from knowledge graph (future implementation)",
+                    # "metadata": "object - Additional execution metadata (future implementation)",
                 },
             },
         ]
@@ -910,19 +841,22 @@ class KnowledgeGraphAgent(AgentInterface):
                 "confidence": 0.99,
             }
 
-        # returns 1 word for the intent
-        # TODO: very much need to improve prompt for this if it fails, right it is zero shotting
-        prompt = prompt_service.get_intent_classification_prompt(query)
+        # TODO: very much need to improve prompt for this if it fails, currently it is zero shotting
+        # output: {"intent": "fact seeking", "confidence": 0.95}
+        prompt = prompt_service.get_intent_classification_prompt(query=query)
         full_prompt = prompt["system"] + "\n\n" + prompt["user"]
 
         response = await llm_service.simple_completion(
             prompt=full_prompt, response_format={"type": "json_object"}
         )
 
+        # returns json as string, convert to dict
+        response = json.loads(response) if isinstance(response, str) else response
+
         if (
             not response
             or response["intent"] not in allowed_intents
-            or response["confidence"] < confidence_threshold
+            or float(response["confidence"]) < confidence_threshold
         ):
             raise ValueError(
                 "Invalid intent found: "
@@ -954,6 +888,7 @@ class KnowledgeGraphAgent(AgentInterface):
         Raises:
             ValueError: If required parameters are missing
         """
+        log_response = True
         try:
             # Step 1: Intent and entity recognition
             # intent
@@ -1018,11 +953,14 @@ class KnowledgeGraphAgent(AgentInterface):
                     )
 
             # Write all Cypher query results to a log file
-            log_file_path = "logs/cypher_query_results.log"
-            with open(log_file_path, "w", encoding="utf-8") as f:
-                f.write(json.dumps(all_cypher_results, indent=2, ensure_ascii=False))
-                f.write("\n")
-            logger.info(f"Wrote all Cypher query results to {log_file_path}")
+            if log_response:
+                log_file_path = "logs/cypher_query_results.log"
+                with open(log_file_path, "w", encoding="utf-8") as f:
+                    f.write(
+                        json.dumps(all_cypher_results, indent=2, ensure_ascii=False)
+                    )
+                    f.write("\n")
+                logger.info(f"Wrote all Cypher query results to {log_file_path}")
 
             # todo: Semantic/Vector Search
             # todo: Tool generator agent: Cypher generation
@@ -1035,8 +973,8 @@ class KnowledgeGraphAgent(AgentInterface):
                 "intent_confidence": intent_confidence,
                 "extracted_entities": entities,
                 "extracted_relationships": relationships,
-                "results": [],  # Will contain final results
-                "metadata": {},  # Will contain execution metadata
+                # "results": [],  # Will contain final results
+                # "metadata": {},  # Will contain execution metadata
             }
 
         except ValueError as e:

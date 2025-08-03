@@ -144,11 +144,11 @@ class TestToolGeneratorStatus:
         status = agent.get_status()
         assert status["initialized"] is False
 
-    def test_get_capabilities(self):
+    def test_get_tools(self):
         """Test capabilities reporting."""
         agent = ToolGeneratorAgent()
 
-        capabilities = agent.get_capabilities()
+        capabilities = agent.get_tools()
 
         assert isinstance(capabilities, list)
         assert len(capabilities) > 0

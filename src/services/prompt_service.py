@@ -105,7 +105,7 @@ class PromptService:
         return self.get_prompt(
             "analyze_and_plan",
             query=query,
-            data_sample=json.dumps(data_sample[:3], indent=2)
+            data_sample=json.dumps(data_sample[:3], indent=2),
         )
 
     def get_complete_solution_prompt(
@@ -118,7 +118,7 @@ class PromptService:
             "complete_solution",
             query=query,
             data_sample=json.dumps(data_sample[:3], indent=2),
-            analysis=json.dumps(analysis, indent=2)
+            analysis=json.dumps(analysis, indent=2),
         )
 
     def get_parameterize_and_document_prompt(
@@ -131,17 +131,14 @@ class PromptService:
             "parameterize_and_document",
             query=query,
             function_code=function_code,
-            data_sample=json.dumps(data_sample[:3], indent=2)
+            data_sample=json.dumps(data_sample[:3], indent=2),
         )
 
     def get_intent_classification_prompt(self, query: str) -> Dict[str, str]:
         """
         PROMPT: Classify the user's intent for a knowledge graph query.
         """
-        return self.get_prompt(
-            "intent_classification",
-            query=query
-        )
+        return self.get_prompt("intent_classification", query=query)
 
     def get_ner_el_prompt(
         self, entity_types_text: str, chunk: str, confidence_threshold: str
@@ -153,38 +150,52 @@ class PromptService:
             "ner_el",
             entity_types_text=entity_types_text,
             chunk=chunk,
-            confidence_threshold=confidence_threshold
+            confidence_threshold=confidence_threshold,
         )
-
 
     def get_entity_extraction_prompt(self, text: str) -> Dict[str, str]:
         """
         PROMPT for entity extraction.
         """
-        return self.get_prompt(
-            "entity_extraction",
-            text=text
-        )
+        return self.get_prompt("entity_extraction", text=text)
 
-    def get_relationship_extraction_prompt(self, text: str, entity_list: str) -> Dict[str, str]:
+    def get_relationship_extraction_prompt(
+        self, text: str, entity_list: str
+    ) -> Dict[str, str]:
         """
         PROMPT for relationship extraction.
         """
         return self.get_prompt(
-            "relationship_extraction",
-            text=text,
-            entity_list=entity_list
+            "relationship_extraction", text=text, entity_list=entity_list
         )
 
-
-    def get_relation_extraction_prompt(self, content: str, relation_types_text: str) -> Dict[str, str]:
+    def get_relation_extraction_prompt(
+        self, content: str, relation_types_text: str
+    ) -> Dict[str, str]:
         """
         PROMPT for relation extraction.
         """
         return self.get_prompt(
             "relation_extraction",
             content=content,
-            relation_types_text=relation_types_text
+            relation_types_text=relation_types_text,
+        )
+
+    def get_meta_agent_handle_agent_request_prompt(
+        self, tools: List[Dict[str, Any]], query: str
+    ) -> Dict[str, str]:
+        """
+        SYSTEM PROMPT for meta_agent to handle agent request.
+        """
+
+        tools_str = "\n".join(
+            [f"'{tool['name']}': {tool['description']}" for tool in tools]
+        )
+
+        # return tools_str
+
+        return self.get_prompt(
+            "meta_agent_handle_agent_request", tools=tools_str, query=query
         )
 
 

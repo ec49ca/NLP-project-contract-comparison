@@ -10,24 +10,25 @@ from ..interfaces.agent import AgentInterface
 from ..registry.registry_models import AgentStatus
 from ..services.llm_service import llm_service
 
-# Initialize core components
-registry = AgentRegistrySystem()
-discovery = AgentDiscovery()
-
-# Keep track of registered agent classes to avoid duplicates
-registered_agents: Set[Type[AgentInterface]] = set()
-
-# Dictionary to map agent names to their IDs for easier lookup
-agent_name_to_id = {}
+from ..meta.meta_agent import MetaAgent
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# TODO: add image based processing to ocr -> create vectors based on multimodal
+# TODO: create streaming for final ai call and general reasoning
+
+
+meta_agent = MetaAgent()
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
+    # global meta_agent
+    # meta_agent = await MetaAgent()
+
     await auto_register_agents()
     yield
 
@@ -50,7 +51,7 @@ app.add_middleware(
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
-    registry_state = await registry.get_registry_state()
+    registry_state = await meta_agent.agent_registry.get_registry_state()
     return {
         "status": "healthy",
         "server_initialized": True,
@@ -59,98 +60,12 @@ async def health_check():
         "version": "0.1.0",
     }
 
-
-async def get_agent_tools(agent):
-    """Helper function to get tools for an agent in MCP format (for list_agents)."""
-    tools = []
-    agent_tools = agent.get_tools()
-
-    for tool in agent_tools:
-        if isinstance(tool, dict):
-            tools.append(
-                {
-                    "name": tool.get("name", ""),
-                    "description": tool.get("description", ""),
-                    "parameters": tool.get("parameters", {}),
-                }
-            )
-
-    return tools
-
-
-"""
-/mcp/{agent_id}/tools should return:
-{
-	"total_tools": 1,
-	"active_tools": 1,
-	"tools": [
-		{
-			"agentId": "Agent1 ID",
-			"id": "Tool1",
-			"name": "Tool 1",
-			"description": "Description of Tool 1",
-			"parameters": {
-				"parameter1": "description of parameter 1",
-				"parameter2": "description of parameter 2"
-			},
-			"returnValues": {
-				"description": "Description of what this tool returns",
-				"structure": {
-					"field1": "type - description of field1",
-					"field2": "type - description of field2"
-				}
-			}
-
-			OPTIONAL:
-			metadata: {
-				"metadata1": "description of metadata 1",
-			},
-			tags: [
-				"tag1",
-				"tag2"
-			],
-		}
-	]
-}
-"""
-
-
-@app.get("/mcp/{agent_id}/tools")
-async def list_tools(agent_id: str):
+    # @app.get("/mcp/{agent_id}/tools")
+    # async def list_tools(agent_id: str):
     """List all tools for a specific agent in an MCP-compliant format."""
     try:
-        # Get the specific agent
-        agent_uuid = UUID(agent_id)
-        agent = await registry.get_agent(agent_uuid)
-
-        if not agent:
-            raise HTTPException(status_code=404, detail="Agent not found")
-
-        # Get tools from the agent
-        tools = []
-        agent_tools = agent.get_tools()
-
-        for tool in agent_tools:
-            if isinstance(tool, dict):
-                tool_def = {
-                    "agentId": str(agent_uuid),
-                    "id": tool.get("name", ""),
-                    "name": tool.get("name", ""),
-                    "description": tool.get("description", ""),
-                    "parameters": tool.get("parameters", {}),
-                }
-
-                # Add returnValues if available
-                if "returnValues" in tool:
-                    tool_def["returnValues"] = tool["returnValues"]
-
-                tools.append(tool_def)
-
-        return {
-            "total_tools": len(tools),
-            "active_tools": len(tools),
-            "tools": tools,
-        }
+        tools = await meta_agent.get_tools_for_agent(agent_id)
+        return tools
 
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid agent ID")
@@ -159,129 +74,10 @@ async def list_tools(agent_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-"""
-/mcp/agents should return:
-{
-	"total_agents": 1,
-	"active_agents": 1,
-	"agents": [
-		{
-			"id": "Agent1",
-			"name": "Agent 1",
-			"description": "Description of Agent 1",
-
-			OPTIONAL:
-			"tools": [
-				{
-					"name": "Tool 1",
-					"description": "Description of Tool 1",
-					"parameters": {}
-				}
-			],
-			"tags": [
-				"tag1",
-				"tag2"
-			],
-			"isActive": true,
-			"agentType": "agentType1"
-		}
-	]
-}
-"""
-
-
 @app.get("/mcp/agents")
 async def list_agents():
     """List all registered agents in an MCP-compliant format."""
-    registry_state = await registry.get_registry_state()
-
-    # Transform the response to be more MCP-compliant
-    agents = []
-    for agent_id, agent_info in registry_state.get("agents", {}).items():
-        agent = await registry.get_agent(UUID(agent_id))
-        if agent:
-            agents.append(
-                {
-                    "id": agent.uuid,
-                    "name": agent.name,
-                    "description": agent.description,
-                    "isActive": True,
-                    "tools": await get_agent_tools(agent),
-                }
-            )
-
-    return {
-        "total_agents": registry_state.get("total_agents", 0),
-        "active_agents": registry_state.get("active_agents", 0),
-        "agents": agents,
-    }
-
-
-@app.get("/mcp/resources")
-async def list_mcp_resources():
-    """
-    List all available MCP resources (agents and their capabilities).
-    This endpoint is used by MCP clients to discover available resources.
-    Follows the Model Context Protocol standard.
-    """
-    agents_state = await registry.get_registry_state()
-    logger.info(
-        f"MCP Resources: Got registry state with {len(agents_state.get('agents', {}))} agents"
-    )
-
-    resources = []
-
-    for agent_id, agent_info in agents_state.get("agents", {}).items():
-        logger.info(
-            f"MCP Resources: Processing agent {agent_id} with info {agent_info}"
-        )
-
-        agent = await registry.get_agent(UUID(agent_id))
-        if agent:
-            logger.info(
-                f"MCP Resources: Found agent {agent.name} with status {agent_info.get('status')}"
-            )
-
-            if agent_info.get("status") == AgentStatus.ACTIVE.value:
-                logger.info(
-                    f"MCP Resources: Agent {agent.name} is active, adding to resources"
-                )
-
-                # Add the agent as a resource with its full capabilities
-                agent_resource = {
-                    "name": agent.name,
-                    "description": agent.description,
-                    "type": "agent",
-                    "capabilities": agent.get_tools(),
-                }
-
-                # Add each capability as a property of the agent resource
-                capabilities_list = agent.get_tools()
-                for capability_info in capabilities_list:
-                    if not isinstance(capability_info, dict):
-                        continue
-                    capability_name = capability_info.get("name", "")
-                    resources.append(
-                        {
-                            "name": f"{agent.name}.{capability_name}",
-                            "description": capability_info.get("description", ""),
-                            "parameters": capability_info.get("parameters", {}),
-                            "type": "capability",
-                        }
-                    )
-
-                # Add the complete agent resource
-                resources.append(agent_resource)
-                logger.info(f"MCP Resources: Added agent resource for {agent.name}")
-            else:
-                logger.info(
-                    f"MCP Resources: Agent {agent.name} is not active (status: {agent_info.get('status')})"
-                )
-        else:
-            logger.warning(f"MCP Resources: Could not find agent with ID {agent_id}")
-
-    logger.info(f"MCP Resources: Returning {len(resources)} resources")
-    return {"resources": resources}
+    return await meta_agent.get_agents()
 
 
 """
@@ -299,9 +95,22 @@ async def list_mcp_resources():
 }
 """
 
+
+@app.post("/mcp/execute/{agent_id}")
+async def execute_agent(agent_id: str, request: Dict[str, Any]):
+    try:
+        if not request.get("query"):
+            return HTTPException(status_code=400, detail="Query is required")
+
+        return await meta_agent.handle_execute_tool_via_agent_request(
+            agent_id, request.get("query")
+        )
+    except Exception as e:
+        logger.error(f"Error executing agent {agent_id}: {str(e)}")
+        return HTTPException(status_code=500, detail=str(e))
+
+
 # TODO: UUID hash for tools
-
-
 @app.post("/execute/{agent_id}/{tool_id}")
 async def execute_agent_capability(
     agent_id: str, tool_id: str, parameters: Dict[str, Any]
@@ -311,13 +120,14 @@ async def execute_agent_capability(
     This endpoint allows direct execution of agent tools by ID.
 
     Args:
-        agent_id: The UUID of the agent to execute
-        tool_id: The ID/name of the tool to execute
-        parameters: The parameters to pass to the tool (in request body)
+                                                                    agent_id: The UUID of the agent to execute
+                                                                    tool_id: The ID/name of the tool to execute
+                                                                    parameters: The parameters to pass to the tool (in request body)
 
     Returns:
-        Structured response with success status, metadata, and tool result data
+                                                                    Structured response with success status, metadata, and tool result data
     """
+    print(f"Executing {agent_id}.{tool_id} with parameters {parameters}")
     import time
 
     start_time = time.time()
@@ -325,7 +135,7 @@ async def execute_agent_capability(
     try:
         # Get the agent instance
         agent_uuid = UUID(agent_id)
-        agent = await registry.get_agent(agent_uuid)
+        agent = await meta_agent.agent_registry.get_agent(agent_uuid)
 
         if not agent:
             return {
@@ -399,11 +209,17 @@ async def auto_register_agents():
     Automatically discover and register all available agents.
     This function is called on server startup and when the /discover endpoint is hit.
     """
+    # Keep track of registered agent classes to avoid duplicates
+    registered_agents: Set[Type[AgentInterface]] = set()
+
+    # Dictionary to map agent names to their IDs for easier lookup
+    agent_name_to_id = {}
+
     logger.info("Starting automatic agent discovery and registration")
 
     # Discover all available agents
     logger.info("Calling discovery.discover_agents()...")
-    agent_classes = await discovery.discover_agents()
+    agent_classes = await meta_agent.discovery.discover_agents()
     logger.info(
         f"Discovery returned {len(agent_classes)} agent classes: {list(agent_classes.keys())}"
     )
@@ -421,11 +237,13 @@ async def auto_register_agents():
 
             # Register the agent and use the deterministic agent_id
             logger.info(f"Registering agent {module_name}...")
-            agent_id = await registry.register_agent(agent_class, default_config)
+            agent_id = await meta_agent.agent_registry.register_agent(
+                agent_class, default_config
+            )
             registered_agents.add(agent_class)
 
             # Get the agent instance to access its name
-            agent = await registry.get_agent(agent_id)
+            agent = await meta_agent.agent_registry.get_agent(agent_id)
             if agent:
                 # Store the mapping from agent name to ID for easier lookup
                 agent_name_to_id[agent.name] = agent_id

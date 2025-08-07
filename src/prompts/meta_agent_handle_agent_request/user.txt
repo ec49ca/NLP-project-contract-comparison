@@ -1,0 +1,8 @@
+Choose what tool to use for a task and give the appropriate parameters to call the tool. given by the following query:
+
+{query}
+
+
+The tools available to you are:
+
+{tools}

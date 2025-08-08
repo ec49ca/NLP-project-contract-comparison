@@ -1,4 +1,5 @@
-from re import I
+import json
+from re import A, I
 
 from fastapi import HTTPException
 
@@ -125,24 +126,39 @@ class MetaAgent:
             available_tools_str += f"Parameters: {available_tools[i]['parameters']}\n"
             available_tools_str += "\n\n"
 
-        return available_tools_str
-
         prompts = prompt_service.get_meta_agent_handle_agent_request_prompt(
             available_tools_str, query
         )
 
-        return prompts
+        print("prompts: ", prompts)
 
         llm_service = LLMService()
+        system_prompt = prompts.get("system")
+        user_prompt = prompts.get("user")
 
-        system_prompt = prompts.get("system_prompt")
-        user_prompt = prompts.get("user_prompt")
         # llm response has the json
         llm_response = await llm_service.chat_completion(
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": request},
+                {"role": "user", "content": user_prompt},
             ]
         )
 
-        return
+        response_raw = llm_response.get("choices")[0].get("message").get("content")
+        parsed_response = json.loads(response_raw)
+
+        agent = await self.agent_registry.get_agent(UUID(agent_id))
+        print("agent chosen: ", agent)
+
+        print("parsed_response: ", parsed_response)
+
+        request = {
+            "command": parsed_response.get("tool_name"),
+            **parsed_response.get("parameters"),
+        }
+
+        result = await agent.process_request(request)
+
+        print("result: ", result)
+
+        return result

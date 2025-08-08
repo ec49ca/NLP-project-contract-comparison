@@ -3,6 +3,16 @@ Choose what tool to use for a task and give the appropriate parameters to call t
 {query}
 
 
-The tools available to you are:
+The tools available to you are below this. For each tool you are given the name of the tool, the tool's description, and the parameters required to call it.
 
 {tools}
+
+
+In your output, you should output ONLY VALID JSON BODY CONTENT (starting with the opening curly brace - no code fences) for the name of the chosen tool and the parameters to call it. Your output should be a JSON object that looks like:
+{{
+	"tool_name": [name of chosen tool],
+	"parameters": {{
+		"[parameter1_name]": [parameter1_value],
+		"[parameter2_name]": [parameter2_value]
+	}}
+}}

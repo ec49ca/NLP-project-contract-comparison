@@ -182,17 +182,11 @@ class PromptService:
         )
 
     def get_meta_agent_handle_agent_request_prompt(
-        self, tools: List[Dict[str, Any]], query: str
+        self, tools_str: str, query: str
     ) -> Dict[str, str]:
         """
         SYSTEM PROMPT for meta_agent to handle agent request.
         """
-
-        tools_str = "\n".join(
-            [f"'{tool['name']}': {tool['description']}" for tool in tools]
-        )
-
-        # return tools_str
 
         return self.get_prompt(
             "meta_agent_handle_agent_request", tools=tools_str, query=query

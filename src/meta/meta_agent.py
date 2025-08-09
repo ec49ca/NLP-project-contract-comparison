@@ -56,9 +56,22 @@ class MetaAgent:
     async def get_agents(self):
         if self.agents is None:
             self.agents = await self.agent_registry.get_registry_state()
-        else:
-            return self.agents
-        return self.agents
+
+        agents = []
+        for agent_id, agent in self.agents["agents"].items():
+            agents.append(
+                {
+                    "id": agent_id,
+                    "name": agent.get("name"),
+                    "description": agent.get("description"),
+                    "isSamvidAgent": True,
+                    "tags": agent.get("tags") or [],
+                    "isActive": agent.get("isActive") or True,
+                    "agentType": agent.get("agentType") or "",
+                }
+            )
+        # TODO FIX: TEMPORARY
+        return agents[-1:]
 
     """
 	returns:
@@ -112,9 +125,7 @@ class MetaAgent:
             return []
 
     # query has information about what orchestrator wants meta_agent -> agent to do
-    async def handle_execute_tool_via_agent_request(self, agent_id, query):
-        print(f"Executing {agent_id} with query {query}")
-
+    async def handle_execute_tool_via_agent_request(self, agent_id, query, data):
         # make llm call to format query
         # query should be reasoning for how to use agent and data that neesd to be included
         # agent = await self.agent_registry.get_agent(UUID(agent_id))
@@ -127,10 +138,8 @@ class MetaAgent:
             available_tools_str += "\n\n"
 
         prompts = prompt_service.get_meta_agent_handle_agent_request_prompt(
-            available_tools_str, query
+            available_tools_str, query, data
         )
-
-        print("prompts: ", prompts)
 
         llm_service = LLMService()
         system_prompt = prompts.get("system")
@@ -148,9 +157,6 @@ class MetaAgent:
         parsed_response = json.loads(response_raw)
 
         agent = await self.agent_registry.get_agent(UUID(agent_id))
-        print("agent chosen: ", agent)
-
-        print("parsed_response: ", parsed_response)
 
         request = {
             "command": parsed_response.get("tool_name"),
@@ -159,6 +165,32 @@ class MetaAgent:
 
         result = await agent.process_request(request)
 
-        print("result: ", result)
-
         return result
+
+    async def handle_no_agent_available_request(
+        self, query, original_query, reasoning, data
+    ):
+        # for if no agent is available, but still needs to process
+
+        llm_service = LLMService()
+
+        prompts = (
+            prompt_service.get_meta_agent_handle_no_agent_available_request_prompt(
+                query, original_query, reasoning, data
+            )
+        )
+
+        system_prompt = prompts.get("system")
+        user_prompt = prompts.get("user")
+
+        llm_response = await llm_service.chat_completion(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ]
+        )
+
+        # reponse raw is a string of output content
+        response_raw = llm_response.get("choices")[0].get("message").get("content")
+
+        return {"success": True, "data": response_raw}

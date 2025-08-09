@@ -182,14 +182,31 @@ class PromptService:
         )
 
     def get_meta_agent_handle_agent_request_prompt(
-        self, tools_str: str, query: str
+        self, tools_str: str, query: str, data: Dict[str, Any]
     ) -> Dict[str, str]:
         """
         SYSTEM PROMPT for meta_agent to handle agent request.
         """
 
         return self.get_prompt(
-            "meta_agent_handle_agent_request", tools=tools_str, query=query
+            "meta_agent_handle_agent_request",
+            tools=tools_str,
+            query=query,
+            data=json.dumps(data, indent=2),
+        )
+
+    def get_meta_agent_handle_no_agent_available_request_prompt(
+        self, query: str, original_query: str, reasoning: str, data: Dict[str, Any]
+    ) -> Dict[str, str]:
+        """
+        SYSTEM PROMPT for meta_agent to handle no agent available request.
+        """
+        return self.get_prompt(
+            "meta_agent_handle_no_agent_available_request",
+            query=query,
+            original_query=original_query,
+            reasoning=reasoning,
+            data=json.dumps(data, indent=2),
         )
 
 

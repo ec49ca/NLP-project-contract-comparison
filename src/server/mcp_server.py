@@ -96,6 +96,26 @@ async def list_agents():
 """
 
 
+@app.post("/mcp/execute")
+async def execute_agent(request: Dict[str, Any]):
+    try:
+        query = request.get("query")
+        if not query:
+            return HTTPException(
+                status_code=400,
+                detail="Query is required",
+            )
+        original_query = request.get("original_query")
+        reasoning = request.get("reasoning")
+        data = request.get("data")
+        return await meta_agent.handle_no_agent_available_request(
+            query, original_query, reasoning, data
+        )
+    except Exception as e:
+        logger.error(f"Error executing agent: {str(e)}")
+        return HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/mcp/execute/{agent_id}")
 async def execute_agent(agent_id: str, request: Dict[str, Any]):
     try:
@@ -103,7 +123,7 @@ async def execute_agent(agent_id: str, request: Dict[str, Any]):
             return HTTPException(status_code=400, detail="Query is required")
 
         return await meta_agent.handle_execute_tool_via_agent_request(
-            agent_id, request.get("query")
+            agent_id, request.get("query"), request.get("data")
         )
     except Exception as e:
         logger.error(f"Error executing agent {agent_id}: {str(e)}")

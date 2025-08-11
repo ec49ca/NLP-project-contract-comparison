@@ -70,8 +70,12 @@ class MetaAgent:
                     "agentType": agent.get("agentType") or "",
                 }
             )
-        # TODO FIX: TEMPORARY
-        return agents[-1:]
+        # TODO FIX: TEMPORARY - Only return working agents (Weather Agent and Stats Agent)
+        working_agents = []
+        for agent in agents:
+            if agent.get("name") in ["Weather Agent", "Stats Agent"]:
+                working_agents.append(agent)
+        return working_agents
 
     """
 	returns:

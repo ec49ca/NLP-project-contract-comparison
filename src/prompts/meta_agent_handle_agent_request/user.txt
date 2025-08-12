@@ -7,7 +7,7 @@ The tools available to you are below this. For each tool you are given the name 
 Use the following data from previously executed statements to help guide your choices and response:
 {data}
 
-In your output, you should output ONLY VALID JSON BODY CONTENT (starting with the opening curly brace - no code fences) for the name of the chosen tool and the parameters to call it. Your output should be a JSON object that looks like:
+In your output, you should output ONLY VALID JSON BODY CONTENT WITH NO CODE GUARDS (starting with the opening curly brace - no code fences) for the name of the chosen tool and the parameters to call it. Your output should be a JSON object that looks like:
 {{
 	"tool_name": [name of chosen tool],
 	"parameters": {{

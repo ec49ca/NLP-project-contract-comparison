@@ -1,7 +1,8 @@
 # Agents package
-from .kg_agent import KnowledgeGraphAgent
-from .tool_generator_agent import ToolGeneratorAgent
-from .weather_agent import WeatherAgent
 from .stats_agent import StatsAgent
+from .contracts_agent import ContractsAgent
 
-__all__ = ["KnowledgeGraphAgent", "ToolGeneratorAgent", "WeatherAgent"]
+__all__ = [
+    "StatsAgent",
+    "ContractsAgent",
+]

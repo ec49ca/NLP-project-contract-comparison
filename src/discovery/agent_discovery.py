@@ -2,6 +2,7 @@
 Agent Discovery module for AgentForge.
 Provides functionality to automatically discover and register agents.
 """
+
 import importlib
 import inspect
 import os
@@ -13,6 +14,7 @@ import logging
 from ..interfaces.agent import AgentInterface
 
 logger = logging.getLogger(__name__)
+
 
 class AgentDiscovery:
     """
@@ -31,49 +33,57 @@ class AgentDiscovery:
 
     async def discover_agents(self) -> Dict[str, Type[AgentInterface]]:
         """
-        Scan the agents package to find all available agent classes.
+        Discover agent classes strictly from the public exports of the agents package.
+
+        Only classes exported via src.agents.__all__ will be considered. This ensures
+        that discovery is controlled centrally by the package API surface.
 
         Returns:
-            A dictionary mapping agent module names to agent classes
+            A dictionary mapping export names to agent classes
         """
         self._discovered_agents = {}
 
         try:
             # Import the agents package
             package = importlib.import_module(self.agents_package)
-            package_path = os.path.dirname(package.__file__) if package.__file__ else None
 
-            if not package_path:
-                logger.error(f"Could not determine package path for {self.agents_package}")
+            # Read the public API from __all__
+            exported_names = getattr(package, "__all__", [])
+            if not exported_names:
+                logger.warning(
+                    f"No public agents exported via __all__ in {self.agents_package}. Nothing to discover."
+                )
                 return {}
 
-            # Find all modules in the package
-            for _, module_name, is_pkg in pkgutil.iter_modules([package_path]):
-                if is_pkg:
-                    continue  # Skip subpackages
-
+            # Pull attributes from the package and keep subclasses of AgentInterface
+            for export_name in exported_names:
                 try:
-                    # Import the module
-                    module = importlib.import_module(f"{self.agents_package}.{module_name}")
-
-                    # Find all classes in the module that inherit from AgentInterface
-                    for name, obj in inspect.getmembers(module):
-                        if (inspect.isclass(obj) and
-                            issubclass(obj, AgentInterface) and
-                            obj != AgentInterface):
-
-                            # Store the agent class
-                            self._discovered_agents[module_name] = obj
-                            logger.info(f"Discovered agent: {module_name} ({obj.__name__})")
-
+                    obj = getattr(package, export_name, None)
+                    if (
+                        inspect.isclass(obj)
+                        and issubclass(obj, AgentInterface)
+                        and obj is not AgentInterface
+                    ):
+                        self._discovered_agents[export_name] = obj
+                        logger.info(
+                            f"Discovered agent export: {export_name} ({obj.__name__})"
+                        )
+                    else:
+                        logger.debug(
+                            f"Skipped export '{export_name}' - not an AgentInterface subclass"
+                        )
                 except Exception as e:
-                    logger.error(f"Error loading agent module {module_name}: {str(e)}")
+                    logger.error(
+                        f"Error processing export '{export_name}' in {self.agents_package}: {str(e)}"
+                    )
 
-            logger.info(f"Discovered {len(self._discovered_agents)} agents")
+            logger.info(
+                f"Discovered {len(self._discovered_agents)} agents from exports"
+            )
             return self._discovered_agents
 
         except Exception as e:
-            logger.error(f"Error discovering agents: {str(e)}")
+            logger.error(f"Error discovering agents from exports: {str(e)}")
             return {}
 
     def get_agent_class(self, agent_module_name: str) -> Optional[Type[AgentInterface]]:

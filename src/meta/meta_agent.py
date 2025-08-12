@@ -70,12 +70,8 @@ class MetaAgent:
                     "agentType": agent.get("agentType") or "",
                 }
             )
-        # TODO FIX: TEMPORARY - Only return working agents (Weather Agent and Stats Agent)
-        working_agents = []
-        for agent in agents:
-            if agent.get("name") in ["Weather Agent", "Stats Agent"]:
-                working_agents.append(agent)
-        return working_agents
+        # Return all agents discovered and registered via the registry
+        return agents
 
     """
 	returns:
@@ -157,6 +153,8 @@ class MetaAgent:
             ]
         )
 
+        print("llm_response: ", llm_response)
+
         response_raw = llm_response.get("choices")[0].get("message").get("content")
         parsed_response = json.loads(response_raw)
 
@@ -167,7 +165,11 @@ class MetaAgent:
             **parsed_response.get("parameters"),
         }
 
+        print("request: ", request)
+
         result = await agent.process_request(request)
+
+        print("result: ", result)
 
         return result
 

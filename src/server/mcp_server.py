@@ -98,6 +98,7 @@ async def list_agents():
 
 @app.post("/mcp/execute")
 async def execute_agent(request: Dict[str, Any]):
+    print("notebook request: ", request)
     try:
         query = request.get("query")
         if not query:

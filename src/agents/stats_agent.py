@@ -54,7 +54,21 @@ class StatsAgent(AgentInterface):
         self._uuid = None
         self.agent_id = "stats"
         self._name = "Stats Agent"
-        self._description = "Statistical analysis and data processing"
+        self._description = """ Stats Agent is a tool that can be used to analyze data and perform statistical operations.
+		It can do the following:
+		- Descriptive Statistics
+		- Correlation Analysis
+		- Distribution Analysis
+		- Outlier Detection
+		- Linear Regression
+		- Logistic Regression
+		- Polynomial Regression
+		- Ridge Regression
+		- Lasso Regression
+		- Elastic Net Regression
+		- Multiple Regression
+		- Time Series Regression
+		- Hypothesis Testing"""
         self._initialized = False
         self.category = "data_analysis"
         self.status = "initialized"
@@ -62,13 +76,13 @@ class StatsAgent(AgentInterface):
 
         # Add descriptive statistics tool
         self._tools["descriptive_statistics"] = DescriptiveStatisticsTool()
-        
+
         # Add correlation analysis tool
         self._tools["correlation_analysis"] = CorrelationAnalysisTool()
-        
+
         # Add distribution analysis tool
         self._tools["distribution_analysis"] = DistributionAnalysisTool()
-        
+
         # Add outlier detection tool
         self._tools["outlier_detection"] = OutlierDetectionTool()
 
@@ -142,7 +156,7 @@ class StatsAgent(AgentInterface):
             "initialized": self._initialized,
             "category": self.category,
             "tools_count": len(self._tools),
-            "available_tools": list(self._tools.keys())
+            "available_tools": list(self._tools.keys()),
         }
 
     def get_tools(self) -> List[Dict[str, Any]]:
@@ -159,19 +173,15 @@ class StatsAgent(AgentInterface):
                         "data": {
                             "type": "array",
                             "description": "List of dictionaries representing rows of a dataset",
-                            "items": {
-                                "type": "object"
-                            }
+                            "items": {"type": "object"},
                         },
                         "targetFields": {
                             "type": "array",
                             "description": "List of field names to analyze (optional - uses all fields if not specified)",
-                            "items": {
-                                "type": "string"
-                            }
-                        }
+                            "items": {"type": "string"},
+                        },
                     },
-                    "required": ["data"]
+                    "required": ["data"],
                 },
                 "returnValues": {
                     "status": "string - Success or error status",
@@ -189,26 +199,20 @@ class StatsAgent(AgentInterface):
                         "data": {
                             "type": "array",
                             "description": "List of dictionaries representing rows of a dataset",
-                            "items": {
-                                "type": "object"
-                            }
+                            "items": {"type": "object"},
                         },
                         "targetFields": {
                             "type": "array",
                             "description": "List of field names to analyze (optional - uses all numeric fields if not specified)",
-                            "items": {
-                                "type": "string"
-                            }
+                            "items": {"type": "string"},
                         },
                         "methods": {
                             "type": "array",
                             "description": "Correlation methods to use: pearson, spearman, kendall (optional - uses all methods if not specified)",
-                            "items": {
-                                "type": "string"
-                            }
-                        }
+                            "items": {"type": "string"},
+                        },
                     },
-                    "required": ["data"]
+                    "required": ["data"],
                 },
                 "returnValues": {
                     "status": "string - Success or error status",
@@ -226,26 +230,20 @@ class StatsAgent(AgentInterface):
                         "data": {
                             "type": "array",
                             "description": "List of dictionaries representing rows of a dataset",
-                            "items": {
-                                "type": "object"
-                            }
+                            "items": {"type": "object"},
                         },
                         "targetFields": {
                             "type": "array",
                             "description": "List of field names to analyze (optional - uses all numeric fields if not specified)",
-                            "items": {
-                                "type": "string"
-                            }
+                            "items": {"type": "string"},
                         },
                         "tests": {
                             "type": "array",
                             "description": "Analysis types to perform: normality, goodness_of_fit, distribution_fitting (optional - uses all tests if not specified)",
-                            "items": {
-                                "type": "string"
-                            }
-                        }
+                            "items": {"type": "string"},
+                        },
                     },
-                    "required": ["data"]
+                    "required": ["data"],
                 },
                 "returnValues": {
                     "status": "string - Success or error status",
@@ -263,36 +261,42 @@ class StatsAgent(AgentInterface):
                         "data": {
                             "type": "array",
                             "description": "List of dictionaries representing rows of a dataset",
-                            "items": {
-                                "type": "object"
-                            }
+                            "items": {"type": "object"},
                         },
                         "targetFields": {
                             "type": "array",
                             "description": "List of field names to analyze (optional - uses all numeric fields if not specified)",
-                            "items": {
-                                "type": "string"
-                            }
+                            "items": {"type": "string"},
                         },
                         "methods": {
                             "type": "array",
                             "description": "Outlier detection methods to use: iqr, zscore, modified_zscore, isolation_forest (optional - uses all methods if not specified)",
-                            "items": {
-                                "type": "string"
-                            }
+                            "items": {"type": "string"},
                         },
                         "thresholds": {
                             "type": "object",
                             "description": "Custom thresholds for outlier detection methods (optional)",
                             "properties": {
-                                "iqr_multiplier": {"type": "number", "description": "IQR multiplier threshold (default: 1.5)"},
-                                "zscore_threshold": {"type": "number", "description": "Z-score threshold (default: 3.0)"},
-                                "modified_zscore_threshold": {"type": "number", "description": "Modified Z-score threshold (default: 3.5)"},
-                                "isolation_forest_contamination": {"type": "number", "description": "Isolation forest contamination rate (default: 0.1)"}
-                            }
-                        }
+                                "iqr_multiplier": {
+                                    "type": "number",
+                                    "description": "IQR multiplier threshold (default: 1.5)",
+                                },
+                                "zscore_threshold": {
+                                    "type": "number",
+                                    "description": "Z-score threshold (default: 3.0)",
+                                },
+                                "modified_zscore_threshold": {
+                                    "type": "number",
+                                    "description": "Modified Z-score threshold (default: 3.5)",
+                                },
+                                "isolation_forest_contamination": {
+                                    "type": "number",
+                                    "description": "Isolation forest contamination rate (default: 0.1)",
+                                },
+                            },
+                        },
                     },
-                    "required": ["data"]
+                    "required": ["data"],
                 },
                 "returnValues": {
                     "status": "string - Success or error status",
@@ -310,29 +314,25 @@ class StatsAgent(AgentInterface):
                         "data": {
                             "type": "array",
                             "description": "List of dictionaries representing rows of a dataset",
-                            "items": {
-                                "type": "object"
-                            }
+                            "items": {"type": "object"},
                         },
                         "targetField": {
                             "type": "string",
-                            "description": "Name of the dependent variable to predict (required)"
+                            "description": "Name of the dependent variable to predict (required)",
                         },
                         "featureFields": {
                             "type": "array",
                             "description": "List of independent variable names to use for prediction (default: auto-detect numeric features)",
-                            "items": {
-                                "type": "string"
-                            }
+                            "items": {"type": "string"},
                         },
                         "testSize": {
                             "type": "number",
                             "description": "Proportion of data for testing (0.0-1.0, default: 0.2)",
                             "minimum": 0.0,
-                            "maximum": 1.0
-                        }
+                            "maximum": 1.0,
+                        },
                     },
-                    "required": ["data", "targetField"]
+                    "required": ["data", "targetField"],
                 },
                 "returnValues": {
                     "status": "string - Success or error status",
@@ -350,29 +350,25 @@ class StatsAgent(AgentInterface):
                         "data": {
                             "type": "array",
                             "description": "List of dictionaries representing rows of a dataset",
-                            "items": {
-                                "type": "object"
-                            }
+                            "items": {"type": "object"},
                         },
                         "targetField": {
                             "type": "string",
-                            "description": "Name of the binary dependent variable to predict (0 or 1 values required)"
+                            "description": "Name of the binary dependent variable to predict (0 or 1 values required)",
                         },
                         "featureFields": {
                             "type": "array",
                             "description": "List of independent variable names to use for prediction (default: auto-detect numeric features)",
-                            "items": {
-                                "type": "string"
-                            }
+                            "items": {"type": "string"},
                         },
                         "testSize": {
                             "type": "number",
                             "description": "Proportion of data for testing (0.0-1.0, default: 0.2)",
                             "minimum": 0.0,
-                            "maximum": 1.0
-                        }
+                            "maximum": 1.0,
+                        },
                     },
-                    "required": ["data", "targetField"]
+                    "required": ["data", "targetField"],
                 },
                 "returnValues": {
                     "status": "string - Success or error status",
@@ -390,35 +386,31 @@ class StatsAgent(AgentInterface):
                         "data": {
                             "type": "array",
                             "description": "List of dictionaries representing rows of a dataset",
-                            "items": {
-                                "type": "object"
-                            }
+                            "items": {"type": "object"},
                         },
                         "targetField": {
                             "type": "string",
-                            "description": "Name of the dependent variable to predict (required)"
+                            "description": "Name of the dependent variable to predict (required)",
                         },
                         "featureFields": {
                             "type": "array",
                             "description": "List of independent variable names to use for prediction (default: auto-detect numeric features)",
-                            "items": {
-                                "type": "string"
-                            }
+                            "items": {"type": "string"},
                         },
                         "degree": {
                             "type": "integer",
                             "description": "Polynomial degree (1-5, default: 2)",
                             "minimum": 1,
-                            "maximum": 5
+                            "maximum": 5,
                         },
                         "testSize": {
                             "type": "number",
                             "description": "Proportion of data for testing (0.0-1.0, default: 0.2)",
                             "minimum": 0.0,
-                            "maximum": 1.0
-                        }
+                            "maximum": 1.0,
+                        },
                     },
-                    "required": ["data", "targetField"]
+                    "required": ["data", "targetField"],
                 },
                 "returnValues": {
                     "status": "string - Success or error status",
@@ -436,34 +428,30 @@ class StatsAgent(AgentInterface):
                         "data": {
                             "type": "array",
                             "description": "List of dictionaries representing rows of a dataset",
-                            "items": {
-                                "type": "object"
-                            }
+                            "items": {"type": "object"},
                         },
                         "targetField": {
                             "type": "string",
-                            "description": "Name of the dependent variable to predict (required)"
+                            "description": "Name of the dependent variable to predict (required)",
                         },
                         "featureFields": {
                             "type": "array",
                             "description": "List of independent variable names to use for prediction (default: auto-detect numeric features)",
-                            "items": {
-                                "type": "string"
-                            }
+                            "items": {"type": "string"},
                         },
                         "alpha": {
                             "type": "number",
                             "description": "Regularization strength (default: 1.0, must be non-negative)",
-                            "minimum": 0
+                            "minimum": 0,
                         },
                         "testSize": {
                             "type": "number",
                             "description": "Proportion of data for testing (0.0-1.0, default: 0.2)",
                             "minimum": 0.0,
-                            "maximum": 1.0
-                        }
+                            "maximum": 1.0,
+                        },
                     },
-                    "required": ["data", "targetField"]
+                    "required": ["data", "targetField"],
                 },
                 "returnValues": {
                     "status": "string - Success or error status",
@@ -481,34 +469,30 @@ class StatsAgent(AgentInterface):
                         "data": {
                             "type": "array",
                             "description": "List of dictionaries representing rows of a dataset",
-                            "items": {
-                                "type": "object"
-                            }
+                            "items": {"type": "object"},
                         },
                         "targetField": {
                             "type": "string",
-                            "description": "Name of the dependent variable to predict (required)"
+                            "description": "Name of the dependent variable to predict (required)",
                         },
                         "featureFields": {
                             "type": "array",
                             "description": "List of independent variable names to use for prediction (default: auto-detect numeric features)",
-                            "items": {
-                                "type": "string"
-                            }
+                            "items": {"type": "string"},
                         },
                         "alpha": {
                             "type": "number",
                             "description": "Regularization strength (default: 1.0, must be non-negative)",
-                            "minimum": 0
+                            "minimum": 0,
                         },
                         "testSize": {
                             "type": "number",
                             "description": "Proportion of data for testing (0.0-1.0, default: 0.2)",
                             "minimum": 0.0,
-                            "maximum": 1.0
-                        }
+                            "maximum": 1.0,
+                        },
                     },
-                    "required": ["data", "targetField"]
+                    "required": ["data", "targetField"],
                 },
                 "returnValues": {
                     "status": "string - Success or error status",
@@ -526,40 +510,36 @@ class StatsAgent(AgentInterface):
                         "data": {
                             "type": "array",
                             "description": "List of dictionaries representing rows of a dataset",
-                            "items": {
-                                "type": "object"
-                            }
+                            "items": {"type": "object"},
                         },
                         "targetField": {
                             "type": "string",
-                            "description": "Name of the dependent variable to predict (required)"
+                            "description": "Name of the dependent variable to predict (required)",
                         },
                         "featureFields": {
                             "type": "array",
                             "description": "List of independent variable names to use for prediction (default: auto-detect numeric features)",
-                            "items": {
-                                "type": "string"
-                            }
+                            "items": {"type": "string"},
                         },
                         "alpha": {
                             "type": "number",
                             "description": "Regularization strength (default: 1.0, must be non-negative)",
-                            "minimum": 0
+                            "minimum": 0,
                         },
                         "l1_ratio": {
                             "type": "number",
                             "description": "L1 ratio (0.0-1.0, default: 0.5). 0.0=Ridge, 1.0=Lasso",
                             "minimum": 0.0,
-                            "maximum": 1.0
+                            "maximum": 1.0,
                         },
                         "testSize": {
                             "type": "number",
                             "description": "Proportion of data for testing (0.0-1.0, default: 0.2)",
                             "minimum": 0.0,
-                            "maximum": 1.0
-                        }
+                            "maximum": 1.0,
+                        },
                     },
-                    "required": ["data", "targetField"]
+                    "required": ["data", "targetField"],
                 },
                 "returnValues": {
                     "status": "string - Success or error status",
@@ -577,33 +557,29 @@ class StatsAgent(AgentInterface):
                         "data": {
                             "type": "array",
                             "description": "List of dictionaries representing rows of a dataset",
-                            "items": {
-                                "type": "object"
-                            }
+                            "items": {"type": "object"},
                         },
                         "targetField": {
                             "type": "string",
-                            "description": "Name of the dependent variable to predict (required)"
+                            "description": "Name of the dependent variable to predict (required)",
                         },
                         "featureFields": {
                             "type": "array",
                             "description": "List of independent variable names to use for prediction (default: auto-detect numeric features)",
-                            "items": {
-                                "type": "string"
-                            }
+                            "items": {"type": "string"},
                         },
                         "includeInteractions": {
                             "type": "boolean",
-                            "description": "Include interaction terms between features (default: false)"
+                            "description": "Include interaction terms between features (default: false)",
                         },
                         "testSize": {
                             "type": "number",
                             "description": "Proportion of data for testing (0.0-1.0, default: 0.2)",
                             "minimum": 0.0,
-                            "maximum": 1.0
-                        }
+                            "maximum": 1.0,
+                        },
                     },
-                    "required": ["data", "targetField"]
+                    "required": ["data", "targetField"],
                 },
                 "returnValues": {
                     "status": "string - Success or error status",
@@ -621,21 +597,19 @@ class StatsAgent(AgentInterface):
                         "data": {
                             "type": "array",
                             "description": "List of records with a time field (ISO date strings like 'YYYY-MM-01') and a numeric value field. Dates must align to the specified frequency to avoid NaNs.",
-                            "items": {
-                                "type": "object"
-                            }
+                            "items": {"type": "object"},
                         },
                         "timeField": {
                             "type": "string",
-                            "description": "Name of the time/date field in the data (default: 'date')"
+                            "description": "Name of the time/date field in the data (default: 'date')",
                         },
                         "valueField": {
                             "type": "string",
-                            "description": "Name of the value field to forecast (default: 'value')"
+                            "description": "Name of the value field to forecast (default: 'value')",
                         },
                         "method": {
                             "type": "string",
-                            "description": "Time series method to use: auto_arima, arima, sarima, exponential_smoothing (default: 'auto_arima')"
+                            "description": "Time series method to use: auto_arima, arima, sarima, exponential_smoothing (default: 'auto_arima')",
                         },
                         "frequency": {
                             "type": "string",
@@ -645,30 +619,26 @@ class StatsAgent(AgentInterface):
                             "type": "number",
                             "description": "Confidence level for forecast intervals (0-1, default: 0.95)",
                             "minimum": 0.0,
-                            "maximum": 1.0
+                            "maximum": 1.0,
                         },
                         "testHorizon": {
                             "type": "integer",
                             "description": "Optional out-of-sample holdout size (last N points) for reporting test RMSE/MAE",
-                            "minimum": 1
+                            "minimum": 1,
                         },
                         "order": {
                             "type": "array",
                             "description": "ARIMA order (p, d, q) for manual ARIMA/SARIMA (default: [1, 1, 1])",
-                            "items": {
-                                "type": "number"
-                            }
+                            "items": {"type": "number"},
                         },
                         "seasonalOrder": {
                             "type": "array",
                             "description": "Seasonal order (P, D, Q, s) for SARIMA (default: [1, 1, 1, 12])",
-                            "items": {
-                                "type": "number"
-                            }
+                            "items": {"type": "number"},
                         },
                         "trend": {
                             "type": "string",
-                            "description": "Trend component for exponential smoothing: add, mul, None (default: 'add')"
+                            "description": "Trend component for exponential smoothing: add, mul, None (default: 'add')",
                         },
                         "seasonal": {
                             "type": "string",
@@ -677,9 +647,9 @@ class StatsAgent(AgentInterface):
                         "seasonalPeriods": {
                             "type": "number",
                             "description": "Seasonal period (e.g., 12 for monthly). Seasonal models require >=2 full cycles at this period (e.g., >=24 months for 12).",
-                        }
+                        },
                     },
-                    "required": ["data", "timeField", "valueField"]
+                    "required": ["data", "timeField", "valueField"],
                 },
                 "returnValues": {
                     "status": "string - Success or error status",
@@ -696,25 +666,55 @@ class StatsAgent(AgentInterface):
                     "properties": {
                         "testType": {
                             "type": "string",
-                            "description": "one of: t_test_1samp, t_test_2samp_ind, t_test_2samp_paired, anova_oneway, chi_square, mann_whitney_u, wilcoxon_signed_rank, kruskal_wallis"
+                            "description": "one of: t_test_1samp, t_test_2samp_ind, t_test_2samp_paired, anova_oneway, chi_square, mann_whitney_u, wilcoxon_signed_rank, kruskal_wallis",
                         },
-                        "sample1": {"type": "array", "description": "numeric array for 1/2-sample tests", "items": {"type": "number"}},
-                        "sample2": {"type": "array", "description": "numeric array for 2-sample tests", "items": {"type": "number"}},
-                        "samples": {"type": "array", "description": "array of numeric arrays for ANOVA/Kruskal", "items": {"type": "array"}},
-                        "contingencyTable": {"type": "array", "description": "2D array for chi-square test of independence", "items": {"type": "array"}},
-                        "populationMean": {"type": "number", "description": "population mean for one-sample t-test"},
-                        "alternative": {"type": "string", "description": "two-sided | less | greater (where supported)"},
-                        "equalVar": {"type": "boolean", "description": "assume equal variances in independent t-test (default: true)"},
-                        "alpha": {"type": "number", "description": "significance level (default: 0.05)", "minimum": 0.0, "maximum": 1.0}
+                        "sample1": {
+                            "type": "array",
+                            "description": "numeric array for 1/2-sample tests",
+                            "items": {"type": "number"},
+                        },
+                        "sample2": {
+                            "type": "array",
+                            "description": "numeric array for 2-sample tests",
+                            "items": {"type": "number"},
+                        },
+                        "samples": {
+                            "type": "array",
+                            "description": "array of numeric arrays for ANOVA/Kruskal",
+                            "items": {"type": "array"},
+                        },
+                        "contingencyTable": {
+                            "type": "array",
+                            "description": "2D array for chi-square test of independence",
+                            "items": {"type": "array"},
+                        },
+                        "populationMean": {
+                            "type": "number",
+                            "description": "population mean for one-sample t-test",
+                        },
+                        "alternative": {
+                            "type": "string",
+                            "description": "two-sided | less | greater (where supported)",
+                        },
+                        "equalVar": {
+                            "type": "boolean",
+                            "description": "assume equal variances in independent t-test (default: true)",
+                        },
+                        "alpha": {
+                            "type": "number",
+                            "description": "significance level (default: 0.05)",
+                            "minimum": 0.0,
+                            "maximum": 1.0,
+                        },
                     },
-                    "required": ["testType"]
+                    "required": ["testType"],
                 },
                 "returnValues": {
                     "status": "string",
                     "result": "object - statistic, p_value, dof (where applicable), effect_size (where applicable), assumptions, reject_null",
                     "matched_kwargs": "object",
-                    "summary": "string"
-                }
+                    "summary": "string",
+                },
             },
         ]
 
@@ -722,13 +722,10 @@ class StatsAgent(AgentInterface):
         """Process a request for the Stats Agent"""
         try:
             tool_name = request.get("command")
-            
+
             if not tool_name:
-                return {
-                    "status": "error",
-                    "message": "Tool name is required"
-                }
-            
+                return {"status": "error", "message": "Tool name is required"}
+
             # Execute the appropriate tool
             if tool_name == "descriptive_statistics":
                 return await self._tools["descriptive_statistics"].execute_tool(request)
@@ -757,17 +754,11 @@ class StatsAgent(AgentInterface):
             elif tool_name == "hypothesis_testing":
                 return await self._tools["hypothesis_testing"].execute_tool(request)
             else:
-                return {
-                    "status": "error",
-                    "message": f"Unknown tool: {tool_name}"
-                }
-                
+                return {"status": "error", "message": f"Unknown tool: {tool_name}"}
+
         except Exception as e:
             logger.error(f"Error processing request in StatsAgent: {e}")
-            return {
-                "status": "error",
-                "message": str(e)
-            }
+            return {"status": "error", "message": str(e)}
 
     # TODO: Add tool-specific processing methods here
     # Example:
@@ -777,9 +768,9 @@ class StatsAgent(AgentInterface):
     #         data = request.get("data")
     #         if not data:
     #             raise ValueError("Data is required for analysis")
-    #         
+    #
     #         # Implement analysis logic here
-    #         
+    #
     #         return {
     #             "status": "success",
     #             "result": "Analysis completed",
@@ -790,4 +781,4 @@ class StatsAgent(AgentInterface):
     #         return {
     #             "status": "error",
     #             "message": str(e)
-    #         } 
+    #         }

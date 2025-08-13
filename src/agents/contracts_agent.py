@@ -28,6 +28,21 @@ class ContractsAgent(AgentInterface):
         self.category: str = "contracts"
         self.status: str = "initialized"
 
+    async def process_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
+        """Process incoming requests through the agent.
+
+        This scaffold intentionally provides no executable commands yet.
+        """
+        if not self._initialized:
+            return {"status": "error", "message": "Agent not initialized"}
+
+        command = request.get("command")
+        return {
+            "status": "error",
+            "message": f"Unknown command: {command}",
+            "available_commands": [],
+        }
+
     @property
     def agent_id_str(self) -> str:
         """Stable string identifier for the agent type."""
@@ -62,21 +77,6 @@ class ContractsAgent(AgentInterface):
         logger.info("Initializing ContractsAgent with config: %s", config)
         self._initialized = True
         self.status = "ready"
-
-    async def process_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
-        """Process incoming requests through the agent.
-
-        This scaffold intentionally provides no executable commands yet.
-        """
-        if not self._initialized:
-            return {"status": "error", "message": "Agent not initialized"}
-
-        command = request.get("command")
-        return {
-            "status": "error",
-            "message": f"Unknown command: {command}",
-            "available_commands": [],
-        }
 
     async def shutdown(self) -> None:
         """Clean up resources when shutting down."""

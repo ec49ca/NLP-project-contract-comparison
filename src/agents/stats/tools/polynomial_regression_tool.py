@@ -18,10 +18,11 @@ from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, r2_score
-from ...services.llm_service import llm_service
-from ...services.prompt_service import prompt_service
+from ....services.llm_service import llm_service
+from ....services.prompt_service import prompt_service
 
 logger = logging.getLogger(__name__)
+
 
 def convert_numpy_types(obj):
     """Convert numpy types to Python native types for JSON serialization"""
@@ -38,9 +39,10 @@ def convert_numpy_types(obj):
     else:
         return obj
 
+
 class PolynomialRegressionTool:
     """Tool for polynomial regression with configurable degree"""
-    
+
     def __init__(self):
         self.name = "polynomial_regression"
         self.description = "Perform polynomial regression for non-linear relationships with configurable degree (1-5). Includes polynomial feature generation, interaction terms, and complexity metrics."
@@ -64,9 +66,9 @@ class PolynomialRegressionTool:
                         "featureFields": feature_fields,
                         "testSize": test_size,
                         "degree": degree,
-                        "sample_size": 0
+                        "sample_size": 0,
                     },
-                    "summary": "No data provided or data format invalid."
+                    "summary": "No data provided or data format invalid.",
                 }
 
             if not target_field:
@@ -78,14 +80,16 @@ class PolynomialRegressionTool:
                         "featureFields": feature_fields,
                         "testSize": test_size,
                         "degree": degree,
-                        "sample_size": len(data)
+                        "sample_size": len(data),
                     },
-                    "summary": "Target field is required for polynomial regression analysis."
+                    "summary": "Target field is required for polynomial regression analysis.",
                 }
 
             # Validate and prepare data
             try:
-                valid_data, numerical_features, categorical_features = self._prepare_data(data, target_field, feature_fields)
+                valid_data, numerical_features, categorical_features = (
+                    self._prepare_data(data, target_field, feature_fields)
+                )
             except Exception as e:
                 return {
                     "status": "error",
@@ -95,11 +99,11 @@ class PolynomialRegressionTool:
                         "featureFields": feature_fields,
                         "testSize": test_size,
                         "degree": degree,
-                        "sample_size": len(data)
+                        "sample_size": len(data),
                     },
-                    "summary": f"Data preparation error: {str(e)}"
+                    "summary": f"Data preparation error: {str(e)}",
                 }
-            
+
             if len(valid_data) < 2:
                 return {
                     "status": "error",
@@ -109,15 +113,17 @@ class PolynomialRegressionTool:
                         "featureFields": feature_fields,
                         "testSize": test_size,
                         "degree": degree,
-                        "sample_size": len(data)
+                        "sample_size": len(data),
                     },
-                    "summary": "Insufficient valid data points for polynomial regression analysis."
+                    "summary": "Insufficient valid data points for polynomial regression analysis.",
                 }
 
             # Prepare target and features
             try:
                 y = [float(row[target_field]) for row in valid_data]
-                X, feature_names = self._create_feature_matrix(valid_data, numerical_features, categorical_features)
+                X, feature_names = self._create_feature_matrix(
+                    valid_data, numerical_features, categorical_features
+                )
             except Exception as e:
                 return {
                     "status": "error",
@@ -127,14 +133,16 @@ class PolynomialRegressionTool:
                         "featureFields": feature_fields,
                         "testSize": test_size,
                         "degree": degree,
-                        "sample_size": len(data)
+                        "sample_size": len(data),
                     },
-                    "summary": f"Feature preparation error: {str(e)}"
+                    "summary": f"Feature preparation error: {str(e)}",
                 }
 
             # Split data
             try:
-                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
+                X_train, X_test, y_train, y_test = train_test_split(
+                    X, y, test_size=test_size, random_state=42
+                )
             except Exception as e:
                 return {
                     "status": "error",
@@ -144,16 +152,18 @@ class PolynomialRegressionTool:
                         "featureFields": feature_fields,
                         "testSize": test_size,
                         "degree": degree,
-                        "sample_size": len(data)
+                        "sample_size": len(data),
                     },
-                    "summary": f"Data splitting error: {str(e)}"
+                    "summary": f"Data splitting error: {str(e)}",
                 }
 
             # Run polynomial regression
             try:
                 hyperparameters = {"degree": degree}
-                result = self._polynomial_regression(X_train, X_test, y_train, y_test, feature_names, hyperparameters)
-                
+                result = self._polynomial_regression(
+                    X_train, X_test, y_train, y_test, feature_names, hyperparameters
+                )
+
                 return {
                     "status": "success",
                     "result": result,
@@ -162,9 +172,9 @@ class PolynomialRegressionTool:
                         "featureFields": feature_fields,
                         "testSize": test_size,
                         "degree": degree,
-                        "sample_size": len(data)
+                        "sample_size": len(data),
                     },
-                    "summary": f"Polynomial regression analysis completed successfully."
+                    "summary": f"Polynomial regression analysis completed successfully.",
                 }
             except Exception as e:
                 return {
@@ -175,9 +185,9 @@ class PolynomialRegressionTool:
                         "featureFields": feature_fields,
                         "testSize": test_size,
                         "degree": degree,
-                        "sample_size": len(data)
+                        "sample_size": len(data),
                     },
-                    "summary": f"Polynomial regression error: {str(e)}"
+                    "summary": f"Polynomial regression error: {str(e)}",
                 }
 
         except Exception as e:
@@ -187,25 +197,34 @@ class PolynomialRegressionTool:
                 "message": str(e),
                 "result": {},
                 "matched_kwargs": {
-                    "targetField": target_field if 'target_field' in locals() else "",
-                    "featureFields": feature_fields if 'feature_fields' in locals() else [],
-                    "testSize": test_size if 'test_size' in locals() else 0.2,
-                    "degree": degree if 'degree' in locals() else 2,
-                    "sample_size": len(data) if 'data' in locals() else 0
-                }
+                    "targetField": target_field if "target_field" in locals() else "",
+                    "featureFields": (
+                        feature_fields if "feature_fields" in locals() else []
+                    ),
+                    "testSize": test_size if "test_size" in locals() else 0.2,
+                    "degree": degree if "degree" in locals() else 2,
+                    "sample_size": len(data) if "data" in locals() else 0,
+                },
             }
 
-    def _prepare_data(self, data: List[Dict], target_field: str, feature_fields: List[str]) -> Tuple[List[Dict], List[str], List[str]]:
+    def _prepare_data(
+        self, data: List[Dict], target_field: str, feature_fields: List[str]
+    ) -> Tuple[List[Dict], List[str], List[str]]:
         """Prepare and validate data for regression"""
         # Filter valid data
         valid_data = []
         for row in data:
-            if (target_field in row and 
-                isinstance(row[target_field], (int, float)) and 
-                not np.isnan(float(row[target_field]))):
-                
+            if (
+                target_field in row
+                and isinstance(row[target_field], (int, float))
+                and not np.isnan(float(row[target_field]))
+            ):
+
                 # Check if all features exist
-                if all(field in row and row[field] is not None and row[field] != '' for field in feature_fields):
+                if all(
+                    field in row and row[field] is not None and row[field] != ""
+                    for field in feature_fields
+                ):
                     valid_data.append(row)
 
         if len(valid_data) < 2:
@@ -214,9 +233,13 @@ class PolynomialRegressionTool:
         # Separate numerical and categorical features
         numerical_features = []
         categorical_features = []
-        
+
         for feature in feature_fields:
-            is_numerical = all(not np.isnan(float(row[feature])) for row in valid_data if isinstance(row[feature], (int, float)))
+            is_numerical = all(
+                not np.isnan(float(row[feature]))
+                for row in valid_data
+                if isinstance(row[feature], (int, float))
+            )
             if is_numerical:
                 numerical_features.append(feature)
             else:
@@ -224,10 +247,15 @@ class PolynomialRegressionTool:
 
         return valid_data, numerical_features, categorical_features
 
-    def _create_feature_matrix(self, data: List[Dict], numerical_features: List[str], categorical_features: List[str]) -> Tuple[np.ndarray, List[str]]:
+    def _create_feature_matrix(
+        self,
+        data: List[Dict],
+        numerical_features: List[str],
+        categorical_features: List[str],
+    ) -> Tuple[np.ndarray, List[str]]:
         """Create feature matrix with encoded categorical variables"""
         feature_names = numerical_features.copy()
-        
+
         # Create one-hot encoding for categorical features
         categorical_encodings = {}
         for feature in categorical_features:
@@ -241,11 +269,11 @@ class PolynomialRegressionTool:
         X = []
         for row in data:
             features = []
-            
+
             # Add numerical features
             for feature in numerical_features:
                 features.append(float(row[feature]))
-            
+
             # Add encoded categorical features
             for feature in categorical_features:
                 value = str(row[feature])
@@ -253,73 +281,85 @@ class PolynomialRegressionTool:
                 # One-hot encoding (excluding first category)
                 for unique_value in unique_values[1:]:
                     features.append(1.0 if value == unique_value else 0.0)
-            
+
             X.append(features)
 
         return np.array(X), feature_names
 
-    def _polynomial_regression(self, X_train: np.ndarray, X_test: np.ndarray, 
-                             y_train: List[float], y_test: List[float], 
-                             feature_names: List[str], hyperparameters: Dict) -> Dict:
+    def _polynomial_regression(
+        self,
+        X_train: np.ndarray,
+        X_test: np.ndarray,
+        y_train: List[float],
+        y_test: List[float],
+        feature_names: List[str],
+        hyperparameters: Dict,
+    ) -> Dict:
         """Implement polynomial regression"""
         try:
             # Get polynomial degree from hyperparameters
             degree = hyperparameters.get("degree", 2)
-            
+
             # Validate degree
             if degree < 1 or degree > 5:
                 return {
                     "status": "error",
                     "method": "polynomial",
-                    "message": f"Invalid degree: {degree}. Must be between 1 and 5."
+                    "message": f"Invalid degree: {degree}. Must be between 1 and 5.",
                 }
-            
+
             # Check if we have enough data points
             min_data_points = degree + 2
             if len(X_train) < min_data_points:
                 return {
                     "status": "error",
                     "method": "polynomial",
-                    "message": f"Insufficient data points ({len(X_train)}) for degree {degree} polynomial regression. Need at least {min_data_points} points."
+                    "message": f"Insufficient data points ({len(X_train)}) for degree {degree} polynomial regression. Need at least {min_data_points} points.",
                 }
-            
+
             # Generate polynomial features
             poly = PolynomialFeatures(degree=degree, include_bias=False)
             X_train_poly = poly.fit_transform(X_train)
             X_test_poly = poly.transform(X_test)
-            
+
             # Generate polynomial feature names
-            poly_feature_names = self._generate_polynomial_feature_names(feature_names, degree)
-            
+            poly_feature_names = self._generate_polynomial_feature_names(
+                feature_names, degree
+            )
+
             # Fit polynomial regression model
             model = LinearRegression()
             model.fit(X_train_poly, y_train)
-            
+
             # Make predictions
             y_pred_train = model.predict(X_train_poly)
             y_pred_test = model.predict(X_test_poly)
-            
+
             # Calculate metrics
             r2_train = r2_score(y_train, y_pred_train)
             r2_test = r2_score(y_test, y_pred_test)
             mse_train = mean_squared_error(y_train, y_pred_train)
             mse_test = mean_squared_error(y_test, y_pred_test)
-            
+
             # Calculate residuals
-            residuals_train = [float(actual - pred) for actual, pred in zip(y_train, y_pred_train)]
-            residuals_test = [float(actual - pred) for actual, pred in zip(y_test, y_pred_test)]
-            
+            residuals_train = [
+                float(actual - pred) for actual, pred in zip(y_train, y_pred_train)
+            ]
+            residuals_test = [
+                float(actual - pred) for actual, pred in zip(y_test, y_pred_test)
+            ]
+
             # Feature importance (coefficients)
             feature_importance = dict(zip(poly_feature_names, model.coef_.tolist()))
-            
+
             # Calculate polynomial complexity metrics
             complexity_metrics = {
                 "degree": degree,
                 "original_features": len(feature_names),
                 "polynomial_features": len(poly_feature_names),
-                "feature_expansion_ratio": len(poly_feature_names) / len(feature_names)
+                "feature_expansion_ratio": len(poly_feature_names) / len(feature_names),
             }
-            
+
             return {
                 "status": "success",
                 "method": "polynomial",
@@ -338,31 +378,31 @@ class PolynomialRegressionTool:
                 "feature_names": poly_feature_names,
                 "original_feature_names": feature_names,
                 "complexity_metrics": complexity_metrics,
-                "summary": f"Polynomial regression (degree {degree}) completed with R² = {r2_test:.4f}, MSE = {mse_test:.4f}"
-            }
-            
-        except Exception as e:
-            logger.error(f"Error in polynomial regression: {e}")
-            return {
-                "status": "error",
-                "method": "polynomial",
-                "message": str(e)
+                "summary": f"Polynomial regression (degree {degree}) completed with R² = {r2_test:.4f}, MSE = {mse_test:.4f}",
             }
 
-    def _generate_polynomial_feature_names(self, original_features: List[str], degree: int) -> List[str]:
+        except Exception as e:
+            logger.error(f"Error in polynomial regression: {e}")
+            return {"status": "error", "method": "polynomial", "message": str(e)}
+
+    def _generate_polynomial_feature_names(
+        self, original_features: List[str], degree: int
+    ) -> List[str]:
         """Generate feature names for polynomial features"""
         feature_names = original_features.copy()
-        
+
         # Add polynomial feature names
         for d in range(2, degree + 1):
             # Add powers of individual features
             for feature in original_features:
                 feature_names.append(f"{feature}^{d}")
-            
+
             # Add interaction terms for degree 2
             if d == 2 and len(original_features) > 1:
                 for i in range(len(original_features)):
                     for j in range(i + 1, len(original_features)):
-                        feature_names.append(f"{original_features[i]} * {original_features[j]}")
-        
+                        feature_names.append(
+                            f"{original_features[i]} * {original_features[j]}"
+                        )
+
         return feature_names

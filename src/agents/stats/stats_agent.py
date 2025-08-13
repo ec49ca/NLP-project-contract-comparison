@@ -24,7 +24,7 @@ How tools work:
 
 import logging
 from typing import Dict, List, Any, Optional
-from ..interfaces.agent import AgentInterface
+from ...interfaces.agent import AgentInterface
 from .tools.descriptive_statistics_tool import DescriptiveStatisticsTool
 from .tools.correlation_tool import CorrelationAnalysisTool
 from .tools.distribution_analysis_tool import DistributionAnalysisTool

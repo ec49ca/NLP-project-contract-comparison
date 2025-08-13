@@ -12,8 +12,8 @@ import re
 import os
 from datetime import datetime
 from typing import Dict, Any, List, Tuple, Optional
-from ...services.llm_service import llm_service
-from ...services.prompt_service import prompt_service
+from ....services.llm_service import llm_service
+from ....services.prompt_service import prompt_service
 
 logger = logging.getLogger(__name__)
 

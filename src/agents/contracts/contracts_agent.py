@@ -9,7 +9,7 @@ import logging
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
-from ..interfaces.agent import AgentInterface
+from ...interfaces.agent import AgentInterface
 
 
 logger = logging.getLogger(__name__)

@@ -9,8 +9,8 @@ import logging
 from typing import Dict, Any, List, Optional
 import numpy as np
 from collections import Counter
-from ...services.llm_service import llm_service
-from ...services.prompt_service import prompt_service
+from ....services.llm_service import llm_service
+from ....services.prompt_service import prompt_service
 
 logger = logging.getLogger(__name__)
 
@@ -44,28 +44,34 @@ class DescriptiveStatisticsTool:
         try:
             data = arguments.get("data", [])
             target_fields = arguments.get("targetFields", [])
-            
+
             if not data or not isinstance(data, list):
                 return {
                     "status": "error",
                     "result": {},
                     "matched_kwargs": arguments,
-                    "summary": "No data provided or data format invalid."
+                    "summary": "No data provided or data format invalid.",
                 }
 
             # If no target fields specified, use all fields from first row
             if not target_fields and data:
                 target_fields = list(data[0].keys())
-            
+
             result = {}
 
             for field in target_fields:
                 # Extract valid numeric values (excluding booleans which are technically int subclass)
-                values = [row[field] for row in data if field in row and isinstance(row[field], (int, float)) and not isinstance(row[field], bool)]
-                
+                values = [
+                    row[field]
+                    for row in data
+                    if field in row
+                    and isinstance(row[field], (int, float))
+                    and not isinstance(row[field], bool)
+                ]
+
                 if not values:
                     continue
-                
+
                 sorted_values = sorted(values)
                 q1 = np.percentile(sorted_values, 25)
                 q2 = np.percentile(sorted_values, 50)
@@ -93,7 +99,7 @@ class DescriptiveStatisticsTool:
                     "skewness": skewness,
                     "kurtosis": kurtosis,
                     "quartiles": {"q1": q1, "q2": q2, "q3": q3},
-                    "iqr": iqr
+                    "iqr": iqr,
                 }
 
             # Convert numpy types to Python native types for JSON serialization
@@ -103,7 +109,7 @@ class DescriptiveStatisticsTool:
                 "status": "success",
                 "result": result,
                 "matched_kwargs": arguments,
-                "summary": f"Descriptive stats computed for {len(result)} field(s)."
+                "summary": f"Descriptive stats computed for {len(result)} field(s).",
             }
 
         except Exception as e:
@@ -112,7 +118,7 @@ class DescriptiveStatisticsTool:
                 "status": "error",
                 "message": str(e),
                 "result": {},
-                "matched_kwargs": arguments
+                "matched_kwargs": arguments,
             }
 
     def _calc_mode(self, values: List[float]) -> Any:
@@ -139,4 +145,4 @@ class DescriptiveStatisticsTool:
         std_dev = np.std(values)
         if std_dev == 0:
             return 0.0
-        return np.mean([(x - mean) / std_dev for x in values]) ** 4 - 3 
+        return np.mean([(x - mean) / std_dev for x in values]) ** 4 - 3

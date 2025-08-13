@@ -7,7 +7,7 @@ It follows the same structure as other agents in the system.
 
 import logging
 from typing import Dict, List, Any, Optional
-from ..interfaces.agent import AgentInterface
+from ...interfaces.agent import AgentInterface
 from uuid import UUID
 import json
 from datetime import datetime, timedelta

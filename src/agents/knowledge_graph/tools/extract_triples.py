@@ -7,8 +7,8 @@ This tool extracts triples (subject-predicate-object relationships) from unstruc
 import json
 import logging
 from typing import Dict, Any, List, Optional
-from ...services.llm_service import llm_service
-from ...services.prompt_service import prompt_service
+from ....services.llm_service import llm_service
+from ....services.prompt_service import prompt_service
 
 logger = logging.getLogger(__name__)
 

@@ -52,15 +52,15 @@ How tools work:
 
 import logging
 from typing import Dict, List, Any, Optional
-from ..interfaces.agent import AgentInterface
+from ...interfaces.agent import AgentInterface
 from .tools.extract_triples import ExtractTriplesTool
 from .tools.detect_document_tool import DetectDocumentTool
 from .tools.ner_el_tool import NEREntityLinkingTool
 from .tools.preprocess_document_tool import PreprocessDocumentTool
 from .tools.relation_extraction_tool import RelationExtractionTool
-from ..services.neo4j_service import Neo4jService
-from ..services.llm_service import llm_service
-from ..services.prompt_service import prompt_service
+from ...services.neo4j_service import Neo4jService
+from ...services.llm_service import llm_service
+from ...services.prompt_service import prompt_service
 from uuid import UUID
 import json
 import os
@@ -69,7 +69,7 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 
 
-class KnowledgeGraphAgent(AgentInterface):
+class KnowledgeGraphExtractionAgent(AgentInterface):
     """Knowledge graph agent for triple extraction and graph operations"""
 
     def __init__(self):

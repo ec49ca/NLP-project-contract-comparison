@@ -16,10 +16,11 @@ from scipy import stats
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
-from ...services.llm_service import llm_service
-from ...services.prompt_service import prompt_service
+from ....services.llm_service import llm_service
+from ....services.prompt_service import prompt_service
 
 logger = logging.getLogger(__name__)
+
 
 def convert_numpy_types(obj):
     """Convert numpy types to Python native types for JSON serialization"""
@@ -36,9 +37,10 @@ def convert_numpy_types(obj):
     else:
         return obj
 
+
 class LogisticRegressionTool:
     """Tool for logistic regression binary classification"""
-    
+
     def __init__(self):
         self.name = "logistic_regression"
         self.description = "Perform logistic regression for binary classification with accuracy, precision, recall, and F1-score metrics. Includes probability predictions and class distribution analysis."
@@ -60,9 +62,9 @@ class LogisticRegressionTool:
                         "targetField": target_field,
                         "featureFields": feature_fields,
                         "testSize": test_size,
-                        "sample_size": 0
+                        "sample_size": 0,
                     },
-                    "summary": "No data provided or data format invalid."
+                    "summary": "No data provided or data format invalid.",
                 }
 
             if not target_field:
@@ -73,14 +75,16 @@ class LogisticRegressionTool:
                         "targetField": target_field,
                         "featureFields": feature_fields,
                         "testSize": test_size,
-                        "sample_size": len(data)
+                        "sample_size": len(data),
                     },
-                    "summary": "Target field is required for logistic regression analysis."
+                    "summary": "Target field is required for logistic regression analysis.",
                 }
 
             # Validate and prepare data
             try:
-                valid_data, numerical_features, categorical_features = self._prepare_data(data, target_field, feature_fields)
+                valid_data, numerical_features, categorical_features = (
+                    self._prepare_data(data, target_field, feature_fields)
+                )
             except Exception as e:
                 return {
                     "status": "error",
@@ -89,11 +93,11 @@ class LogisticRegressionTool:
                         "targetField": target_field,
                         "featureFields": feature_fields,
                         "testSize": test_size,
-                        "sample_size": len(data)
+                        "sample_size": len(data),
                     },
-                    "summary": f"Data preparation error: {str(e)}"
+                    "summary": f"Data preparation error: {str(e)}",
                 }
-            
+
             if len(valid_data) < 2:
                 return {
                     "status": "error",
@@ -102,15 +106,17 @@ class LogisticRegressionTool:
                         "targetField": target_field,
                         "featureFields": feature_fields,
                         "testSize": test_size,
-                        "sample_size": len(data)
+                        "sample_size": len(data),
                     },
-                    "summary": "Insufficient valid data points for logistic regression analysis."
+                    "summary": "Insufficient valid data points for logistic regression analysis.",
                 }
 
             # Prepare target and features
             try:
                 y = [float(row[target_field]) for row in valid_data]
-                X, feature_names = self._create_feature_matrix(valid_data, numerical_features, categorical_features)
+                X, feature_names = self._create_feature_matrix(
+                    valid_data, numerical_features, categorical_features
+                )
             except Exception as e:
                 return {
                     "status": "error",
@@ -119,14 +125,16 @@ class LogisticRegressionTool:
                         "targetField": target_field,
                         "featureFields": feature_fields,
                         "testSize": test_size,
-                        "sample_size": len(data)
+                        "sample_size": len(data),
                     },
-                    "summary": f"Feature preparation error: {str(e)}"
+                    "summary": f"Feature preparation error: {str(e)}",
                 }
 
             # Split data
             try:
-                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
+                X_train, X_test, y_train, y_test = train_test_split(
+                    X, y, test_size=test_size, random_state=42
+                )
             except Exception as e:
                 return {
                     "status": "error",
@@ -135,15 +143,17 @@ class LogisticRegressionTool:
                         "targetField": target_field,
                         "featureFields": feature_fields,
                         "testSize": test_size,
-                        "sample_size": len(data)
+                        "sample_size": len(data),
                     },
-                    "summary": f"Data splitting error: {str(e)}"
+                    "summary": f"Data splitting error: {str(e)}",
                 }
 
             # Run logistic regression
             try:
-                result = self._logistic_regression(X_train, X_test, y_train, y_test, feature_names)
-                
+                result = self._logistic_regression(
+                    X_train, X_test, y_train, y_test, feature_names
+                )
+
                 return {
                     "status": "success",
                     "result": result,
@@ -151,9 +161,9 @@ class LogisticRegressionTool:
                         "targetField": target_field,
                         "featureFields": feature_fields,
                         "testSize": test_size,
-                        "sample_size": len(data)
+                        "sample_size": len(data),
                     },
-                    "summary": f"Logistic regression analysis completed successfully."
+                    "summary": f"Logistic regression analysis completed successfully.",
                 }
             except Exception as e:
                 return {
@@ -163,9 +173,9 @@ class LogisticRegressionTool:
                         "targetField": target_field,
                         "featureFields": feature_fields,
                         "testSize": test_size,
-                        "sample_size": len(data)
+                        "sample_size": len(data),
                     },
-                    "summary": f"Logistic regression error: {str(e)}"
+                    "summary": f"Logistic regression error: {str(e)}",
                 }
 
         except Exception as e:
@@ -175,24 +185,33 @@ class LogisticRegressionTool:
                 "message": str(e),
                 "result": {},
                 "matched_kwargs": {
-                    "targetField": target_field if 'target_field' in locals() else "",
-                    "featureFields": feature_fields if 'feature_fields' in locals() else [],
-                    "testSize": test_size if 'test_size' in locals() else 0.2,
-                    "sample_size": len(data) if 'data' in locals() else 0
-                }
+                    "targetField": target_field if "target_field" in locals() else "",
+                    "featureFields": (
+                        feature_fields if "feature_fields" in locals() else []
+                    ),
+                    "testSize": test_size if "test_size" in locals() else 0.2,
+                    "sample_size": len(data) if "data" in locals() else 0,
+                },
             }
 
-    def _prepare_data(self, data: List[Dict], target_field: str, feature_fields: List[str]) -> Tuple[List[Dict], List[str], List[str]]:
+    def _prepare_data(
+        self, data: List[Dict], target_field: str, feature_fields: List[str]
+    ) -> Tuple[List[Dict], List[str], List[str]]:
         """Prepare and validate data for regression"""
         # Filter valid data
         valid_data = []
         for row in data:
-            if (target_field in row and 
-                isinstance(row[target_field], (int, float)) and 
-                not np.isnan(float(row[target_field]))):
-                
+            if (
+                target_field in row
+                and isinstance(row[target_field], (int, float))
+                and not np.isnan(float(row[target_field]))
+            ):
+
                 # Check if all features exist
-                if all(field in row and row[field] is not None and row[field] != '' for field in feature_fields):
+                if all(
+                    field in row and row[field] is not None and row[field] != ""
+                    for field in feature_fields
+                ):
                     valid_data.append(row)
 
         if len(valid_data) < 2:
@@ -201,9 +220,13 @@ class LogisticRegressionTool:
         # Separate numerical and categorical features
         numerical_features = []
         categorical_features = []
-        
+
         for feature in feature_fields:
-            is_numerical = all(not np.isnan(float(row[feature])) for row in valid_data if isinstance(row[feature], (int, float)))
+            is_numerical = all(
+                not np.isnan(float(row[feature]))
+                for row in valid_data
+                if isinstance(row[feature], (int, float))
+            )
             if is_numerical:
                 numerical_features.append(feature)
             else:
@@ -211,10 +234,15 @@ class LogisticRegressionTool:
 
         return valid_data, numerical_features, categorical_features
 
-    def _create_feature_matrix(self, data: List[Dict], numerical_features: List[str], categorical_features: List[str]) -> Tuple[np.ndarray, List[str]]:
+    def _create_feature_matrix(
+        self,
+        data: List[Dict],
+        numerical_features: List[str],
+        categorical_features: List[str],
+    ) -> Tuple[np.ndarray, List[str]]:
         """Create feature matrix with encoded categorical variables"""
         feature_names = numerical_features.copy()
-        
+
         # Create one-hot encoding for categorical features
         categorical_encodings = {}
         for feature in categorical_features:
@@ -228,11 +256,11 @@ class LogisticRegressionTool:
         X = []
         for row in data:
             features = []
-            
+
             # Add numerical features
             for feature in numerical_features:
                 features.append(float(row[feature]))
-            
+
             # Add encoded categorical features
             for feature in categorical_features:
                 value = str(row[feature])
@@ -240,80 +268,89 @@ class LogisticRegressionTool:
                 # One-hot encoding (excluding first category)
                 for unique_value in unique_values[1:]:
                     features.append(1.0 if value == unique_value else 0.0)
-            
+
             X.append(features)
 
         return np.array(X), feature_names
 
-    def _logistic_regression(self, X_train: np.ndarray, X_test: np.ndarray, 
-                           y_train: List[float], y_test: List[float], 
-                           feature_names: List[str]) -> Dict:
+    def _logistic_regression(
+        self,
+        X_train: np.ndarray,
+        X_test: np.ndarray,
+        y_train: List[float],
+        y_test: List[float],
+        feature_names: List[str],
+    ) -> Dict:
         """Implement logistic regression for binary classification"""
         try:
             # Validate binary target (0 or 1)
             y_train_binary = [int(y) for y in y_train]
             y_test_binary = [int(y) for y in y_test]
-            
+
             # Check if targets are binary
             unique_train = set(y_train_binary)
             unique_test = set(y_test_binary)
-            
+
             if not (unique_train <= {0, 1} and unique_test <= {0, 1}):
                 return {
                     "status": "error",
                     "method": "logistic",
-                    "message": "Logistic regression requires binary target values (0 or 1)"
+                    "message": "Logistic regression requires binary target values (0 or 1)",
                 }
-            
+
             # Check if we have both classes
             if len(unique_train) < 2:
                 return {
-                    "status": "error", 
+                    "status": "error",
                     "method": "logistic",
-                    "message": "Logistic regression requires both classes (0 and 1) in training data"
+                    "message": "Logistic regression requires both classes (0 and 1) in training data",
                 }
-            
+
             # Fit logistic regression model
             model = LogisticRegression(random_state=42, max_iter=1000)
             model.fit(X_train, y_train_binary)
-            
+
             # Make predictions
             y_pred_train = model.predict(X_train)
             y_pred_test = model.predict(X_test)
-            
+
             # Get probabilities
             y_prob_train = model.predict_proba(X_train)[:, 1]
             y_prob_test = model.predict_proba(X_test)[:, 1]
-            
+
             # Calculate metrics
             accuracy_train = accuracy_score(y_train_binary, y_pred_train)
             accuracy_test = accuracy_score(y_test_binary, y_pred_test)
-            
+
             # Calculate precision, recall, F1-score
-            precision_train = precision_score(y_train_binary, y_pred_train, zero_division=0)
-            precision_test = precision_score(y_test_binary, y_pred_test, zero_division=0)
-            
+            precision_train = precision_score(
+                y_train_binary, y_pred_train, zero_division=0
+            )
+            precision_test = precision_score(
+                y_test_binary, y_pred_test, zero_division=0
+            )
+
             recall_train = recall_score(y_train_binary, y_pred_train, zero_division=0)
             recall_test = recall_score(y_test_binary, y_pred_test, zero_division=0)
-            
+
             f1_train = f1_score(y_train_binary, y_pred_train, zero_division=0)
             f1_test = f1_score(y_test_binary, y_pred_test, zero_division=0)
-            
+
             # Feature importance (coefficients)
             feature_importance = dict(zip(feature_names, model.coef_[0].tolist()))
-            
+
             # Calculate class distribution
             class_distribution = {
                 "train": {
                     "class_0": sum(1 for y in y_train_binary if y == 0),
-                    "class_1": sum(1 for y in y_train_binary if y == 1)
+                    "class_1": sum(1 for y in y_train_binary if y == 1),
                 },
                 "test": {
                     "class_0": sum(1 for y in y_test_binary if y == 0),
-                    "class_1": sum(1 for y in y_test_binary if y == 1)
-                }
+                    "class_1": sum(1 for y in y_test_binary if y == 1),
+                },
             }
-            
+
             return {
                 "status": "success",
                 "method": "logistic",
@@ -334,13 +371,9 @@ class LogisticRegressionTool:
                 "feature_importance": feature_importance,
                 "feature_names": feature_names,
                 "class_distribution": class_distribution,
-                "summary": f"Logistic regression completed with accuracy = {accuracy_test:.4f}, F1-score = {f1_test:.4f}"
+                "summary": f"Logistic regression completed with accuracy = {accuracy_test:.4f}, F1-score = {f1_test:.4f}",
             }
-            
+
         except Exception as e:
             logger.error(f"Error in logistic regression: {e}")
-            return {
-                "status": "error",
-                "method": "logistic",
-                "message": str(e)
-            }
+            return {"status": "error", "method": "logistic", "message": str(e)}

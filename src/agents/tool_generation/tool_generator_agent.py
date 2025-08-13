@@ -16,8 +16,8 @@ Max API calls: 3 (vs 27 in original system)
 
 import logging
 from typing import Dict, List, Any, Optional
-from ..interfaces.agent import AgentInterface
-from ..services.prompt_service import PromptService
+from ...interfaces.agent import AgentInterface
+from ...services.prompt_service import PromptService
 from uuid import UUID
 from openai import OpenAI
 import os

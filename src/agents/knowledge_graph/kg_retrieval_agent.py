@@ -48,18 +48,35 @@ class KnowledgeGraphRetrievalAgent(AgentInterface):
 		- return results
 	"""
 
+    async def basic_qa_lookup(self, query: str):
+        embedding = await llm_service.create_embedding(
+            query, model="text-embedding-3-small"
+        )
+        embedding_str = "[" + ",".join(map(str, embedding)) + "]"
+        results = await self._vectordb_.vector_similarity_search(embedding_str)
+        return {"success": True, "results": results}
+
+    async def test_pg(self):
+        results = await self._vectordb_.get_all_embeddings_and_kg_uuids()
+        return {"success": True, "results": results}
+
     async def test_neo(self):
         embedding = await llm_service.create_embedding(
             "Who produces grapes?",
             model="text-embedding-3-small",
         )
+        print("embedding type: ", type(embedding))
         logger.info(f"Embedding result: {embedding}")
-        return {"success": True, "embedding": embedding}
+        # await self._graphdb_.clear_database()
+
+        await self._vectordb_.initialize()
+        # await self._vectordb_.clear_kg_vector_lookup_table()
+        # await self._vectordb_.initialize()
 
         results = await self._graphdb_.test_get_data()
-        logger.info(f"Retrieval result: {results}")
+        # logger.info(f"Retrieval result: {results}")
 
-        return {"success": True, "results": results}
+        return {"success": True, "results": results, "embedding": embedding}
 
     # TODO: Fix tools setup
     def get_tools(self) -> List[Dict[str, Any]]:
@@ -93,6 +110,10 @@ class KnowledgeGraphRetrievalAgent(AgentInterface):
 
         if command == "test_neo":
             return await self.test_neo()
+        elif command == "test_pg":
+            return await self.test_pg()
+        elif command == "basic_qa_lookup":
+            return await self.basic_qa_lookup(request.get("query", ""))
         else:
             return {
                 "error": f"Unknown command: {command}",

@@ -17,6 +17,12 @@ import json
 import logging
 import asyncio
 from typing import Dict, Any, List, Optional
+import uuid
+
+from _pytest.monkeypatch import K
+
+from src.services.neo4j_service import Neo4jService
+from src.services.pgvector_service import PGVectorService
 from ....services.llm_service import llm_service
 from ....services.prompt_service import prompt_service
 
@@ -33,6 +39,8 @@ class ExtractTriplesTool:
         self.name = "extract_triples"
         self.description = "Extract triples from unstructured text using LLM"
         self.llm_service = llm_service
+        self._vectordb_ = PGVectorService()
+        self._graphdb_ = Neo4jService()
 
     async def execute_tool(self, arguments: Dict[str, Any]) -> Any:
         """Execute the extract_triples tool with chunking support"""
@@ -42,6 +50,8 @@ class ExtractTriplesTool:
         entities_schema = arguments.get("entities_schema", [])
         relationships_schema = arguments.get("relationships_schema", [])
         chunk_size = arguments.get("chunk_size", 10000)  # Process in chunks
+        fill_database = arguments.get("fill_database", True)
+        document_id = arguments.get("document_id", "")
 
         try:
             # Step 1: Text Preprocessing
@@ -126,32 +136,151 @@ class ExtractTriplesTool:
             processing_stats["chunks_processed"] = len(chunks)
 
             # Step 4: Post-process and deduplicate
-            # final_entities = self._post_process_entities(
-            #     all_entities, confidence_threshold
-            # )
-            print("final_entities: ", all_entities)
-            # final_relationships = self._post_process_relationships(
-            #     all_relationships, confidence_threshold
-            # )
-            print("final_relationships: ", all_relationships)
+            # TODO: implement post-processing correctly for deduplication
 
             logger.info(
                 f"Triple extraction completed. Found {len(all_entities)} unique entities, {len(all_relationships)} unique relationships"
             )
 
-            result = {
-                "entities": all_entities,
-                "relationships": all_relationships,
-                "statistics": {
-                    "chunks_processed": processing_stats["chunks_processed"],
-                    "total_entities": len(all_entities),
-                    "total_relationships": len(all_relationships),
-                    "processing_errors": processing_stats["processing_errors"],
-                },
-                "success": True,
-            }
+            # return early if not filling database
+            if not fill_database:
+                result = {
+                    "entities": all_entities,
+                    "relationships": all_relationships,
+                    "statistics": {
+                        "chunks_processed": processing_stats["chunks_processed"],
+                        "total_entities": len(all_entities),
+                        "total_relationships": len(all_relationships),
+                        "processing_errors": processing_stats["processing_errors"],
+                    },
+                    "success": True,
+                }
+                return result
 
-            return result
+            # Now need to start putting this into database
+            # reformat into easy-to-cypher-query format
+            graph_entities = []
+            for entity in all_entities:
+                graph_entity = {
+                    "label": entity["label"],
+                }
+                properties = {}
+                properties["uuid"] = str(uuid.uuid4())
+                properties["document_id"] = document_id
+                for attr in entity["attributes"]:
+                    properties[attr["name"]] = attr["value"]
+                graph_entity["properties"] = properties
+                graph_entities.append(graph_entity)
+
+            graph_relationships = []
+            for relationship in all_relationships:
+                subject_entity = graph_entities[
+                    relationship["subject_entity_internal_generated_id"] - 1
+                ]
+                object_entity = graph_entities[
+                    relationship["object_entity_internal_generated_id"] - 1
+                ]
+                graph_relationship = {
+                    "subject_entity_label": subject_entity["label"],
+                    "subject_entity_properties": subject_entity["properties"],
+                    "object_entity_label": object_entity["label"],
+                    "object_entity_properties": object_entity["properties"],
+                    "relationship_type": relationship["name"],
+                    "properties": {
+                        "confidence": relationship["confidence"],
+                        "document_id": document_id,
+                        "uuid": str(uuid.uuid4()),
+                    },
+                }
+                graph_relationships.append(graph_relationship)
+
+            # create entities and relationships queries and add to neo
+            # Insert entity triples into neo
+            for entity in graph_entities:
+                await self._graphdb_.insert_entity(
+                    entity["label"], entity["properties"]
+                )
+            logger.info(f"Inserted {len(graph_entities)} entities into Neo4j")
+
+            # Insert relationship triples into neo
+            for relationship in graph_relationships:
+                await self._graphdb_.insert_relationship(
+                    relationship["subject_entity_label"],
+                    relationship["subject_entity_properties"],
+                    relationship["object_entity_label"],
+                    relationship["object_entity_properties"],
+                    relationship["relationship_type"],
+                    relationship["properties"],
+                )
+            logger.info(f"Inserted {len(graph_relationships)} relationships into Neo4j")
+
+            # create variations on triples for embedding
+            """
+			original : Sunworld Inc. grants_license_to PartyX
+			subject  : What grants license to PartyX?
+			object   : Sunworld Inc. grants license to what?
+			predicate: What is the relationship between Sunworld Inc. and PartyX?
+
+			original : PartyX permits_sublicensing_to PartyY
+			subject  : What permits sublicensing to PartyY?
+			object   : PartyX permits sublicensing to what?
+			predicate: What is the relationship between PartyX and PartyY?
+			"""
+
+            for relationship in graph_relationships:
+                triple_uuid = relationship["properties"]["uuid"]
+                verb_form = relationship["relationship_type"].replace("_", " ")
+                subject_entity = relationship["subject_entity_properties"]["name"]
+                object_entity = relationship["object_entity_properties"]["name"]
+
+                subject_question = f"What {verb_form} {object_entity}?"
+                object_question = f"{subject_entity} {verb_form} what?"
+                predicate_question = f"What is the relationship between {subject_entity} and {object_entity}?"
+
+                subject_embedding = await llm_service.create_embedding(
+                    subject_question, model="text-embedding-3-small"
+                )
+                subject_embedding_str = (
+                    "[" + ",".join(map(str, subject_embedding)) + "]"
+                )
+                object_embedding = await llm_service.create_embedding(
+                    object_question, model="text-embedding-3-small"
+                )
+                object_embedding_str = "[" + ",".join(map(str, object_embedding)) + "]"
+                predicate_embedding = await llm_service.create_embedding(
+                    predicate_question, model="text-embedding-3-small"
+                )
+                predicate_embedding_str = (
+                    "[" + ",".join(map(str, predicate_embedding)) + "]"
+                )
+
+                try:
+                    # Subject lookup insertion
+                    await self._vectordb_.insert_embedding_lookup(
+                        subject_embedding_str,
+                        subject_entity,
+                        triple_uuid,
+                        document_id,
+                    )
+                    # Object lookup insertion
+                    await self._vectordb_.insert_embedding_lookup(
+                        object_embedding_str,
+                        object_entity,
+                        triple_uuid,
+                        document_id,
+                    )
+                    # Predicate lookup insertion
+                    await self._vectordb_.insert_embedding_lookup(
+                        predicate_embedding_str,
+                        predicate_question,
+                        triple_uuid,
+                        document_id,
+                    )
+                except Exception as e:
+                    logger.error(f"Error inserting vector embedding lookup: {e}")
+                    continue
+
+            return {"success": True}
 
         except Exception as e:
             logger.error(f"Error in extract_triples: {e}")

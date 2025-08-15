@@ -64,8 +64,7 @@ class Neo4jService:
             raise Exception(f"Failed to execute Cypher query: {e}")
 
     async def test_get_data(self) -> List[Dict[str, Any]]:
-        """Get all data in the Neo4j instance (limited to 10 records)."""
-        query = "MATCH (n)-[r]-(m) RETURN n, r, m, id(n), id(r), id(m) LIMIT 1"
+        query = "MATCH (n)-[r]->(m) RETURN n, r, m, r.uuid, r.document_id LIMIT 10"
         return await self.execute_cypher_query(query)
 
     async def insert_entity(
@@ -120,7 +119,7 @@ class Neo4jService:
         """Clear the entire Neo4j database by deleting all nodes and relationships."""
 
         # return if not in development
-        if os.getenv("ENVIRONMENT") != "development":
+        if os.getenv("ENV") != "development":
             return {
                 "status": "failure",
                 "message": "Cannot clear database if not in dev",

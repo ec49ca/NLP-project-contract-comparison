@@ -137,6 +137,7 @@ class KnowledgeGraphExtractionAgent(AgentInterface):
             text = request.get("text", "")
             confidence_threshold = request.get("confidence_threshold", 0.7)
             max_triples = request.get("max_triples", 100)
+            document_id = request.get("document_id", "")
 
             preprocessed_text = await self._preprocess_document(
                 {
@@ -271,6 +272,7 @@ class KnowledgeGraphExtractionAgent(AgentInterface):
                     "max_triples": max_triples,
                     "entities_schema": entities_schema,
                     "relationships_schema": relationships_schema,
+                    "document_id": document_id,
                 }
             )
 

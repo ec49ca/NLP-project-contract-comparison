@@ -35,68 +35,55 @@ class KnowledgeGraphRetrievalAgent(AgentInterface):
         # Add extract_triples tool - if becomes needed
         # self._tools["extract_triples"] = ExtractTriplesTool()
 
-    """
-	TODO:
-	- route for queries for QA:
-		- embed query (embed everything in questions form:
-			- "What produces table grapes?"
-			- "What does Sunworld produce?"
-			- "What is the relationship between Sunworld and table grapes?"
-		)
-		- lookup in postgres
-		- search in neo4j
-		- return results
-	"""
-
-    async def basic_qa_lookup(self, query: str):
+    async def basic_question_answering_retrieval(self, query: str):
         embedding = await llm_service.create_embedding(
             query, model="text-embedding-3-small"
         )
         embedding_str = "[" + ",".join(map(str, embedding)) + "]"
         results = await self._vectordb_.vector_similarity_search(embedding_str)
-        return {"success": True, "results": results}
+
+        filtered_results = [
+            res["full_triple_text"] for res in results if res["full_triple_text"]
+        ]
+
+        return {"success": True, "results": filtered_results}
 
     async def test_pg(self):
         results = await self._vectordb_.get_all_embeddings_and_kg_uuids()
         return {"success": True, "results": results}
 
     async def test_neo(self):
-        embedding = await llm_service.create_embedding(
-            "Who produces grapes?",
-            model="text-embedding-3-small",
-        )
-        print("embedding type: ", type(embedding))
-        logger.info(f"Embedding result: {embedding}")
+        # test embeddings
+        # embedding = await llm_service.create_embedding(
+        #     "Who produces grapes?",
+        #     model="text-embedding-3-small",
+        # )
+
+        # Uncomment below to clear the database and vector lookup table
         # await self._graphdb_.clear_database()
+        # await self._vectordb_.initialize()
+        # await self._vectordb_.clear_kg_vector_lookup_table()
 
         await self._vectordb_.initialize()
-        # await self._vectordb_.clear_kg_vector_lookup_table()
-        # await self._vectordb_.initialize()
-
         results = await self._graphdb_.test_get_data()
-        # logger.info(f"Retrieval result: {results}")
-
-        return {"success": True, "results": results, "embedding": embedding}
+        return {"success": True, "results": results}
 
     # TODO: Fix tools setup
     def get_tools(self) -> List[Dict[str, Any]]:
         """Return agent's capabilities."""
+        # TODO: find ways to simplify input query to get it into simple qa
         return [
             {
-                "name": "retrieve",
-                "description": "Retrieve information from the knowledge graph based on the user's query",
+                "name": "basic_question_answering_retrieval",
+                "description": "Retrieves information from knowledge graph triples using vector lookup given a simple query that wants to know about a specific entity or relationship (ex: What produces grapes?)",
                 "parameters": {
-                    "query": "User query to retrieve information (required)",
-                    "intent": "Intent of the user query (optional)",
-                    "context": "Additional context for the query (optional)",
+                    "query": "User query to retrieve information (required) - Simple question in question form:\
+						- If looking for subject of triple, phrase questions as 'What [verb] [object]?'\
+						- If looking for object of triple, phrase questions as 'What does [subject] [verb]?' or '[subject] [verb] what?'\
+						- If looking for relationship between two entities, phrase questions as 'What is the relationship between [subject] and [object]?'"
                 },
                 "returnValues": {
-                    "intent": "string - Classified intent of the user query",
-                    "intent_confidence": "number - Confidence score for the intent classification (0.0-1.0)",
-                    "extracted_entities": "array - List of entities extracted from the query with text, type, and confidence",
-                    "extracted_relationships": "array - List of relationships extracted from the query",
-                    # "results": "array - Retrieved information from knowledge graph (future implementation)",
-                    # "metadata": "object - Additional execution metadata (future implementation)",
+                    "results": "array - List of triples (in full text form: 'Sunworld produces grapes') retrieved from the knowledge graph extraction",
                 },
             },
         ]
@@ -112,20 +99,15 @@ class KnowledgeGraphRetrievalAgent(AgentInterface):
             return await self.test_neo()
         elif command == "test_pg":
             return await self.test_pg()
-        elif command == "basic_qa_lookup":
-            return await self.basic_qa_lookup(request.get("query", ""))
+        elif command == "basic_question_answering_retrieval":
+            return await self.basic_question_answering_retrieval(
+                request.get("query", "")
+            )
         else:
             return {
                 "error": f"Unknown command: {command}",
                 "available_commands": [
-                    "extract_triples",
-                    "detect_document_type",
-                    "preprocess_document",
-                    "run_ner_el",
-                    "run_relation_extraction",
-                    "create_quadruples",
-                    "process_file_to_ner",
-                    "retrieve",
+                    "basic_question_answering_retrieval",
                 ],
             }
 

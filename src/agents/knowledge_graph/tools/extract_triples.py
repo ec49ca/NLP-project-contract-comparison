@@ -105,6 +105,11 @@ class ExtractTriplesTool:
                     processing_stats["processing_errors"] += 1
                     continue
 
+            # reset internal generated id
+            for i, entity in enumerate(all_entities):
+                # start at 1,2,3..
+                entity["internal_generated_id"] = i + 1
+
             # Second loop: Extract all relationships from all chunks using all entities
             logger.info("Starting relationship extraction phase")
             for chunk_num, chunk in enumerate(chunks, 1):
@@ -134,6 +139,8 @@ class ExtractTriplesTool:
                     continue
 
             processing_stats["chunks_processed"] = len(chunks)
+            logger.info(f"All entities: {all_entities}")
+            logger.info(f"All relationships: {all_relationships}")
 
             # Step 4: Post-process and deduplicate
             # TODO: implement post-processing correctly for deduplication
@@ -171,6 +178,8 @@ class ExtractTriplesTool:
                     properties[attr["name"]] = attr["value"]
                 graph_entity["properties"] = properties
                 graph_entities.append(graph_entity)
+
+            logger.info(f"Created {len(graph_entities)} graph entities")
 
             graph_relationships = []
             for relationship in all_relationships:
@@ -215,15 +224,16 @@ class ExtractTriplesTool:
             logger.info(f"Inserted {len(graph_relationships)} relationships into Neo4j")
 
             # create variations on triples for embedding
+            # TODO: make this more robust and like natural language
             """
 			original : Sunworld Inc. grants_license_to PartyX
 			subject  : What grants license to PartyX?
-			object   : Sunworld Inc. grants license to what?
+			object   : What does Sunworld Inc. grant license to?
 			predicate: What is the relationship between Sunworld Inc. and PartyX?
 
 			original : PartyX permits_sublicensing_to PartyY
 			subject  : What permits sublicensing to PartyY?
-			object   : PartyX permits sublicensing to what?
+			object   : What does PartyX permit sublicensing to?
 			predicate: What is the relationship between PartyX and PartyY?
 			"""
 
@@ -234,8 +244,11 @@ class ExtractTriplesTool:
                 object_entity = relationship["object_entity_properties"]["name"]
 
                 subject_question = f"What {verb_form} {object_entity}?"
-                object_question = f"{subject_entity} {verb_form} what?"
+                object_question = f"What does {subject_entity} {verb_form}?"
+                object_question_2 = f"{subject_entity} {verb_form} what?"
                 predicate_question = f"What is the relationship between {subject_entity} and {object_entity}?"
+
+                full_triple_text = f"{subject_entity} {verb_form} {object_entity}"
 
                 subject_embedding = await llm_service.create_embedding(
                     subject_question, model="text-embedding-3-small"
@@ -243,10 +256,21 @@ class ExtractTriplesTool:
                 subject_embedding_str = (
                     "[" + ",".join(map(str, subject_embedding)) + "]"
                 )
-                object_embedding = await llm_service.create_embedding(
+
+                object_embedding_1 = await llm_service.create_embedding(
                     object_question, model="text-embedding-3-small"
                 )
-                object_embedding_str = "[" + ",".join(map(str, object_embedding)) + "]"
+                object_embedding_str_1 = (
+                    "[" + ",".join(map(str, object_embedding_1)) + "]"
+                )
+
+                object_embedding_2 = await llm_service.create_embedding(
+                    object_question_2, model="text-embedding-3-small"
+                )
+                object_embedding_str_2 = (
+                    "[" + ",".join(map(str, object_embedding_2)) + "]"
+                )
+
                 predicate_embedding = await llm_service.create_embedding(
                     predicate_question, model="text-embedding-3-small"
                 )
@@ -259,20 +283,31 @@ class ExtractTriplesTool:
                     await self._vectordb_.insert_embedding_lookup(
                         subject_embedding_str,
                         subject_entity,
+                        full_triple_text,
                         triple_uuid,
                         document_id,
                     )
-                    # Object lookup insertion
+                    # Object 1 lookup insertion
                     await self._vectordb_.insert_embedding_lookup(
-                        object_embedding_str,
+                        object_embedding_str_1,
                         object_entity,
+                        full_triple_text,
+                        triple_uuid,
+                        document_id,
+                    )
+                    # object 2 lookup insertionj
+                    await self._vectordb_.insert_embedding_lookup(
+                        object_embedding_str_2,
+                        object_entity,
+                        full_triple_text,
                         triple_uuid,
                         document_id,
                     )
                     # Predicate lookup insertion
                     await self._vectordb_.insert_embedding_lookup(
                         predicate_embedding_str,
-                        predicate_question,
+                        verb_form,
+                        full_triple_text,
                         triple_uuid,
                         document_id,
                     )
@@ -327,8 +362,6 @@ class ExtractTriplesTool:
                 model="gpt-4o-mini",
                 temperature=0.0,
             )
-
-            print("response: ", response)
 
             if not response:
                 raise ValueError("Empty response from LLM")

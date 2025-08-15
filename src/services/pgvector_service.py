@@ -62,7 +62,12 @@ class PGVectorService:
             raise Exception(f"Failed to ping PostgreSQL: {e}")
 
     async def insert_embedding_lookup(
-        self, embedding: List[float], missing_part: str, kg_uuid: str, document_id: str
+        self,
+        embedding: List[float],
+        missing_part: str,
+        full_triple_text: str,
+        kg_uuid: str,
+        document_id: str,
     ):
         """Insert an embedding into the kg_vector_lookup table."""
         if not self.pool:
@@ -70,11 +75,11 @@ class PGVectorService:
 
         try:
             query = """
-				INSERT INTO kg_vector_lookup (embedding, missing_part, kg_uuid, document_id)
-				VALUES ($1, $2, $3, $4)
+				INSERT INTO kg_vector_lookup (embedding, missing_part, full_triple_text, kg_uuid, document_id)
+				VALUES ($1, $2, $3, $4, $5)
 			"""
             await self.execute_query(
-                query, [embedding, missing_part, kg_uuid, document_id]
+                query, [embedding, missing_part, full_triple_text, kg_uuid, document_id]
             )
         except Exception as e:
             logger.error(f"Failed to insert embedding lookup: {e}")
@@ -113,6 +118,7 @@ class PGVectorService:
 					id SERIAL PRIMARY KEY,
 					embedding vector(1536),
 					missing_part TEXT NOT NULL,
+					full_triple_text TEXT NOT NULL,
 					kg_uuid TEXT NOT NULL, -- uuid for the triple relationship, not the subject or entity
 					document_id TEXT
 				);
@@ -173,7 +179,7 @@ class PGVectorService:
         self,
         query_embedding: List[float],
         limit: int = 5,
-        similarity_threshold: float = 0.7,
+        similarity_threshold: float = 0.8,
     ) -> List[Dict[str, Any]]:
 
         if not self.pool:
@@ -188,6 +194,7 @@ class PGVectorService:
                     kg_uuid,
                     missing_part,
                     document_id,
+					full_triple_text,
                     1 - (embedding <=> $1) as similarity_score
                 FROM kg_vector_lookup
                 WHERE 1 - (embedding <=> $1) >= $2

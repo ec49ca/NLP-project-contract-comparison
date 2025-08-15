@@ -179,6 +179,39 @@ class LLMService:
             **kwargs,
         )
 
+    async def create_embedding(
+        self,
+        text: str,
+        model: Optional[str] = None,
+        provider: Optional[str] = None,
+        **kwargs,
+    ) -> List[float]:
+        """
+        Create text embeddings with optional provider override
+
+        Args:
+            text: Text to create embeddings for
+            model: Specific embedding model to use
+            provider: Override current provider for this call
+            **kwargs: Provider-specific parameters
+
+        Returns:
+            List[float]: Embedding vector
+        """
+        # Use specified provider or current default
+        if provider and provider in self.providers:
+            llm_provider = self.providers[provider]
+        elif self.current_provider:
+            llm_provider = self.current_provider
+        else:
+            raise RuntimeError("No LLM provider available")
+
+        return await llm_provider.create_embedding(
+            text=text,
+            model=model,
+            **kwargs,
+        )
+
     async def validate_all_providers(self) -> Dict[str, bool]:
         """Test all registered providers"""
         results = {}

@@ -1,27 +1,31 @@
-Extract relationships between the following entities from the document. For each relationship, provide:
-1. Source entity (from the list below)
-2. Target entity (from the list below)
-3. Relationship type (created, works_at, is_a, part_of, located_in, etc.)
-4. Confidence score (0.0 to 1.0)
+You are a system that extracts relationships between a given set of entities provided input text. Given these entities and this text generate a JSON array of relationships INTO THE EXACT RELATIONSHIP SCHEMA SPECIFIED BELOW.
 
-Available entities:
-{entity_list}
+For each relationship you extract, provide the internal generated id for both the subject and object entities from the list.
 
-Document text:
-{text}
 
-Respond with a JSON array of relationships in this exact format:
+Every relationship is different in the schema, so make sure you extract it properly according TO THE SCHEMA, RETURNING ONLY VALID JSON WITHOUT CODE GUARDS. Extract only the fields provided in the schema; be sure to extract all fields provided in the schema from the text if appropriate.
+
+IMPORTANT: OUTPUT ONLY VALID JSON WITHOUT CODE GUARDS.
+
+Respond with JSON of relationships in this exact format:
 {{
-  "relationships": [
-    {{
-      "source": "source entity name",
-      "source_type": "source entity type",
-      "target": "target entity name",
-      "target_type": "target entity type",
-      "relationship": "relationship type",
-      "confidence": 0.85
-    }}
-  ]
+	"relationships": [
+		{{
+			"name": "name of relationship extracted from schema as stated in schema",
+			"triggers": "if trigger words are applied, then state which one as defined in schema",
+	   		"subject_entity_internal_generated_id": internal_generated_id field from subject entity being referred to,
+			"object_entity_internal_generated_id": internal_generated_id field from object entity being refered to,
+    		"relationship": "relationship type",
+    		"confidence": float from 0-1.0 representing confidence of extracted entity existence,
+			"context": "context where entity is found in text - couple words (up to 30 words) that encompasses the context of the extracted entity",
+		}}
+	]
 }}
 
 Only include relationships that are clearly supported by the text.
+
+INPUTTED ENTITIES (in JSON) TO FIND RELATIONSHIPS BETWEEN:
+{entities}
+
+RELATIONSHIP SCHEMA TO EXTRACT FROM:
+{relationships_schema}

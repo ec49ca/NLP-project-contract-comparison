@@ -30,7 +30,13 @@ PROVIDER_MODEL_CONFIGS = {
             "gpt-4": "gpt-4",
             "gpt-3.5-turbo": "gpt-3.5-turbo",
         },
+        "embedding_models": {
+            "text-embedding-3-large": "text-embedding-3-large",
+            "text-embedding-3-small": "text-embedding-3-small",
+            "text-embedding-ada-002": "text-embedding-ada-002",
+        },
         "default_model": "gpt-4o",
+        "default_embedding_model": "text-embedding-3-small",
         "default_temperature": 0.1,
         "default_max_tokens": 8000,
     },

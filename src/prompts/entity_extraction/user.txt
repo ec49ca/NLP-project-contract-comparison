@@ -1,0 +1,7 @@
+Extract the entities from the following text using the schema defined below. RESPONSE ONLY IN VALID JSON WITH NO CODE GUARDS:
+
+SCHEMA:
+{entities_schema}
+
+TEXT TO EXTRACT FROM:
+{text}

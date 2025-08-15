@@ -39,7 +39,9 @@ class OpenAIProvider(LLMInterface):
             raise ValueError("OpenAI provider configuration not found in config.py")
 
         self.models = config["available_models"]
+        self.embedding_models = config["embedding_models"]
         self.default_model = config["default_model"]
+        self.default_embedding_model = config["default_embedding_model"]
         self.default_temperature = config["default_temperature"]
         self.default_max_tokens = config["default_max_tokens"]
 
@@ -149,3 +151,29 @@ class OpenAIProvider(LLMInterface):
         except Exception as e:
             logger.error(f"OpenAI connection validation failed: {e}")
             return False
+
+    async def create_embedding(
+        self, text: str, model: Optional[str] = None, **kwargs
+    ) -> List[float]:
+        """Create text embeddings using OpenAI's embedding models"""
+        try:
+            # Use provided model or default embedding model
+            actual_model = model or self.default_embedding_model
+
+            logger.info(f"Creating embedding with model: {actual_model}")
+
+            response = self.client.embeddings.create(
+                input=text, model=actual_model, **kwargs
+            )
+
+            # Extract embedding vector from response
+            embedding = response.data[0].embedding
+
+            logger.info(
+                f"Successfully created embedding with {len(embedding)} dimensions"
+            )
+            return embedding
+
+        except Exception as e:
+            logger.error(f"OpenAI embedding creation failed: {e}")
+            raise

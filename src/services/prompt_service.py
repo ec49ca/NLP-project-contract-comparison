@@ -153,20 +153,29 @@ class PromptService:
             confidence_threshold=confidence_threshold,
         )
 
-    def get_entity_extraction_prompt(self, text: str) -> Dict[str, str]:
+    def get_entity_extraction_prompt(
+        self, text: str, entities_schema: List[str]
+    ) -> Dict[str, str]:
         """
         PROMPT for entity extraction.
         """
-        return self.get_prompt("entity_extraction", text=text)
+
+        return self.get_prompt(
+            "entity_extraction", text=text, entities_schema=entities_schema
+        )
 
     def get_relationship_extraction_prompt(
-        self, text: str, entity_list: str
+        self, text: str, entities: List[str], relationships_schema: List[str]
     ) -> Dict[str, str]:
         """
         PROMPT for relationship extraction.
         """
+
         return self.get_prompt(
-            "relationship_extraction", text=text, entity_list=entity_list
+            "relationship_extraction",
+            text=text,
+            entities=entities,
+            relationships_schema=relationships_schema,
         )
 
     def get_relation_extraction_prompt(

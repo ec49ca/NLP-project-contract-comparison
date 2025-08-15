@@ -28,7 +28,7 @@ class AgentRegistrySystem:
         # NOTE: this is the ONLY time UUID should be GENERATED, retrieval should happen from agent.uuid
         namespace = SAMVID_AGENT_NAMESPACE
         agent_id = uuid.uuid5(namespace, agent.agent_id_str)
-        print(
+        logger.info(
             f"Registering '{agent.name}' with string_id '{agent.agent_id_str}' and uuid: '{agent_id}'"
         )
         agent.uuid = agent_id  # set the uuid on the agent instance

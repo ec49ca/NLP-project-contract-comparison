@@ -1,15 +1,11 @@
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
+import os
 from typing import Dict, Any, Optional, Set, Type
 from uuid import UUID
 import logging
 from contextlib import asynccontextmanager
-from ..registry.registry import AgentRegistrySystem
-from ..discovery.agent_discovery import AgentDiscovery
-from ..interfaces.agent import AgentInterface
-from ..registry.registry_models import AgentStatus
-from ..services.llm_service import llm_service
-
+import asyncpg
 from ..meta.meta_agent import MetaAgent
 
 # Configure logging
@@ -22,17 +18,46 @@ logger = logging.getLogger(__name__)
 
 meta_agent = MetaAgent()
 
+# Database connection pool
+db_pool: Optional[asyncpg.Pool] = None
+
+
+async def get_db_pool() -> asyncpg.Pool:
+    """Get or create database connection pool"""
+    global db_pool
+    if db_pool is None:
+        database_url = os.getenv("POSTGRES_DATABASE_URL")
+        if not database_url:
+            raise ValueError("POSTGRES_DATABASE_URL environment variable is not set")
+        db_pool = await asyncpg.create_pool(database_url)
+        logger.info("Database connection pool created")
+
+    return db_pool
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    # global meta_agent
-    # meta_agent = await MetaAgent()
-
     await auto_register_agents()
+    # Initialize database connection
+    try:
+        logger.info("Initializing database connection")
+        db_pool = await get_db_pool()
+        logger.info("Database connection initialized")
+
+        # Send a ping query to test the connection
+        async with db_pool.acquire() as conn:
+            ping_result = await conn.fetchval("SELECT 1 as ping")
+            logger.info(f"Database ping result: {ping_result}")
+
+    except Exception as e:
+        logger.error(f"Failed to initialize database connection: {e}")
     yield
 
     # Shutdown
+    if db_pool:
+        await db_pool.close()
+        logger.info("Database connection pool closed")
     logger.info("Shutting down MCP server")
 
 
@@ -52,13 +77,47 @@ app.add_middleware(
 async def health_check():
     """Health check endpoint"""
     registry_state = await meta_agent.agent_registry.get_registry_state()
+
+    # Check database connection
+    db_status = "disconnected"
+    try:
+        pool = await get_db_pool()
+        async with pool.acquire() as conn:
+            await conn.fetchval("SELECT 1")
+        db_status = "connected"
+    except Exception as e:
+        logger.error(f"Database health check failed: {e}")
+
     return {
         "status": "healthy",
         "server_initialized": True,
         "agents_count": registry_state.get("total_agents", 0),
         "active_agents": registry_state.get("active_agents", 0),
+        "database_status": db_status,
         "version": "0.1.0",
     }
+
+
+@app.get("/documents")
+async def get_all_documents():
+    """Fetch all entries from the documents table"""
+    try:
+        pool = await get_db_pool()
+        async with pool.acquire() as conn:
+            # Fetch all documents from the documents table
+            documents = await conn.fetch("SELECT * FROM documents")
+
+            # Convert to list of dictionaries for JSON serialization
+            result = []
+            for doc in documents:
+                result.append(dict(doc))
+
+            return {"success": True, "count": len(result), "documents": result}
+    except Exception as e:
+        logger.error(f"Error fetching documents: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to fetch documents: {str(e)}"
+        )
 
     # @app.get("/mcp/{agent_id}/tools")
     # async def list_tools(agent_id: str):
@@ -80,25 +139,8 @@ async def list_agents():
     return await meta_agent.get_agents()
 
 
-"""
-/execute/{agent_id}/{tool_id} should return:
-{
-	"success": true,
-	"error": "string (optional)",
-	"metadata": {
-		"executionTime": "number",
-		"toolVersion": "string ('1.0' if not defined)"
-	},
-	"data": {
-		[same values returned from tool, specified in each of the return values of get_tools()'s returnValues field]
-	}
-}
-"""
-
-
 @app.post("/mcp/execute")
 async def execute_agent(request: Dict[str, Any]):
-    print("notebook request: ", request)
     try:
         query = request.get("query")
         if not query:
@@ -118,7 +160,7 @@ async def execute_agent(request: Dict[str, Any]):
 
 
 @app.post("/mcp/execute/{agent_id}")
-async def execute_agent(agent_id: str, request: Dict[str, Any]):
+async def execute_agent_by_id(agent_id: str, request: Dict[str, Any]):
     try:
         if not request.get("query"):
             return HTTPException(status_code=400, detail="Query is required")
@@ -131,98 +173,70 @@ async def execute_agent(agent_id: str, request: Dict[str, Any]):
         return HTTPException(status_code=500, detail=str(e))
 
 
-# TODO: UUID hash for tools
-@app.post("/execute/{agent_id}/{tool_id}")
-async def execute_agent_capability(
-    agent_id: str, tool_id: str, parameters: Dict[str, Any]
-):
-    """
-    Execute a specific tool of an agent.
-    This endpoint allows direct execution of agent tools by ID.
+# POST "/execute/{agent_id}/{tool_id}"
+# dev endpoint, so doesn't have to be robust
+if os.getenv("ENV") == "development":
+    # TODO: UUID hash for tools
+    @app.post("/execute/{agent_id}/{tool_id}")
+    async def execute_agent_capability(
+        agent_id: str, tool_id: str, parameters: Dict[str, Any]
+    ):
+        """
+        Execute a specific tool of an agent.
+        This endpoint allows direct execution of agent tools by ID.
+        """
+        print(f"Executing {agent_id}.{tool_id} with parameters {parameters}")
+        import time
 
-    Args:
-                                                                    agent_id: The UUID of the agent to execute
-                                                                    tool_id: The ID/name of the tool to execute
-                                                                    parameters: The parameters to pass to the tool (in request body)
+        start_time = time.time()
 
-    Returns:
-                                                                    Structured response with success status, metadata, and tool result data
-    """
-    print(f"Executing {agent_id}.{tool_id} with parameters {parameters}")
-    import time
+        try:
+            # Get the agent instance
+            agent_uuid = UUID(agent_id)
+            agent = await meta_agent.agent_registry.get_agent(agent_uuid)
 
-    start_time = time.time()
+            if not agent:
+                return {
+                    "success": False,
+                    "error": f"Agent with ID {agent_id} not found",
+                    "metadata": {
+                        "executionTime": (time.time() - start_time) * 1000,
+                        "toolVersion": "1.0",
+                    },
+                    "data": {},
+                }
 
-    try:
-        # Get the agent instance
-        agent_uuid = UUID(agent_id)
-        agent = await meta_agent.agent_registry.get_agent(agent_uuid)
+            # Execute the tool
+            request = {"command": tool_id, **parameters}
+            result = await agent.process_request(request)
 
-        if not agent:
+            execution_time = (time.time() - start_time) * 1000
+
             return {
-                "success": False,
-                "error": f"Agent with ID {agent_id} not found",
+                "success": True,
                 "metadata": {
-                    "executionTime": (time.time() - start_time) * 1000,
-                    "toolVersion": "1.0",
+                    "executionTime": execution_time,
                 },
-                "data": {},
+                "data": result,
             }
 
-        # Check if the agent has the requested tool
-        tools_list = agent.get_tools()
-        available_tools = [tool.get("name", "") for tool in tools_list]
-
-        # Find the specific tool to get its version
-        tool_version = "1.0"  # default
-        tool_found = False
-        for tool in tools_list:
-            if tool.get("name", "") == tool_id:
-                tool_found = True
-                # Check if tool has version info in metadata or other fields
-                tool_version = tool.get("version", tool.get("toolVersion", "1.0"))
-                break
-
-        if not tool_found:
+        except ValueError as e:
+            execution_time = (time.time() - start_time) * 1000
             return {
                 "success": False,
-                "error": f"Tool '{tool_id}' not found in agent '{agent_id}'. Available tools: {available_tools}",
-                "metadata": {
-                    "executionTime": (time.time() - start_time) * 1000,
-                    "toolVersion": tool_version,
-                },
+                "error": f"Invalid agent ID: {str(e)}",
+                "metadata": {"executionTime": execution_time, "toolVersion": "1.0"},
                 "data": {},
             }
-
-        # Execute the tool
-        request = {"command": tool_id, **parameters}
-        result = await agent.process_request(request)
-
-        execution_time = (time.time() - start_time) * 1000
-
-        return {
-            "success": True,
-            "metadata": {"executionTime": execution_time, "toolVersion": tool_version},
-            "data": result,
-        }
-
-    except ValueError as e:
-        execution_time = (time.time() - start_time) * 1000
-        return {
-            "success": False,
-            "error": f"Invalid agent ID: {str(e)}",
-            "metadata": {"executionTime": execution_time, "toolVersion": "1.0"},
-            "data": {},
-        }
-    except Exception as e:
-        execution_time = (time.time() - start_time) * 1000
-        logger.error(f"Error executing {agent_id}.{tool_id}: {str(e)}")
-        return {
-            "success": False,
-            "error": str(e),
-            "metadata": {"executionTime": execution_time, "toolVersion": "1.0"},
-            "data": {},
-        }
+        except Exception as e:
+            execution_time = (time.time() - start_time) * 1000
+            logger.error(f"Error executing {agent_id}.{tool_id}: {str(e)}")
+            return {
+                "success": False,
+                "error": str(e),
+                "metadata": {"executionTime": execution_time, "toolVersion": "1.0"},
+                "data": {},
+            }
 
 
 async def auto_register_agents():
@@ -323,48 +337,6 @@ async def auto_register_agents():
 #         raise
 #     except Exception as e:
 #         logger.error(f"Error in tool generator: {str(e)}")
-#         raise HTTPException(status_code=500, detail=str(e))
-
-
-# @app.post("/llm/completion")
-# async def llm_completion(request: Dict[str, Any]):
-#     """
-#     Simple LLM completion endpoint that proxies to llm_service.simple_completion.
-
-#     Expected request format:
-#     {
-#         "prompt": "Your prompt here",
-#         "model": "optional-model-name",
-#         "temperature": 0.7,
-#         "max_tokens": 1000,
-#         "provider": "openai",
-#         "response_format": {"type": "json_object"}
-#     }
-
-#     Returns:
-#     {
-#         "completion": "LLM response text",
-#         "provider": "provider_name",
-#         "model": "model_used"
-#     }
-#     """
-#     try:
-#         # Extract required and optional parameters
-#         prompt = request.get("prompt")
-#         if not prompt:
-#             raise HTTPException(status_code=400, detail="Prompt is required")
-
-#         # Call the LLM service
-#         completion = await llm_service.simple_completion(prompt)
-
-#         return {
-#             "completion": completion,
-#         }
-
-#     except HTTPException:
-#         raise
-#     except Exception as e:
-#         logger.error(f"Error in LLM completion: {str(e)}")
 #         raise HTTPException(status_code=500, detail=str(e))
 
 

@@ -85,3 +85,20 @@ class LLMInterface(ABC):
     async def validate_connection(self) -> bool:
         """Test if the provider connection is working"""
         pass
+
+    @abstractmethod
+    async def create_embedding(
+        self, text: str, model: Optional[str] = None, **kwargs
+    ) -> List[float]:
+        """
+        Create text embeddings
+
+        Args:
+            text: Text to create embeddings for
+            model: Specific embedding model to use
+            **kwargs: Provider-specific parameters
+
+        Returns:
+            List[float]: Embedding vector
+        """
+        pass

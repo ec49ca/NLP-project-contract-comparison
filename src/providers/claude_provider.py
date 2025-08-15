@@ -143,3 +143,10 @@ class ClaudeProvider(LLMInterface):
         except Exception as e:
             logger.error(f"Claude connection validation failed: {e}")
             return False
+
+    async def create_embedding(
+        self, text: str, model: Optional[str] = None, **kwargs
+    ) -> List[float]:
+        """Create text embeddings - Claude doesn't support embeddings"""
+        logger.error("Claude provider does not support text embeddings")
+        raise NotImplementedError("Claude provider does not support text embeddings")

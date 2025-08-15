@@ -4,9 +4,11 @@ Neo4j Service for Knowledge Graph Storage
 Handles connection to Neo4j and provides methods to insert triples.
 """
 
+from multiprocessing import process
 from neo4j import GraphDatabase
 import os
 import logging
+import asyncio
 from typing import List, Dict, Any
 
 logger = logging.getLogger(__name__)
@@ -16,113 +18,121 @@ logger = logging.getLogger(__name__)
 
 class Neo4jService:
     def __init__(self):
-        return
         uri = os.getenv("NEO4J_URI", "bolt://neo4j:7687")
         user = os.getenv("NEO4J_USER", "neo4j")
         password = os.getenv("NEO4J_PASSWORD", "samvidneo4j")
         self.driver = GraphDatabase.driver(uri, auth=(user, password))
         logger.info(f"Connected to Neo4j at {uri} as {user}")
 
-        # Import initial data from TTL file
-        # try:
-        #     self.import_ttl_data("sunworld_test_data/kg_data.ttl")
-        #     logger.info("Sucessfully imported synthetic KG data")
-        # except Exception as e:
-        #     logger.error(f"Failed to import initial KG data: {e}")
-
-        # self.test_connection_and_data()
+        # Test the connection with a ping
+        self.ping()
 
     def close(self):
         self.driver.close()
 
-    def insert_triples(self, triples: List[Dict[str, Any]]):
-        with self.driver.session() as session:
-            for triple in triples:
-                session.write_transaction(self._create_triple, triple)
+    def ping(self):
+        """Test the Neo4j connection with a simple query."""
+        try:
+            with self.driver.session() as session:
+                result = session.run("RETURN 1 as test")
+                record = result.single()
+                if record and record["test"] == 1:
+                    logger.info("✅ Neo4j connection successful - ping test passed")
+                else:
+                    logger.error("❌ Neo4j ping test failed - unexpected result")
+                    raise Exception("Neo4j ping test failed")
+        except Exception as e:
+            logger.error(f"❌ Neo4j connection failed: {e}")
+            raise Exception(f"Failed to connect to Neo4j: {e}")
 
-    @staticmethod
-    def _create_triple(tx, triple: Dict[str, Any]):
-        # Cypher query to create nodes and relationship
-        query = (
-            "MERGE (s:Entity {name: $subject}) "
-            "MERGE (o:Entity {name: $object}) "
-            "MERGE (s)-[r:RELATION {type: $predicate}]->(o) "
-            "SET r.confidence = $confidence, r.source = $source "
-        )
-        tx.run(
-            query,
-            subject=triple["subject"],
-            predicate=triple["predicate"],
-            object=triple["object"],
-            confidence=triple.get("confidence", 1.0),
-            source=triple.get("source", "unknown"),
-        )
-
-    async def run_cypher_query(
+    async def execute_cypher_query(
         self, query: str, parameters: Dict[str, Any] = None
     ) -> List[Dict[str, Any]]:
-        """Runs a Cypher query and returns the results."""
-        if parameters is None:
-            parameters = {}
-        with self.driver.session() as session:
-            result = session.run(query, parameters)
-            return [record.data() for record in result]
-
-    def import_ttl_data(self, ttl_file_path: str):
-        """Imports data from a TTL file into Neo4j."""
+        """Execute a Cypher query with optional parameters and return the results."""
         try:
-            from rdflib import Graph
 
-            g = Graph()
-            g.parse(ttl_file_path, format="turtle")
+            def _run_query():
+                with self.driver.session() as session:
+                    result = session.run(query, parameters or {})
+                    return [record.data() for record in result]
 
-            triples_to_insert = []
-            for s, p, o in g:
-                # Convert RDFLib URIs/Literals to strings for Neo4j
-                subject = str(s)
-                predicate = str(p)
-                obj = str(o)
-
-                triples_to_insert.append(
-                    {
-                        "subject": subject,
-                        "predicate": predicate,
-                        "object": obj,
-                        "confidence": 1.0,  # Default confidence for imported data
-                        "source": ttl_file_path,
-                    }
-                )
-
-            if triples_to_insert:
-                self.insert_triples(triples_to_insert)
-                logger.info(
-                    f"Successfully imported {len(triples_to_insert)} triples from {ttl_file_path}"
-                )
-            else:
-                logger.info(f"No triples found in {ttl_file_path} to import.")
-
-        except ImportError:
-            logger.error(
-                "rdflib is not installed. Please install it: pip install rdflib"
-            )
-            raise
+            # Run the blocking operation in a thread pool
+            loop = asyncio.get_event_loop()
+            return await loop.run_in_executor(None, _run_query)
         except Exception as e:
-            logger.error(f"Error importing TTL data from {ttl_file_path}: {e}")
-            raise
+            logger.error(f"Failed to execute Cypher query: {e}")
+            raise Exception(f"Failed to execute Cypher query: {e}")
 
-    def test_connection_and_data(self):
-        """Tests the Neo4j connection and prints a sample of imported data."""
+    async def test_get_data(self) -> List[Dict[str, Any]]:
+        """Get all data in the Neo4j instance (limited to 10 records)."""
+        query = "MATCH (n)-[r]-(m) RETURN n, r, m, id(n), id(r), id(m) LIMIT 1"
+        return await self.execute_cypher_query(query)
+
+    async def insert_entity(
+        self, label: str, properties: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
+        """Insert a single entity (node) into the Neo4j database."""
+        properties = properties or {}
+
+        # Build the Cypher query for creating a node
+        query = f"CREATE (n:{label} $props) RETURN n"
+        parameters = {"props": properties}
+
+        result = await self.execute_cypher_query(query, parameters)
+        return result[0] if result else {}
+
+    async def insert_relationship(
+        self,
+        from_label: str,
+        from_properties: Dict[str, Any],
+        to_label: str,
+        to_properties: Dict[str, Any],
+        relationship_type: str,
+        relationship_properties: Dict[str, Any] = None,
+    ) -> Dict[str, Any]:
+        """Insert a relationship between two entities."""
+        relationship_properties = relationship_properties or {}
+
+        # Build literal property maps for MERGE patterns
+        from_props_str = ", ".join([f"{k}: $from_{k}" for k in from_properties.keys()])
+        to_props_str = ", ".join([f"{k}: $to_{k}" for k in to_properties.keys()])
+
+        # Build Cypher query to match/create nodes and create relationship
+        query = f"""
+		MERGE (from:{from_label} {{{from_props_str}}})
+		MERGE (to:{to_label} {{{to_props_str}}})
+		CREATE (from)-[r:{relationship_type} $rel_props]->(to)
+		RETURN from, r, to
+		"""
+
+        # Flatten parameters with prefixes to avoid conflicts
+        parameters = {}
+        for k, v in from_properties.items():
+            parameters[f"from_{k}"] = v
+        for k, v in to_properties.items():
+            parameters[f"to_{k}"] = v
+        parameters["rel_props"] = relationship_properties
+
+        result = await self.execute_cypher_query(query, parameters)
+        return result[0] if result else {}
+
+    async def clear_database(self) -> Dict[str, Any]:
+        """Clear the entire Neo4j database by deleting all nodes and relationships."""
+
+        # return if not in development
+        if os.getenv("ENVIRONMENT") != "development":
+            return {
+                "status": "failure",
+                "message": "Cannot clear database if not in dev",
+            }
+
         try:
-            query = "MATCH (s)-[r]->(o) RETURN s.name, type(r), o.name LIMIT 10"
-            results = self.run_cypher_query(query)
-            if results:
-                logger.info("\n--- Neo4j Sample Data ---")
-                for record in results:
-                    logger.info(
-                        f"Subject: {record.get('s.name')}, Predicate: {record.get('type(r)')}, Object: {record.get('o.name')}"
-                    )
-                logger.info("--- End Neo4j Sample Data ---\n")
-            else:
-                logger.info("No data found in Neo4j after import.")
+            # Delete all relationships first, then all nodes
+            query = "MATCH (n) DETACH DELETE n"
+            await self.execute_cypher_query(query)
+
+            logger.info("✅ Neo4j database cleared successfully")
+            return {"status": "success", "message": "Database cleared successfully"}
         except Exception as e:
-            logger.error(f"Error testing Neo4j connection or data: {e}")
+            logger.error(f"❌ Failed to clear Neo4j database: {e}")
+            raise Exception(f"Failed to clear Neo4j database: {e}")

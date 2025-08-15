@@ -6,11 +6,14 @@ This tool extracts triples (subject-predicate-object relationships) from unstruc
 
 import json
 import logging
+import asyncio
 from typing import Dict, Any, List, Optional
 from ....services.llm_service import llm_service
 from ....services.prompt_service import prompt_service
 
 logger = logging.getLogger(__name__)
+
+# TODO: make this not shit (should extract more entities /relationships but doesn't)
 
 
 # this is the extract_triples tool. it is used to extract triples from unstructured text using OpenAI.
@@ -23,39 +26,99 @@ class ExtractTriplesTool:
         self.llm_service = llm_service
 
     async def execute_tool(self, arguments: Dict[str, Any]) -> Any:
-        """Execute the extract_triples tool"""
+        """Execute the extract_triples tool with chunking support"""
         text = arguments.get("text", "")
         confidence_threshold = arguments.get("confidence_threshold", 0.7)
         max_triples = arguments.get("max_triples", 100)
+        entities_schema = arguments.get("entities_schema", [])
+        relationships_schema = arguments.get("relationships_schema", [])
+        chunk_size = arguments.get("chunk_size", 5000)  # Process in chunks
 
         try:
             # Step 1: Text Preprocessing
             processed_text = self._preprocess_text(text)
 
-            # Step 2: Entity Extraction using LLM
-            prompt = prompt_service.get_entity_extraction_prompt(text=processed_text)
-            response = await self._make_llm_call(prompt)
-            entities = self._parse_entity_response(response)
-
-            # Step 3: Relationship Extraction using LLM
-            relationships = await self._extract_relationships(processed_text, entities)
-
-            # Step 4: Triple Generation
-            triples = self._generate_triples(entities, relationships)
-
-            # Step 5: Confidence Scoring & Filtering
-            scored_triples = self._score_and_filter_triples(
-                triples, confidence_threshold, max_triples
+            logger.info(
+                f"Starting triple extraction. Content length: {len(processed_text)}"
             )
 
-            return {
-                "triples": scored_triples,
-                "confidence_threshold": confidence_threshold,
-                "max_triples_requested": max_triples,
-                "total_extracted": len(scored_triples),
-                "entities_found": len(entities),
-                "relationships_found": len(relationships),
+            # Step 2: Split text into manageable chunks
+            chunks = self._split_into_chunks(processed_text, chunk_size)
+
+            logger.info(
+                f"Processing {len(chunks)} chunks for entity and relationship extraction"
+            )
+
+            # Step 3: Process chunks sequentially, maintaining running entity list
+            all_entities = []
+            all_relationships = []
+            processing_stats = {
+                "chunks_processed": 0,
+                "total_entities": 0,
+                "total_relationships": 0,
+                "processing_errors": 0,
             }
+
+            # Process each chunk, passing accumulated entities to avoid re-extraction
+            for chunk_num, chunk in enumerate(chunks, 1):
+                logger.info(f"Processing chunk {chunk_num}/{len(chunks)}")
+
+                try:
+                    # Extract entities from this chunk
+                    chunk_entities = await self._extract_entities_from_chunk(
+                        chunk, entities_schema, chunk_num, all_entities
+                    )
+
+                    # Add new entities to running list
+                    all_entities.extend(chunk_entities)
+
+                    # Extract relationships using all entities found so far
+                    chunk_relationships = await self._extract_relationships_from_chunk(
+                        chunk, all_entities, relationships_schema, chunk_num
+                    )
+
+                    all_relationships.extend(chunk_relationships)
+
+                    processing_stats["chunks_processed"] += 1
+                    processing_stats["total_entities"] += len(chunk_entities)
+                    processing_stats["total_relationships"] += len(chunk_relationships)
+
+                    logger.info(
+                        f"Chunk {chunk_num}: +{len(chunk_entities)} entities, +{len(chunk_relationships)} relationships. Total: {len(all_entities)} entities"
+                    )
+
+                except Exception as chunk_error:
+                    logger.error(f"Error processing chunk {chunk_num}: {chunk_error}")
+                    processing_stats["processing_errors"] += 1
+                    continue
+
+            # Step 4: Post-process and deduplicate
+            final_entities = self._post_process_entities(
+                all_entities, confidence_threshold
+            )
+            print("final_entities: ", final_entities)
+            final_relationships = self._post_process_relationships(
+                all_relationships, confidence_threshold
+            )
+            print("final_relationships: ", final_relationships)
+
+            logger.info(
+                f"Triple extraction completed. Found {len(final_entities)} unique entities, {len(final_relationships)} unique relationships"
+            )
+
+            result = {
+                "entities": final_entities,
+                "relationships": final_relationships,
+                "statistics": {
+                    "chunks_processed": processing_stats["chunks_processed"],
+                    "total_entities": len(final_entities),
+                    "total_relationships": len(final_relationships),
+                    "processing_errors": processing_stats["processing_errors"],
+                },
+                "success": True,
+            }
+
+            return result
 
         except Exception as e:
             logger.error(f"Error in extract_triples: {e}")
@@ -63,89 +126,28 @@ class ExtractTriplesTool:
             return self._fallback_response(confidence_threshold, max_triples)
 
     def _preprocess_text(self, text: str) -> str:
-        """Preprocess the input text"""
+        """Preprocess the input text without truncation (chunking handles size)"""
         # Remove extra whitespace and normalize
         processed = " ".join(text.split())
 
-        # Limit text length to avoid token limits
-        if len(processed) > 12000:
-            processed = processed[:12000]
-            logger.info("Text truncated to 12000 characters to avoid token limits")
+        logger.info(f"Text preprocessed. Length: {len(processed)} characters")
 
         return processed
 
-    def _generate_triples(
-        self, entities: List[Dict[str, Any]], relationships: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
-        """Generate triples from entities and relationships"""
-        triples = []
-
-        # Generate triples from entities (type and attribute triples)
-        for entity in entities:
-            # Entity type triple
-            triples.append(
-                {
-                    "subject": entity["name"],
-                    "predicate": "is_a",
-                    "object": entity["type"],
-                    "confidence": entity.get("confidence", 0.8),
-                    "source": "entity_extraction",
-                }
-            )
-
-        # Generate triples from relationships
-        for rel in relationships:
-            triples.append(
-                {
-                    "subject": rel["source"],
-                    "predicate": rel["relationship"],
-                    "object": rel["target"],
-                    "confidence": rel.get("confidence", 0.8),
-                    "source": "relationship_extraction",
-                }
-            )
-
-        return triples
-
-    def _score_and_filter_triples(
-        self,
-        triples: List[Dict[str, Any]],
-        confidence_threshold: float,
-        max_triples: int,
-    ) -> List[Dict[str, Any]]:
-        """Score and filter triples based on confidence and limits"""
-        # Filter by confidence threshold
-        filtered_triples = [
-            triple
-            for triple in triples
-            if triple.get("confidence", 0) >= confidence_threshold
-        ]
-
-        # Sort by confidence (highest first)
-        filtered_triples.sort(key=lambda x: x.get("confidence", 0), reverse=True)
-
-        # Limit to max_triples
-        if len(filtered_triples) > max_triples:
-            filtered_triples = filtered_triples[:max_triples]
-
-        return filtered_triples
-
     async def _extract_relationships(
-        self, text: str, entities: List[Dict[str, Any]]
+        self, text: str, entities: List[Dict[str, Any]], relationships_schema: List[str]
     ) -> List[Dict[str, Any]]:
         """Extract relationships between entities using LLM service (replaces openai_service.extract_relationships)"""
         try:
             if not entities or len(entities) < 2:
                 return []
 
-            entity_list_str = "\n".join(
-                [f"- {entity['name']} ({entity['type']})" for entity in entities]
-            )
             prompt = prompt_service.get_relationship_extraction_prompt(
-                text=text, entity_list=entity_list_str
+                text=text, entities=entities, relationships_schema=relationships_schema
             )
+
             response = await self._make_llm_call(prompt)
-            return self._parse_relationship_response(response)
+            return response
         except Exception as e:
             logger.error(f"Error extracting relationships: {e}")
             return []
@@ -154,100 +156,346 @@ class ExtractTriplesTool:
         """Make LLM API call using llm_service (replaces openai_service._make_openai_call)"""
         try:
             logger.info("Making LLM API call")
-            response = await self.llm_service.simple_completion(
-                prompt=prompt, response_format={"type": "json_object"}
+
+            response = await self.llm_service.chat_completion(
+                messages=[
+                    {"role": "system", "content": prompt["system"]},
+                    {"role": "user", "content": prompt["user"]},
+                ],
+                model="gpt-4o-mini",
+                temperature=0.0,
             )
+
+            print("response: ", response)
 
             if not response:
                 raise ValueError("Empty response from LLM")
 
-            logger.info("LLM API call successful")
             return response
         except Exception as e:
             logger.error(f"LLM API call failed: {e}")
             raise
-
-    def _parse_entity_response(self, response: str) -> List[Dict[str, Any]]:
-        """Parse entity extraction response (from original openai_service)"""
-        try:
-            import json
-
-            parsed = json.loads(response)
-            entities = parsed.get("entities", [])
-
-            # Validate entity format
-            validated_entities = []
-            for entity in entities:
-                if all(
-                    key in entity for key in ["name", "type", "context", "confidence"]
-                ):
-                    validated_entities.append(entity)
-                else:
-                    logger.warning(f"Skipping invalid entity: {entity}")
-
-            logger.info(f"Extracted {len(validated_entities)} entities")
-            return validated_entities
-
-        except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse entity response: {e}")
-            return []
-
-    def _parse_relationship_response(self, response: str) -> List[Dict[str, Any]]:
-        """Parse relationship extraction response (from original openai_service)"""
-        try:
-            import json
-
-            parsed = json.loads(response)
-            relationships = parsed.get("relationships", [])
-
-            # Validate relationship format
-            validated_relationships = []
-            for rel in relationships:
-                if all(
-                    key in rel
-                    for key in [
-                        "source",
-                        "source_type",
-                        "target",
-                        "target_type",
-                        "relationship",
-                        "confidence",
-                    ]
-                ):
-                    validated_relationships.append(rel)
-                else:
-                    logger.warning(f"Skipping invalid relationship: {rel}")
-
-            logger.info(f"Extracted {len(validated_relationships)} relationships")
-            return validated_relationships
-
-        except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse relationship response: {e}")
-            return []
 
     def _fallback_response(
         self, confidence_threshold: float, max_triples: int
     ) -> Dict[str, Any]:
         """Fallback response when extraction fails"""
         return {
-            "triples": [
-                {
-                    "subject": "Python",
-                    "predicate": "is_a",
-                    "object": "programming_language",
-                    "confidence": 0.95,
-                },
-                {
-                    "subject": "Python",
-                    "predicate": "created_by",
-                    "object": "Guido_van_Rossum",
-                    "confidence": 0.92,
-                },
-            ],
-            "confidence_threshold": confidence_threshold,
-            "max_triples_requested": max_triples,
-            "total_extracted": 2,
-            "entities_found": 2,
-            "relationships_found": 1,
-            "note": "Fallback response due to extraction error",
+            "error": "Failed to extract triples",
+            "success": False,
         }
+
+    def _split_into_chunks(self, content: str, chunk_size: int) -> List[str]:
+        """Split content into manageable chunks preserving record boundaries"""
+        # Split by double newlines (record boundaries) first - same as ner_el_tool
+        records = content.split("\n\n")
+        chunks = []
+        current_chunk = ""
+
+        for record in records:
+            # If adding this record would exceed chunk size, start new chunk
+            if len(current_chunk) + len(record) + 2 > chunk_size and current_chunk:
+                chunks.append(current_chunk.strip())
+                current_chunk = record
+            else:
+                if current_chunk:
+                    current_chunk += "\n\n" + record
+                else:
+                    current_chunk = record
+
+        # Add final chunk
+        if current_chunk:
+            chunks.append(current_chunk.strip())
+
+        # If no double newlines found, split by sentences
+        if len(chunks) == 1 and len(chunks[0]) > chunk_size:
+            # Split by single newlines
+            sentences = chunks[0].split("\n")
+            chunks = []
+            current_chunk = ""
+
+            for sentence in sentences:
+                if (
+                    len(current_chunk) + len(sentence) + 1 > chunk_size
+                    and current_chunk
+                ):
+                    chunks.append(current_chunk.strip())
+                    current_chunk = sentence
+                else:
+                    if current_chunk:
+                        current_chunk += "\n" + sentence
+                    else:
+                        current_chunk = sentence
+
+            if current_chunk:
+                chunks.append(current_chunk.strip())
+
+        # If still too large, force split by words
+        final_chunks = []
+        for chunk in chunks:
+            if len(chunk) <= chunk_size:
+                final_chunks.append(chunk)
+            else:
+                words = chunk.split()
+                current_chunk = ""
+                for word in words:
+                    if (
+                        len(current_chunk) + len(word) + 1 > chunk_size
+                        and current_chunk
+                    ):
+                        final_chunks.append(current_chunk.strip())
+                        current_chunk = word
+                    else:
+                        if current_chunk:
+                            current_chunk += " " + word
+                        else:
+                            current_chunk = word
+
+                if current_chunk:
+                    final_chunks.append(current_chunk.strip())
+
+        return final_chunks
+
+    def _extract_entity_text(self, entity: Dict[str, Any]) -> str:
+        """Extract text content from entity regardless of format"""
+        # Handle different entity formats (from schema-based extraction)
+        if "text" in entity:
+            return entity.get("text", "").strip()
+        elif "attributes" in entity:
+            # Look for text in attributes
+            for attr in entity.get("attributes", []):
+                if attr.get("name", "").lower() in ["text", "name", "value"]:
+                    return attr.get("value", "").strip()
+        return ""
+
+    def _entity_already_extracted(
+        self, new_entity: Dict[str, Any], existing_entities: List[Dict[str, Any]]
+    ) -> bool:
+        """Check if an entity has already been extracted to avoid duplicates"""
+        new_text = self._extract_entity_text(new_entity).lower().strip()
+        new_label = new_entity.get("label", "")
+
+        if not new_text:
+            return True  # Skip entities without text
+
+        for existing in existing_entities:
+            existing_text = self._extract_entity_text(existing).lower().strip()
+            existing_label = existing.get("label", "")
+
+            # Consider it duplicate if text and label match
+            if new_text == existing_text and new_label == existing_label:
+                return True
+
+        return False
+
+    async def _extract_entities_from_chunk(
+        self,
+        chunk: str,
+        entities_schema: List[str],
+        chunk_num: int,
+        existing_entities: List[Dict[str, Any]],
+    ) -> List[Dict[str, Any]]:
+        """Extract entities from a single chunk, avoiding entities already extracted"""
+        try:
+            # Build prompt using prompt_service
+            prompt = prompt_service.get_entity_extraction_prompt(
+                text=chunk, entities_schema=entities_schema
+            )
+
+            # Make LLM call
+            response = await self._make_llm_call(prompt)
+
+            # Parse the response
+            entities = json.loads(response["choices"][0]["message"]["content"])[
+                "entities"
+            ]
+
+            # Filter out entities that were already extracted
+            new_entities = []
+            for entity in entities:
+                if not self._entity_already_extracted(entity, existing_entities):
+                    # Add chunk metadata to entities
+                    entity["chunk_id"] = chunk_num
+                    entity["source_chunk"] = (
+                        chunk[:100] + "..." if len(chunk) > 100 else chunk
+                    )
+                    new_entities.append(entity)
+
+            logger.info(
+                f"Extracted {len(new_entities)} new entities from chunk {chunk_num} (filtered {len(entities) - len(new_entities)} duplicates)"
+            )
+            return new_entities
+
+        except Exception as e:
+            logger.error(f"Error extracting entities from chunk {chunk_num}: {e}")
+            return []
+
+    async def _extract_relationships_from_chunk(
+        self,
+        chunk: str,
+        all_entities: List[Dict[str, Any]],
+        relationships_schema: List[str],
+        chunk_num: int,
+    ) -> List[Dict[str, Any]]:
+        """Extract relationships from a single chunk using all accumulated entities"""
+        try:
+            if not all_entities or len(all_entities) < 2:
+                return []
+
+            # Filter entities that are relevant to this chunk (have text present in chunk)
+            chunk_relevant_entities = []
+            chunk_lower = chunk.lower()
+
+            for entity in all_entities:
+                # Check if entity text appears in chunk
+                entity_text = self._extract_entity_text(entity).lower()
+
+                if entity_text and entity_text in chunk_lower:
+                    chunk_relevant_entities.append(entity)
+
+            if len(chunk_relevant_entities) < 2:
+                logger.info(
+                    f"Not enough relevant entities in chunk {chunk_num} for relationship extraction"
+                )
+                return []
+
+            # Build prompt using prompt_service
+            prompt = prompt_service.get_relationship_extraction_prompt(
+                text=chunk,
+                entities=chunk_relevant_entities,
+                relationships_schema=relationships_schema,
+            )
+
+            # Make LLM call
+            response = await self._make_llm_call(prompt)
+
+            # Parse the response
+            relationships = json.loads(response["choices"][0]["message"]["content"])[
+                "relationships"
+            ]
+
+            # Add chunk metadata to relationships
+            for relationship in relationships:
+                relationship["chunk_id"] = chunk_num
+                relationship["source_chunk"] = (
+                    chunk[:100] + "..." if len(chunk) > 100 else chunk
+                )
+
+            logger.info(
+                f"Extracted {len(relationships)} relationships from chunk {chunk_num} using {len(chunk_relevant_entities)} relevant entities"
+            )
+            return relationships
+
+        except Exception as e:
+            logger.error(f"Error extracting relationships from chunk {chunk_num}: {e}")
+            return []
+
+    def _post_process_entities(
+        self, entities: List[Dict[str, Any]], confidence_threshold: float
+    ) -> List[Dict[str, Any]]:
+        """Post-process entities: deduplicate, merge, validate"""
+        if not entities:
+            return []
+
+        # Filter by confidence threshold
+        high_confidence_entities = [
+            e for e in entities if e.get("confidence", 0) >= confidence_threshold
+        ]
+
+        # Group similar entities for deduplication
+        deduplicated = self._deduplicate_entities(high_confidence_entities)
+
+        # Sort by confidence (highest first)
+        deduplicated.sort(key=lambda x: x.get("confidence", 0), reverse=True)
+
+        return deduplicated
+
+    def _deduplicate_entities(
+        self, entities: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """Remove duplicate entities based on text and label"""
+        seen = set()
+        deduplicated = []
+
+        for entity in entities:
+            # Create a key for deduplication - handle schema-based format
+            entity_text = self._extract_entity_text(entity).lower()
+            entity_label = entity.get("label", "")
+            key = (entity_text, entity_label)
+
+            if key not in seen and entity_text:  # Only add if we found valid text
+                seen.add(key)
+                deduplicated.append(entity)
+            elif entity_text:  # Only check duplicates if we have valid text
+                # If duplicate, keep the one with higher confidence
+                existing_index = None
+                for i, e in enumerate(deduplicated):
+                    e_text = self._extract_entity_text(e).lower()
+
+                    if (e_text, e.get("label", "")) == key:
+                        existing_index = i
+                        break
+
+                if existing_index is not None and entity.get(
+                    "confidence", 0
+                ) > deduplicated[existing_index].get("confidence", 0):
+                    deduplicated[existing_index] = entity
+
+        return deduplicated
+
+    def _post_process_relationships(
+        self, relationships: List[Dict[str, Any]], confidence_threshold: float
+    ) -> List[Dict[str, Any]]:
+        """Post-process relationships: deduplicate, validate"""
+        if not relationships:
+            return []
+
+        # Filter by confidence threshold
+        high_confidence_relationships = [
+            r for r in relationships if r.get("confidence", 0) >= confidence_threshold
+        ]
+
+        # Group similar relationships for deduplication
+        deduplicated = self._deduplicate_relationships(high_confidence_relationships)
+
+        # Sort by confidence (highest first)
+        deduplicated.sort(key=lambda x: x.get("confidence", 0), reverse=True)
+
+        return deduplicated
+
+    def _deduplicate_relationships(
+        self, relationships: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """Remove duplicate relationships based on subject, object, and relationship type"""
+        seen = set()
+        deduplicated = []
+
+        for relationship in relationships:
+            # Create a key for deduplication
+            subject_id = relationship.get("subject_entity_internal_generated_id", "")
+            object_id = relationship.get("object_entity_internal_generated_id", "")
+            rel_name = relationship.get("name", "")
+            key = (subject_id, object_id, rel_name)
+
+            if key not in seen:
+                seen.add(key)
+                deduplicated.append(relationship)
+            else:
+                # If duplicate, keep the one with higher confidence
+                existing_index = next(
+                    i
+                    for i, r in enumerate(deduplicated)
+                    if (
+                        r.get("subject_entity_internal_generated_id", ""),
+                        r.get("object_entity_internal_generated_id", ""),
+                        r.get("name", ""),
+                    )
+                    == key
+                )
+
+                if relationship.get("confidence", 0) > deduplicated[existing_index].get(
+                    "confidence", 0
+                ):
+                    deduplicated[existing_index] = relationship
+
+        return deduplicated

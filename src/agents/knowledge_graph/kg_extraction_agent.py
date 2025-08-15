@@ -1,24 +1,5 @@
 """
-Knowledge Graph Agent - Triple Extraction Implementation
-
-This agent provides knowledge graph capabilities starting with triple extraction from client data.
-Additional tools to be implemented:
-
-## Core Tools to Implement:
-
-1. **Triple Creation & Management**
-   - extract_triples
-   - create_triples_from_data - Convert structured data (JSON, CSV) to triples
-   - validate_triples - Validate and normalize triples
-
-2. **Graph Traversal & Querying**
-   - find_relationships
-   - traverse_graph
-
-How tools work:
-1. Discovery: client hits /agents/discover to get a list of agents with basic info and tools available
-        - agentdiscoveryrequest with filters. each agent returns tools via .get_tools()
-2. Tool discovery:
+Knowledge Graph Extraction Agent - Triple Extraction Implementation
 """
 
 # TODO: Parallelize all gpt prompts for better scatter gather.
@@ -59,6 +40,7 @@ from .tools.ner_el_tool import NEREntityLinkingTool
 from .tools.preprocess_document_tool import PreprocessDocumentTool
 from .tools.relation_extraction_tool import RelationExtractionTool
 from ...services.neo4j_service import Neo4jService
+from ...services.pgvector_service import PGVectorService
 from ...services.llm_service import llm_service
 from ...services.prompt_service import prompt_service
 from uuid import UUID
@@ -70,84 +52,26 @@ logger = logging.getLogger(__name__)
 
 
 class KnowledgeGraphExtractionAgent(AgentInterface):
-    """Knowledge graph agent for triple extraction and graph operations"""
+    """Knowledge graph extraction agent for triple extraction and graph operations"""
 
     def __init__(self):
-        self._agent_id_str = "knowledge_graph"
+        self._agent_id_str = "knowledge_graph_extraction"
         self._uuid = None
-        self.agent_id = "knowledge_graph"
-        self._name = "Knowledge Graph Agent"
+        self.agent_id = "knowledge_graph_extraction"
+        self._name = "Knowledge Graph Extraction Agent"
         self._description = "Extract triples from data and perform graph operations"
         self._initialized = False
         self.category = "knowledge_management"
         self.status = "initialized"
         self._tools = {}
         self._graphdb_ = Neo4jService()
+        self._vectordb_ = PGVectorService()
 
-        # Add extract_triples tool
         self._tools["extract_triples"] = ExtractTriplesTool()
-
-        # Add detect_document_type tool
         self._tools["detect_document_type"] = DetectDocumentTool()
-
-        # Add preprocess_document tool
         self._tools["preprocess_document"] = PreprocessDocumentTool()
-
-        # Add NER+EL tool
         self._tools["run_ner_el"] = NEREntityLinkingTool()
-
-        # Add relation extraction tool
         self._tools["run_relation_extraction"] = RelationExtractionTool()
-
-    @property
-    def agent_id_str(self) -> str:
-        return self._agent_id_str
-
-    @property
-    def uuid(self) -> UUID:
-        if self._uuid is None:
-            raise ValueError("UUID has not been set yet.")
-        return self._uuid
-
-    @uuid.setter
-    def uuid(self, value: UUID):
-        if self._uuid is not None:
-            raise ValueError("UUID can only be set once.")
-        self._uuid = value
-
-    @property
-    def name(self) -> str:
-        """Agent's unique identifier."""
-        return self._name
-
-    @property
-    def description(self) -> str:
-        """KG Agent will extract triples from text data and insert them into the graph database."""
-        return self._description
-
-    async def initialize(self, config: Dict[str, Any]) -> None:
-        """Initialize the agent with configuration."""
-        # Initialize tools if needed
-        for tool_name, tool in self._tools.items():
-            if hasattr(tool, "initialize"):
-                await tool.initialize(config)
-
-        self._initialized = True
-        logger.info("KnowledgeGraphAgent initialized successfully")
-
-    async def shutdown(self) -> None:
-        """Clean up resources when shutting down."""
-        self._initialized = False
-        logger.info("KnowledgeGraphAgent shutdown complete")
-
-    def get_status(self) -> Dict[str, Any]:
-        """Return agent's current status."""
-        return {
-            "initialized": self._initialized,
-            "healthy": self._initialized,
-            "tools_available": list(self._tools.keys()),
-            "capabilities": self.get_tools(),
-        }
 
     def get_tools(self) -> List[Dict[str, Any]]:
         """Return agent's capabilities."""
@@ -212,9 +136,124 @@ class KnowledgeGraphExtractionAgent(AgentInterface):
     async def _extract_triples(self, request: Dict[str, Any]) -> Dict[str, Any]:
         """Extract triples from text data."""
         try:
+            # TODO: implement chunking for large contracts
             text = request.get("text", "")
             confidence_threshold = request.get("confidence_threshold", 0.7)
             max_triples = request.get("max_triples", 100)
+
+            # TODO: set up additional prompt text and where it goes
+            additional_prompt_text = request.get("additional_prompt_text", "")
+
+            relationships_schema = request.get(
+                "relationships_schema",
+                [
+                    {
+                        "type": "WORKS_FOR",
+                        "description": "Employment relationship between a person and an organization",
+                        "examples": [
+                            "John works for Apple",
+                            "Sarah is employed by Microsoft",
+                        ],
+                    },
+                    {
+                        "type": "LOCATED_IN",
+                        "description": "Geographic location relationship",
+                        "examples": [
+                            "Apple is located in Cupertino",
+                            "Paris is in France",
+                        ],
+                    },
+                    {
+                        "type": "FOUNDED",
+                        "description": "Founding relationship between a person and an organization",
+                        "examples": [
+                            "Steve Jobs founded Apple",
+                            "Bill Gates founded Microsoft",
+                        ],
+                    },
+                    {
+                        "type": "PART_OF",
+                        "description": "Part-whole relationship",
+                        "examples": [
+                            "California is part of the United States",
+                            "iPhone is part of Apple's product line",
+                        ],
+                    },
+                    {
+                        "type": "COSTS",
+                        "description": "Monetary value relationship",
+                        "examples": [
+                            "iPhone costs $999",
+                            "Tesla Model S costs $80,000",
+                        ],
+                    },
+                    {
+                        "type": "PRODUCES",
+                        "description": "Manufacturing or creation relationship",
+                        "examples": [
+                            "Apple produces iPhones",
+                            "Tesla produces electric cars",
+                        ],
+                    },
+                    {
+                        "type": "BORN_ON",
+                        "description": "Birth date relationship",
+                        "examples": [
+                            "Einstein was born on March 14, 1879",
+                            "Steve Jobs was born on February 24, 1955",
+                        ],
+                    },
+                    {
+                        "type": "DIED_ON",
+                        "description": "Death date relationship",
+                        "examples": [
+                            "Einstein died on April 18, 1955",
+                            "Steve Jobs died on October 5, 2011",
+                        ],
+                    },
+                ],
+            )
+            entities_schema = request.get(
+                "entities_schema",
+                [
+                    {
+                        "type": "PERSON",
+                        "description": "Names of people, including fictional characters",
+                        "examples": ["John Smith", "Albert Einstein", "Harry Potter"],
+                    },
+                    {
+                        "type": "ORGANIZATION",
+                        "description": "Companies, institutions, government bodies, and other organizations",
+                        "examples": [
+                            "Apple Inc.",
+                            "Harvard University",
+                            "United Nations",
+                        ],
+                    },
+                    {
+                        "type": "LOCATION",
+                        "description": "Geographic locations, cities, countries, landmarks",
+                        "examples": ["New York", "France", "Mount Everest"],
+                    },
+                    {
+                        "type": "DATE",
+                        "description": "Specific dates, years, time periods",
+                        "examples": ["2023", "January 15th", "the 1990s"],
+                    },
+                    {
+                        "type": "MONEY",
+                        "description": "Monetary amounts and currencies",
+                        "examples": ["$100", "500 euros", "1 million dollars"],
+                    },
+                    {
+                        "type": "PRODUCT",
+                        "description": "Products, services, and commercial items",
+                        "examples": ["iPhone", "Tesla Model S", "Netflix subscription"],
+                    },
+                ],
+            )
+
+            # TODO: add default entities
 
             if not text:
                 return {"error": "Missing text parameter"}
@@ -225,13 +264,16 @@ class KnowledgeGraphExtractionAgent(AgentInterface):
                     "text": text,
                     "confidence_threshold": confidence_threshold,
                     "max_triples": max_triples,
+                    "entities_schema": entities_schema,
+                    "relationships_schema": relationships_schema,
                 }
             )
 
             # Insert triples into Neo4j if extraction was successful
             triples = result.get("triples", [])
             if triples:
-                self._graphdb_.insert_triples(triples)
+                pass
+                # self._graphdb_.insert_triples(triples)
 
             return {"status": "success", "data": result}
 
@@ -876,17 +918,17 @@ class KnowledgeGraphExtractionAgent(AgentInterface):
         """Main retrieval method that follows the 4-step pipeline.
 
         Args:
-            request: Dictionary containing the request parameters
-                - query: The user's natural language query (required)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        request: Dictionary containing the request parameters
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        - query: The user's natural language query (required)
 
         Returns:
-            Dict containing:
-                - intent: Result from _classify_intent
-                - results: List of retrieved information
-                - metadata: Additional execution metadata
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        Dict containing:
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        - intent: Result from _classify_intent
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        - results: List of retrieved information
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        - metadata: Additional execution metadata
 
         Raises:
-            ValueError: If required parameters are missing
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        ValueError: If required parameters are missing
         """
         log_response = True
         try:
@@ -931,13 +973,13 @@ class KnowledgeGraphExtractionAgent(AgentInterface):
                     # Note: This assumes a direct match between extracted entity text and Neo4j entity name.
                     # As discussed, exact matching with URIs might be an issue.
                     cypher_query = f"""
-                    MATCH (label_entity:Entity {{name: \"{entity_name}\"}})
-                    OPTIONAL MATCH (uri_entity:Entity)-[label_rel:RELATION {{type: \"http://www.w3.org/2000/01/rdf-schema#label\"}}]->(label_entity)
-                    WITH COALESCE(uri_entity, label_entity) AS start_node
-                    MATCH (start_node)-[r]-(n)
-                    RETURN start_node.name AS Source, r.type AS RelationshipType, n.name AS TargetName
-                    LIMIT 10
-                    """
+					MATCH (label_entity:Entity {{name: \"{entity_name}\"}})
+					OPTIONAL MATCH (uri_entity:Entity)-[label_rel:RELATION {{type: \"http://www.w3.org/2000/01/rdf-schema#label\"}}]->(label_entity)
+					WITH COALESCE(uri_entity, label_entity) AS start_node
+					MATCH (start_node)-[r]-(n)
+					RETURN start_node.name AS Source, r.type AS RelationshipType, n.name AS TargetName
+					LIMIT 10
+					"""
                     logger.info(
                         f"Executing Cypher query for entity '{entity_name}': {cypher_query}"
                     )
@@ -979,3 +1021,53 @@ class KnowledgeGraphExtractionAgent(AgentInterface):
 
         except ValueError as e:
             return {"error": str(e), "available_parameters": ["query"]}
+
+    @property
+    def agent_id_str(self) -> str:
+        return self._agent_id_str
+
+    @property
+    def uuid(self) -> UUID:
+        if self._uuid is None:
+            raise ValueError("UUID has not been set yet.")
+        return self._uuid
+
+    @uuid.setter
+    def uuid(self, value: UUID):
+        if self._uuid is not None:
+            raise ValueError("UUID can only be set once.")
+        self._uuid = value
+
+    @property
+    def name(self) -> str:
+        """Agent's unique identifier."""
+        return self._name
+
+    @property
+    def description(self) -> str:
+        """KG Agent will extract triples from text data and insert them into the graph database."""
+        return self._description
+
+    async def initialize(self, config: Dict[str, Any]) -> None:
+        """Initialize the agent with configuration."""
+        # Initialize tools if needed
+        for tool_name, tool in self._tools.items():
+            if hasattr(tool, "initialize"):
+                await tool.initialize(config)
+
+        self._initialized = True
+        logger.info("KnowledgeGraphExtractionAgent initialized successfully")
+
+    async def shutdown(self) -> None:
+        """Clean up resources when shutting down."""
+        self._initialized = False
+        logger.info("KnowledgeGraphExtractionAgent shutdown complete")
+
+    def get_status(self) -> Dict[str, Any]:
+        """Return agent's current status."""
+        return {
+            "initialized": self._initialized,
+            "healthy": self._initialized,
+            "tools_available": list(self._tools.keys()),
+            "capabilities": self.get_tools(),
+        }

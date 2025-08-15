@@ -52,7 +52,6 @@ logger = logging.getLogger(__name__)
 
 
 class KnowledgeGraphExtractionAgent(AgentInterface):
-    """Knowledge graph extraction agent for triple extraction and graph operations"""
 
     def __init__(self):
         self._agent_id_str = "knowledge_graph_extraction"
@@ -74,7 +73,6 @@ class KnowledgeGraphExtractionAgent(AgentInterface):
         self._tools["run_relation_extraction"] = RelationExtractionTool()
 
     def get_tools(self) -> List[Dict[str, Any]]:
-        """Return agent's capabilities."""
         return [
             {
                 "name": "retrieve",
@@ -96,7 +94,6 @@ class KnowledgeGraphExtractionAgent(AgentInterface):
         ]
 
     async def process_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
-        """Process incoming requests through the agent."""
         if not self._initialized:
             return {"error": "Agent not initialized"}
 
@@ -140,6 +137,13 @@ class KnowledgeGraphExtractionAgent(AgentInterface):
             text = request.get("text", "")
             confidence_threshold = request.get("confidence_threshold", 0.7)
             max_triples = request.get("max_triples", 100)
+
+            preprocessed_text = await self._preprocess_document(
+                {
+                    "document_content": text,
+                    "document_type": "markdown",
+                }
+            )
 
             # TODO: set up additional prompt text and where it goes
             additional_prompt_text = request.get("additional_prompt_text", "")
@@ -254,14 +258,15 @@ class KnowledgeGraphExtractionAgent(AgentInterface):
             )
 
             # TODO: add default entities
-
-            if not text:
+            if not preprocessed_text:
                 return {"error": "Missing text parameter"}
+
+            print("preprocessed_text: ", preprocessed_text.keys())
 
             # Use the extract_triples tool
             result = await self._tools["extract_triples"].execute_tool(
                 {
-                    "text": text,
+                    "text": preprocessed_text["data"]["processed_content"],
                     "confidence_threshold": confidence_threshold,
                     "max_triples": max_triples,
                     "entities_schema": entities_schema,

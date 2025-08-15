@@ -2,6 +2,15 @@
 Extract Triples Tool
 
 This tool extracts triples (subject-predicate-object relationships) from unstructured text using OpenAI.
+
+Pipeline:
+- extracts entities and triples from text
+- generate uuids for entities and relationships
+- link relationships with entity uuids (for pgvector lookup) from internal_generated_id
+- convert entities into cypher query (linking to document id); executes query and inserts entities into neo
+- convert triples into cypher query; executes query and inserts triples into neo
+- create SOP phrases for every triple and embed them
+- insert embedding-triple_uuid pairs into pgvector
 """
 
 import json
@@ -32,7 +41,7 @@ class ExtractTriplesTool:
         max_triples = arguments.get("max_triples", 100)
         entities_schema = arguments.get("entities_schema", [])
         relationships_schema = arguments.get("relationships_schema", [])
-        chunk_size = arguments.get("chunk_size", 5000)  # Process in chunks
+        chunk_size = arguments.get("chunk_size", 10000)  # Process in chunks
 
         try:
             # Step 1: Text Preprocessing
@@ -59,9 +68,10 @@ class ExtractTriplesTool:
                 "processing_errors": 0,
             }
 
-            # Process each chunk, passing accumulated entities to avoid re-extraction
+            # First loop: Extract all entities from all chunks
+            logger.info("Starting entity extraction phase")
             for chunk_num, chunk in enumerate(chunks, 1):
-                logger.info(f"Processing chunk {chunk_num}/{len(chunks)}")
+                logger.info(f"Extracting entities from chunk {chunk_num}/{len(chunks)}")
 
                 try:
                     # Extract entities from this chunk
@@ -72,47 +82,70 @@ class ExtractTriplesTool:
                     # Add new entities to running list
                     all_entities.extend(chunk_entities)
 
-                    # Extract relationships using all entities found so far
+                    processing_stats["total_entities"] += len(chunk_entities)
+
+                    logger.info(
+                        f"Chunk {chunk_num}: +{len(chunk_entities)} entities. Total: {len(all_entities)} entities"
+                    )
+
+                except Exception as chunk_error:
+                    logger.error(
+                        f"Error processing chunk {chunk_num} for entities: {chunk_error}"
+                    )
+                    processing_stats["processing_errors"] += 1
+                    continue
+
+            # Second loop: Extract all relationships from all chunks using all entities
+            logger.info("Starting relationship extraction phase")
+            for chunk_num, chunk in enumerate(chunks, 1):
+                logger.info(
+                    f"Extracting relationships from chunk {chunk_num}/{len(chunks)}"
+                )
+
+                try:
+                    # Extract relationships using all entities found in first phase
                     chunk_relationships = await self._extract_relationships_from_chunk(
                         chunk, all_entities, relationships_schema, chunk_num
                     )
 
                     all_relationships.extend(chunk_relationships)
 
-                    processing_stats["chunks_processed"] += 1
-                    processing_stats["total_entities"] += len(chunk_entities)
                     processing_stats["total_relationships"] += len(chunk_relationships)
 
                     logger.info(
-                        f"Chunk {chunk_num}: +{len(chunk_entities)} entities, +{len(chunk_relationships)} relationships. Total: {len(all_entities)} entities"
+                        f"Chunk {chunk_num}: +{len(chunk_relationships)} relationships. Total: {len(all_relationships)} relationships"
                     )
 
                 except Exception as chunk_error:
-                    logger.error(f"Error processing chunk {chunk_num}: {chunk_error}")
+                    logger.error(
+                        f"Error processing chunk {chunk_num} for relationships: {chunk_error}"
+                    )
                     processing_stats["processing_errors"] += 1
                     continue
 
+            processing_stats["chunks_processed"] = len(chunks)
+
             # Step 4: Post-process and deduplicate
-            final_entities = self._post_process_entities(
-                all_entities, confidence_threshold
-            )
-            print("final_entities: ", final_entities)
-            final_relationships = self._post_process_relationships(
-                all_relationships, confidence_threshold
-            )
-            print("final_relationships: ", final_relationships)
+            # final_entities = self._post_process_entities(
+            #     all_entities, confidence_threshold
+            # )
+            print("final_entities: ", all_entities)
+            # final_relationships = self._post_process_relationships(
+            #     all_relationships, confidence_threshold
+            # )
+            print("final_relationships: ", all_relationships)
 
             logger.info(
-                f"Triple extraction completed. Found {len(final_entities)} unique entities, {len(final_relationships)} unique relationships"
+                f"Triple extraction completed. Found {len(all_entities)} unique entities, {len(all_relationships)} unique relationships"
             )
 
             result = {
-                "entities": final_entities,
-                "relationships": final_relationships,
+                "entities": all_entities,
+                "relationships": all_relationships,
                 "statistics": {
                     "chunks_processed": processing_stats["chunks_processed"],
-                    "total_entities": len(final_entities),
-                    "total_relationships": len(final_relationships),
+                    "total_entities": len(all_entities),
+                    "total_relationships": len(all_relationships),
                     "processing_errors": processing_stats["processing_errors"],
                 },
                 "success": True,
@@ -185,6 +218,7 @@ class ExtractTriplesTool:
             "success": False,
         }
 
+    # TODO: fix chunking to have overlap
     def _split_into_chunks(self, content: str, chunk_size: int) -> List[str]:
         """Split content into manageable chunks preserving record boundaries"""
         # Split by double newlines (record boundaries) first - same as ner_el_tool
@@ -389,6 +423,8 @@ class ExtractTriplesTool:
         except Exception as e:
             logger.error(f"Error extracting relationships from chunk {chunk_num}: {e}")
             return []
+
+    # --------------------------- POST PROCESSING ---------------------------
 
     def _post_process_entities(
         self, entities: List[Dict[str, Any]], confidence_threshold: float

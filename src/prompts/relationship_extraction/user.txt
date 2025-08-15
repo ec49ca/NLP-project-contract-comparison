@@ -1,10 +1,4 @@
 Extract relationships in the following text using the schema defined below. RESPONSE ONLY IN VALID JSON WITH NO CODE GUARDS.
 
-ENTITY LIST TO FIND RELATIONSHIPS BETWEEN:
-{entities}
-
-RELATIONSHIPS SCHEMA TO EXTRACT:
-{relationships_schema}
-
 TEXT TO EXTRACT RELATIONSHIPS FROM:
 {text}

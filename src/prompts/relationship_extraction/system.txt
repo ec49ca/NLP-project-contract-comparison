@@ -12,7 +12,6 @@ Respond with JSON of relationships in this exact format:
 	"relationships": [
 		{{
 			"name": "name of relationship extracted from schema as stated in schema",
-			"triggers": "if trigger words are applied, then state which one as defined in schema",
 	   		"subject_entity_internal_generated_id": internal_generated_id field from subject entity being referred to,
 			"object_entity_internal_generated_id": internal_generated_id field from object entity being refered to,
     		"relationship": "relationship type",

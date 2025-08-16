@@ -49,13 +49,12 @@ class KnowledgeGraphRetrievalAgent(AgentInterface):
         results = await self._db_.vector_similarity_search(embedding_str)
 
         # make sure its in collection
-        filtered_results = results
-        # if len(all_documents) > 0:
-        #     filtered_results = [
-        #         res
-        #         for res in results
-        #         if res["document_id"] in [doc["id"] for doc in all_documents]
-        #     ]
+        valid_ids = {doc["id"] for doc in all_documents}
+        filtered_results = [res for res in results if res["document_id"] in valid_ids]
+        print("document ids: ", valid_ids)
+
+        if len(all_documents) == 0:
+            filtered_results = results
 
         return {"success": True, "results": filtered_results}
 

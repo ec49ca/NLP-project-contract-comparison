@@ -5,6 +5,7 @@ Handles connection to PostgreSQL with pgvector extension and provides methods
 for executing queries and vector-based retrieval.
 """
 
+import hashlib
 import os
 import logging
 import asyncio
@@ -153,7 +154,7 @@ class PGVectorService:
         Retrieve all embeddings and kg_uuid values from the kg_vector_lookup table.
 
         Returns:
-                List of dictionaries containing 'embedding' and 'kg_uuid' for each record
+                                                                                                                                        List of dictionaries containing 'embedding' and 'kg_uuid' for each record
         """
         if not self.pool:
             await self.initialize()
@@ -179,7 +180,7 @@ class PGVectorService:
         self,
         query_embedding: List[float],
         limit: int = 5,
-        similarity_threshold: float = 0.8,
+        similarity_threshold: float = 0.4,
     ) -> List[Dict[str, Any]]:
 
         if not self.pool:
@@ -190,17 +191,17 @@ class PGVectorService:
             # 1 - cosine_distance = cosine_similarity
             # We order by cosine distance ascending (closest first)
             query = """
-                SELECT
-                    kg_uuid,
-                    missing_part,
-                    document_id,
+				SELECT
+					kg_uuid,
+					missing_part,
+					document_id,
 					full_triple_text,
-                    1 - (embedding <=> $1) as similarity_score
-                FROM kg_vector_lookup
-                WHERE 1 - (embedding <=> $1) >= $2
-                ORDER BY embedding <=> $1 ASC
-                LIMIT $3
-            """
+					1 - (embedding <=> $1) as similarity_score
+				FROM kg_vector_lookup
+				WHERE 1 - (embedding <=> $1) >= $2
+				ORDER BY embedding <=> $1 ASC
+				LIMIT $3
+			"""
 
             result = await self.execute_query(
                 query, [query_embedding, similarity_threshold, limit]
@@ -214,3 +215,42 @@ class PGVectorService:
         except Exception as e:
             logger.error(f"Failed to perform vector similarity search: {e}")
             raise Exception(f"Failed to perform vector similarity search: {e}")
+
+    async def get_document_content(self, document_id: str) -> str:
+
+        if not self.pool:
+            await self.initialize()
+
+        try:
+            query = "SELECT content, is_encrypted, encryption_method FROM document_contents WHERE document_id = $1"
+            result = await self.execute_query(query, [document_id])
+            if result[0]["is_encrypted"]:
+                import base64
+
+                # need to unencrypt
+                content = base64.b64decode(result[0]["content"])
+                known_keys = [
+                    os.getenv("ENCRYPTION_KEY"),
+                    "development-key-do-not-use-in-production-env",
+                ]
+                for key in known_keys:
+                    try:
+                        iv = content[:16]
+                        auth_tag = content[16:32]
+                        encrypted_data = content[32:]
+                        from Crypto.Cipher import AES
+
+                        key_hash = hashlib.sha256(key.encode()).digest()
+                        cipher = AES.new(key_hash, AES.MODE_GCM, nonce=iv)
+                        plaintext = cipher.decrypt_and_verify(encrypted_data, auth_tag)
+                        logger.info(f"Decrypted content: {plaintext}")
+                        return plaintext.decode("utf-8")
+
+                    except ValueError as e:
+                        continue
+            else:
+                return result[0]["content"]
+        except Exception as e:
+            logger.error(f"Failed to retrieve document content: {e}")
+            raise Exception(f"Failed to retrieve document content: {e}")
+            return None

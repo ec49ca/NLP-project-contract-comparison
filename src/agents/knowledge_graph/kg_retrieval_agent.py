@@ -7,7 +7,8 @@ import os
 from datetime import datetime
 
 from src.services.pgvector_service import PGVectorService
-from ...services.neo4j_service import Neo4jService
+
+# from ...services.neo4j_service import Neo4jService
 from ...interfaces.agent import AgentInterface
 from .tools.extract_triples import ExtractTriplesTool
 from ...services.llm_service import llm_service
@@ -29,44 +30,61 @@ class KnowledgeGraphRetrievalAgent(AgentInterface):
         self.category = "knowledge_management"
         self.status = "initialized"
         self._tools = {}
-        self._graphdb_ = Neo4jService()
-        self._vectordb_ = PGVectorService()
+        # self._graphdb_ = Neo4jService()
+        self._db_ = PGVectorService()
 
         # Add extract_triples tool - if becomes needed
         # self._tools["extract_triples"] = ExtractTriplesTool()
 
+    # TODO: add document based filtering for collection
+    # TODO: vector lookup table should have documetn table for semantics for llms if they get a ton of matches
     async def basic_question_answering_retrieval(self, query: str):
         embedding = await llm_service.create_embedding(
             query, model="text-embedding-3-small"
         )
         embedding_str = "[" + ",".join(map(str, embedding)) + "]"
-        results = await self._vectordb_.vector_similarity_search(embedding_str)
+        results = await self._db_.vector_similarity_search(embedding_str)
 
         filtered_results = [
             res["full_triple_text"] for res in results if res["full_triple_text"]
         ]
 
-        return {"success": True, "results": filtered_results}
+        return {"success": True, "results": results}
+
+    async def add_embedding_to_vector_db(self, query: str):
+        embedding = await llm_service.create_embedding(
+            query, model="text-embedding-3-small"
+        )
+        embedding_str = "[" + ",".join(map(str, embedding)) + "]"
+        await self._db_.insert_embedding_lookup(
+            embedding_str, query, query, "kg_uuid", "document_id"
+        )
+        return {"success": True, "results": embedding}
 
     async def test_pg(self):
-        results = await self._vectordb_.get_all_embeddings_and_kg_uuids()
+        results = await self._db_.get_all_embeddings_and_kg_uuids()
         return {"success": True, "results": results}
 
     async def test_neo(self):
         # test embeddings
-        # embedding = await llm_service.create_embedding(
-        #     "Who produces grapes?",
-        #     model="text-embedding-3-small",
-        # )
+        embedding = await llm_service.create_embedding(
+            "Sunworld Inc. grants license to PartyX?",
+            model="text-embedding-3-small",
+        )
+
+        embedding2 = await llm_service.create_embedding(
+            "what grants license to party x?",
+            model="text-embedding-3-small",
+        )
 
         # Uncomment below to clear the database and vector lookup table
         # await self._graphdb_.clear_database()
-        # await self._vectordb_.initialize()
-        # await self._vectordb_.clear_kg_vector_lookup_table()
+        # await self._db_.initialize()
+        # await self._db_.clear_kg_vector_lookup_table()
 
-        await self._vectordb_.initialize()
-        results = await self._graphdb_.test_get_data()
-        return {"success": True, "results": results}
+        await self._db_.initialize()
+        # results = await self._graphdb_.test_get_data()
+        return {"success": True, "results": embedding}
 
     # TODO: Fix tools setup
     def get_tools(self) -> List[Dict[str, Any]]:
@@ -103,6 +121,8 @@ class KnowledgeGraphRetrievalAgent(AgentInterface):
             return await self.basic_question_answering_retrieval(
                 request.get("query", "")
             )
+        elif command == "add_embedding":
+            return await self.add_embedding_to_vector_db(request.get("query", ""))
         else:
             return {
                 "error": f"Unknown command: {command}",

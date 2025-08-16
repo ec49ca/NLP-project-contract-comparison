@@ -1,10 +1,14 @@
-Choose what tool to use for a task and give the appropriate parameters to call the tool. given by the following query:
+
+
+Choose what tool to use for a task and give the appropriate parameters to call the tool. You may also be passed pairs of document ids and titles. Based on the query, choose what pair to add to your response. Consider that only the information from the documents that have been passed will be used by agents. For example, any call to stats agent should include the csv file document id and title for the data.
+
+HERE IS THE QUERY:
 {query}
 
 The tools available to you are below this. For each tool you are given the name of the tool, the tool's description, and the parameters required to call it.
 {tools}
 
-Use the following data from previously executed statements to help guide your choices and response:
+Use the following data from previously executed statements to help guide your choices and response; this may include relevant document id,title pairs to choose to extract:
 {data}
 
 In your output, you should output ONLY VALID JSON BODY CONTENT WITH NO CODE GUARDS (starting with the opening curly brace - no code fences) for the name of the chosen tool and the parameters to call it. Your output should be a JSON object that looks like:
@@ -13,5 +17,9 @@ In your output, you should output ONLY VALID JSON BODY CONTENT WITH NO CODE GUAR
 	"parameters": {{
 		"[parameter1_name]": [parameter1_value],
 		"[parameter2_name]": [parameter2_value]
+	}},
+	"relevant_document": {{
+		"title": "[doc_title]",
+		"id": "[doc_uuid]"
 	}}
 }}

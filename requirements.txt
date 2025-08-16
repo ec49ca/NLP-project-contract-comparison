@@ -68,3 +68,6 @@ langfuse>=3.0.0
 
 # RDFLib
 rdflib>=6.2.0
+
+# Cryptography for document encryption/decryption
+pycryptodome>=3.19.0

@@ -18,12 +18,14 @@ Additional tools to be implemented based on requirements.
 
 How tools work:
 1. Discovery: client hits /agents/discover to get a list of agents with basic info and tools available
-        - agentdiscoveryrequest with filters. each agent returns tools via .get_tools()
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                - agentdiscoveryrequest with filters. each agent returns tools via .get_tools()
 2. Tool discovery:
 """
 
 import logging
 from typing import Dict, List, Any, Optional
+
+from src.services.pgvector_service import PGVectorService
 from ...interfaces.agent import AgentInterface
 from .tools.descriptive_statistics_tool import DescriptiveStatisticsTool
 from .tools.correlation_tool import CorrelationAnalysisTool
@@ -42,6 +44,7 @@ from uuid import UUID
 import json
 import os
 from datetime import datetime
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -68,11 +71,13 @@ class StatsAgent(AgentInterface):
 		- Elastic Net Regression
 		- Multiple Regression
 		- Time Series Regression
-		- Hypothesis Testing"""
+		- Hypothesis Testing
+		"""
         self._initialized = False
         self.category = "data_analysis"
         self.status = "initialized"
         self._tools = {}
+        self._db_ = PGVectorService()
 
         # Add descriptive statistics tool
         self._tools["descriptive_statistics"] = DescriptiveStatisticsTool()
@@ -332,7 +337,7 @@ class StatsAgent(AgentInterface):
                             "maximum": 1.0,
                         },
                     },
-                    "required": ["data", "targetField"],
+                    "required": ["data", "targetField", "featureFields"],
                 },
                 "returnValues": {
                     "status": "string - Success or error status",
@@ -725,6 +730,65 @@ class StatsAgent(AgentInterface):
 
             if not tool_name:
                 return {"status": "error", "message": "Tool name is required"}
+
+            relevant_document = request.get("relevant_document")
+            if relevant_document["id"]:
+                # get document data from docid
+                logger.info(
+                    f"[STATS AGENT] Getting document data from {relevant_document} for stats agent"
+                )
+                document_content = await self._db_.get_document_content(
+                    relevant_document["id"]
+                )
+                logger.info(f"[STATS AGENT] Document content: {document_content}")
+                import io
+                import csv
+
+                f = io.StringIO(document_content)
+                reader = csv.DictReader(f)
+                data = [row for row in reader]
+
+                for row in data:
+                    for k in list(row.keys()):
+                        v = row[k]
+                        try:
+                            row[k] = float(v)
+                        except (ValueError, TypeError):
+                            # TODO: one hot encode or do something else to make strings work
+                            row.pop(k)
+                            continue
+
+                request["data"] = data
+
+            elif not relevant_document["id"] and not request.get("data"):
+                raise Exception("Cannot process data without csv document")
+
+                # llm service call to figure this out FAST
+            from src.services.llm_service import LLMService
+
+            llm_service = LLMService()
+            response = await llm_service.chat_completion(
+                model="gpt-4o-mini",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": 'You are a helpful assistant that figures out what fields of a dataset are the target and feature fields. You are trying to fit the fields to this user query: "{request.get("query")}". You must respond ONLY IN VALID JSON in the following form:\
+						{"targetField": "string", "featureFields": ["string", "string", "string"]}',
+                    },
+                    {
+                        "role": "user",
+                        "content": f"Find what the feature and target fields of the following dataset keys should be based on their names and sample values from the first row. Here is the dataset; MAKE SURE YOU ONLY RETURN FIELDS THAT ARE PRESENT IN THIS DATASET, THEY ARE THE ONLY ONES THAT EXIST: {request.get('data')[0]}",
+                    },
+                ],
+            )
+            print("field response: ", response)
+            parsed_response = json.loads(
+                response.get("choices")[0].get("message").get("content")
+            )
+            request["targetField"] = parsed_response.get("targetField")
+            request["featureFields"] = parsed_response.get("featureFields")
+
+            print("request: ", request)
 
             # Execute the appropriate tool
             if tool_name == "descriptive_statistics":

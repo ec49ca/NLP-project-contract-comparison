@@ -7,6 +7,7 @@ import logging
 from contextlib import asynccontextmanager
 import asyncpg
 from ..meta.meta_agent import MetaAgent
+from ..interfaces.agent import AgentInterface
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -162,6 +163,8 @@ async def execute_agent(request: Dict[str, Any]):
 @app.post("/mcp/execute/{agent_id}")
 async def execute_agent_by_id(agent_id: str, request: Dict[str, Any]):
     try:
+        logger.info(f"Executing agent {agent_id} with request {request}")
+
         if not request.get("query"):
             return HTTPException(status_code=400, detail="Query is required")
 

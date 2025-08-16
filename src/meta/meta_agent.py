@@ -158,10 +158,17 @@ class MetaAgent:
         response_raw = llm_response.get("choices")[0].get("message").get("content")
         parsed_response = json.loads(response_raw)
 
+        # needs to have field for getting document data
+        # create methods for db reads given documentId
+        # TODO: finish this!!
+        relevant_document = parsed_response.get("relevant_document")
+
         agent = await self.agent_registry.get_agent(UUID(agent_id))
 
         request = {
             "command": parsed_response.get("tool_name"),
+            "relevant_document": relevant_document,
+            "query": query,
             **parsed_response.get("parameters"),
         }
 

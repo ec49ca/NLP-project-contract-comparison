@@ -1,22 +1,22 @@
 services:
-  neo4j:
-    image: neo4j:5.19-community
-    ports:
-      - "7474:7474" # HTTP
-      - "7687:7687" # Bolt
-    environment:
-      # TODO: more secure password
-      - NEO4J_AUTH=neo4j/samvidneo4j # username=neo4j, password=samvidneo4j
-    volumes:
-      - neo4j_data:/data
-    networks:
-      - samvid-network
-    healthcheck:
-      test: ["CMD-SHELL", "cypher-shell -u neo4j -p samvidneo4j 'RETURN 1'"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
+  # neo4j:
+  #   image: neo4j:5.19-community
+  #   ports:
+  #     - "7474:7474" # HTTP
+  #     - "7687:7687" # Bolt
+  #   environment:
+  #     # TODO: more secure password
+  #     - NEO4J_AUTH=neo4j/samvidneo4j # username=neo4j, password=samvidneo4j
+  #   volumes:
+  #     - neo4j_data:/data
+  #   networks:
+  #     - samvid-network
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "cypher-shell -u neo4j -p samvidneo4j 'RETURN 1'"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #     start_period: 10s
 
   mcp-server:
     build: .
@@ -37,9 +37,9 @@ services:
       - ./generated_tools:/app/generated_tools
       - ./logs:/app/logs
       - ./sunworld_test_data:/app/sunworld_test_data
-    depends_on:
-      neo4j:
-        condition: service_healthy
+    # depends_on:
+    # neo4j:
+    #   condition: service_healthy
     restart: unless-stopped
     networks:
       - samvid-network
@@ -61,7 +61,7 @@ services:
 
 volumes:
   postgres-data:
-  neo4j_data:
+  # neo4j_data:
 
 networks:
   samvid-network:

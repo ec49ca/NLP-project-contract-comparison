@@ -21,7 +21,7 @@ import uuid
 
 from _pytest.monkeypatch import K
 
-from src.services.neo4j_service import Neo4jService
+# from src.services.neo4j_service import Neo4jService
 from src.services.pgvector_service import PGVectorService
 from ....services.llm_service import llm_service
 from ....services.prompt_service import prompt_service
@@ -39,8 +39,8 @@ class ExtractTriplesTool:
         self.name = "extract_triples"
         self.description = "Extract triples from unstructured text using LLM"
         self.llm_service = llm_service
-        self._vectordb_ = PGVectorService()
-        self._graphdb_ = Neo4jService()
+        self._db_ = PGVectorService()
+        # self._graphdb_ = Neo4jService()
 
     async def execute_tool(self, arguments: Dict[str, Any]) -> Any:
         """Execute the extract_triples tool with chunking support"""
@@ -203,30 +203,32 @@ class ExtractTriplesTool:
                 }
                 graph_relationships.append(graph_relationship)
 
-            # create entities and relationships queries and add to neo
-            # Insert entity triples into neo
-            for entity in graph_entities:
-                await self._graphdb_.insert_entity(
-                    entity["label"], entity["properties"]
-                )
-            logger.info(f"Inserted {len(graph_entities)} entities into Neo4j")
-
-            # Insert relationship triples into neo
-            for relationship in graph_relationships:
-                await self._graphdb_.insert_relationship(
-                    relationship["subject_entity_label"],
-                    relationship["subject_entity_properties"],
-                    relationship["object_entity_label"],
-                    relationship["object_entity_properties"],
-                    relationship["relationship_type"],
-                    relationship["properties"],
-                )
-            logger.info(f"Inserted {len(graph_relationships)} relationships into Neo4j")
+            # TODO: add back in when we have neo4j working
+            # # create entities and relationships queries and add to neo
+            # # Insert entity triples into neo
+            # for entity in graph_entities:
+            #     await self._graphdb_.insert_entity(
+            #         entity["label"], entity["properties"]
+            #     )
+            # logger.info(f"Inserted {len(graph_entities)} entities into Neo4j")
+            # for relationship in graph_relationships:
+            #     await self._graphdb_.insert_relationship(
+            #         relationship["subject_entity_label"],
+            #         relationship["subject_entity_properties"],
+            #         relationship["object_entity_label"],
+            #         relationship["object_entity_properties"],
+            #         relationship["relationship_type"],
+            #         relationship["properties"],
+            #     )
+            # logger.info(f"Inserted {len(graph_relationships)} relationships into Neo4j")
 
             # create variations on triples for embedding
             # TODO: make this more robust and like natural language
             """
 			original : Sunworld Inc. grants_license_to PartyX
+
+			question : what grants license to party x?
+
 			subject  : What grants license to PartyX?
 			object   : What does Sunworld Inc. grant license to?
 			predicate: What is the relationship between Sunworld Inc. and PartyX?
@@ -280,7 +282,7 @@ class ExtractTriplesTool:
 
                 try:
                     # Subject lookup insertion
-                    await self._vectordb_.insert_embedding_lookup(
+                    await self._db_.insert_embedding_lookup(
                         subject_embedding_str,
                         subject_entity,
                         full_triple_text,
@@ -288,7 +290,7 @@ class ExtractTriplesTool:
                         document_id,
                     )
                     # Object 1 lookup insertion
-                    await self._vectordb_.insert_embedding_lookup(
+                    await self._db_.insert_embedding_lookup(
                         object_embedding_str_1,
                         object_entity,
                         full_triple_text,
@@ -296,7 +298,7 @@ class ExtractTriplesTool:
                         document_id,
                     )
                     # object 2 lookup insertionj
-                    await self._vectordb_.insert_embedding_lookup(
+                    await self._db_.insert_embedding_lookup(
                         object_embedding_str_2,
                         object_entity,
                         full_triple_text,
@@ -304,7 +306,7 @@ class ExtractTriplesTool:
                         document_id,
                     )
                     # Predicate lookup insertion
-                    await self._vectordb_.insert_embedding_lookup(
+                    await self._db_.insert_embedding_lookup(
                         predicate_embedding_str,
                         verb_form,
                         full_triple_text,

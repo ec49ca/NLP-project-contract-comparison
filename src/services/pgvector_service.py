@@ -65,9 +65,7 @@ class PGVectorService:
     async def insert_embedding_lookup(
         self,
         embedding: List[float],
-        missing_part: str,
         full_triple_text: str,
-        kg_uuid: str,
         document_id: str,
     ):
         """Insert an embedding into the kg_vector_lookup table."""
@@ -76,12 +74,10 @@ class PGVectorService:
 
         try:
             query = """
-				INSERT INTO kg_vector_lookup (embedding, missing_part, full_triple_text, kg_uuid, document_id)
-				VALUES ($1, $2, $3, $4, $5)
+				INSERT INTO kg_vector_lookup (embedding, full_triple_text, document_id)
+				VALUES ($1, $2, $3)
 			"""
-            await self.execute_query(
-                query, [embedding, missing_part, full_triple_text, kg_uuid, document_id]
-            )
+            await self.execute_query(query, [embedding, full_triple_text, document_id])
         except Exception as e:
             logger.error(f"Failed to insert embedding lookup: {e}")
             raise Exception(f"Failed to insert embedding lookup: {e}")
@@ -118,9 +114,7 @@ class PGVectorService:
 				CREATE TABLE IF NOT EXISTS kg_vector_lookup (
 					id SERIAL PRIMARY KEY,
 					embedding vector(1536),
-					missing_part TEXT NOT NULL,
 					full_triple_text TEXT NOT NULL,
-					kg_uuid TEXT NOT NULL, -- uuid for the triple relationship, not the subject or entity
 					document_id TEXT
 				);
 			"""
@@ -161,20 +155,20 @@ class PGVectorService:
 
         try:
             query = """
-				SELECT embedding, kg_uuid, missing_part, document_id
+				SELECT embedding, full_triple_text, document_id
 				FROM kg_vector_lookup
 				ORDER BY id
 			"""
 
             result = await self.execute_query(query)
             logger.info(
-                f"Retrieved {len(result)} embeddings and kg_uuids from kg_vector_lookup table"
+                f"Retrieved {len(result)} embeddings and full_triple_text from kg_vector_lookup table"
             )
             return result
 
         except Exception as e:
-            logger.error(f"Failed to retrieve embeddings and kg_uuids: {e}")
-            raise Exception(f"Failed to retrieve embeddings and kg_uuids: {e}")
+            logger.error(f"Failed to retrieve embeddings and full_triple_text: {e}")
+            raise Exception(f"Failed to retrieve embeddings and full_triple_text: {e}")
 
     async def vector_similarity_search(
         self,
@@ -192,8 +186,6 @@ class PGVectorService:
             # We order by cosine distance ascending (closest first)
             query = """
 				SELECT
-					kg_uuid,
-					missing_part,
 					document_id,
 					full_triple_text,
 					1 - (embedding <=> $1) as similarity_score

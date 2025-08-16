@@ -162,20 +162,20 @@ class MetaAgent:
         # create methods for db reads given documentId
         # TODO: finish this!!
         relevant_document = parsed_response.get("relevant_document")
+        all_documents = parsed_response.get("all_documents")
 
         agent = await self.agent_registry.get_agent(UUID(agent_id))
 
         request = {
             "command": parsed_response.get("tool_name"),
             "relevant_document": relevant_document,
+            "all_documents": all_documents,
             "query": query,
             **parsed_response.get("parameters"),
         }
 
         print("request: ", request)
-
         result = await agent.process_request(request)
-
         print("result: ", result)
 
         return result
@@ -183,10 +183,7 @@ class MetaAgent:
     async def handle_no_agent_available_request(
         self, query, original_query, reasoning, data
     ):
-        # for if no agent is available, but still needs to process
-
         llm_service = LLMService()
-
         prompts = (
             prompt_service.get_meta_agent_handle_no_agent_available_request_prompt(
                 query, original_query, reasoning, data

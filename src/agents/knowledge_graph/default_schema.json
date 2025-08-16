@@ -1,0 +1,100 @@
+{
+	"entities_list": [
+		{
+			"type": "PARTY",
+			"description": "Any contracting party, including licensor, licensee, producer, distributor, nursery, grower, cooperative, or other named legal entity."
+		},
+		{
+			"type": "PERSON",
+			"description": "Individuals mentioned by name, including signatories, witnesses, officers, representatives, or technical experts."
+		},
+		{
+			"type": "ORGANIZATION",
+			"description": "Companies, institutions, cooperatives, associations, government agencies, or corporate groups."
+		},
+		{
+			"type": "LOCATION",
+			"description": "Geographic references such as countries, states, cities, regions, production territories, orchards, farms, vineyards, or distribution zones."
+		},
+		{
+			"type": "CONTRACT",
+			"description": "Identifiers and titles of agreements, licenses, schedules, annexes, exhibits, amendments, and related legal documents."
+		},
+		{
+			"type": "DATE",
+			"description": "Effective dates, execution dates, renewal dates, expiration dates, reporting deadlines, harvest periods, or shipment schedules."
+		},
+		{
+			"type": "DURATION",
+			"description": "Explicit terms of months, years, seasons, or fixed periods stated in the contract."
+		},
+		{
+			"type": "MONEY",
+			"description": "Monetary values, fees, royalties, minimum guarantees, penalties, rebates, percentages, or financial obligations."
+		},
+		{
+			"type": "OBLIGATION",
+			"description": "Duties or responsibilities such as payments, planting requirements, reporting, marketing, quality control, or delivery commitments."
+		},
+		{
+			"type": "RIGHT",
+			"description": "Exclusive rights, licenses, sublicenses, distribution rights, territorial rights, and permissions granted."
+		},
+		{
+			"type": "PRODUCT",
+			"description": "Goods, crops, cultivars, plant varieties, seedlings, rootstock, and proprietary fruit referenced in the contract."
+		},
+		{
+			"type": "TRADEMARK",
+			"description": "Brand names, marks, or logos explicitly licensed or protected under the contract."
+		},
+		{
+			"type": "INTELLECTUAL_PROPERTY",
+			"description": "Patents, plant variety rights, plant breeder rights, copyrights, and any proprietary agricultural technology referenced."
+		},
+		{
+			"type": "QUALITY_STANDARD",
+			"description": "References to product quality, grading, certifications, phytosanitary standards, or compliance obligations."
+		},
+		{
+			"type": "YIELD_REQUIREMENT",
+			"description": "Minimum planting or harvesting obligations, production thresholds, or supply commitments."
+		},
+		{
+			"type": "SUPPLY_CHAIN_ENTITY",
+			"description": "Entities in the agricultural supply chain such as logistics providers, cold storage facilities, exporters, and packhouses."
+		},
+		{
+			"type": "TERMINATION_EVENT",
+			"description": "Events or conditions triggering termination, breach, or default (e.g., failure to pay, non-compliance, force majeure)."
+		},
+		{
+			"type": "DISPUTE_RESOLUTION",
+			"description": "Arbitration rules, governing law, litigation venues, or conflict resolution mechanisms."
+		},
+		{
+			"type": "CONTACT",
+			"description": "Addresses, emails, phone numbers, and designated contact persons for notices or communication."
+		},
+		{
+			"type": "TECHNICAL_SUPPORT",
+			"description": "References to technical training, cultivation advice, R&D support, or agricultural consultancy provided."
+		},
+		{
+			"type": "REPORTING_REQUIREMENT",
+			"description": "Obligations to provide records, accounting statements, production reports, or audits."
+		},
+		{
+			"type": "COMPLIANCE",
+			"description": "Regulatory or contractual compliance obligations (environmental, export laws, phytosanitary, labor)."
+		},
+		{
+			"type": "FORCE_MAJEURE",
+			"description": "Events like drought, flood, pests, natural disaster, disease, strikes, or war that impact obligations."
+		},
+		{
+			"type": "TERRITORY",
+			"description": "Defined regions or markets covered by the agreement (e.g., Production Territory, Exclusive Territory, Distribution Area)."
+		}
+	]
+}

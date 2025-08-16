@@ -38,18 +38,26 @@ class KnowledgeGraphRetrievalAgent(AgentInterface):
 
     # TODO: add document based filtering for collection
     # TODO: vector lookup table should have documetn table for semantics for llms if they get a ton of matches
-    async def basic_question_answering_retrieval(self, query: str):
+    async def basic_question_answering_retrieval(
+        self, query: str, all_documents: List[Dict[str, Any]]
+    ):
+        # TODO OPTIMIZE: this is crazy slow, need to index on document_id or we're just going through all the vectors for fun basically
         embedding = await llm_service.create_embedding(
             query, model="text-embedding-3-small"
         )
         embedding_str = "[" + ",".join(map(str, embedding)) + "]"
         results = await self._db_.vector_similarity_search(embedding_str)
 
-        filtered_results = [
-            res["full_triple_text"] for res in results if res["full_triple_text"]
-        ]
+        # make sure its in collection
+        filtered_results = results
+        # if len(all_documents) > 0:
+        #     filtered_results = [
+        #         res
+        #         for res in results
+        #         if res["document_id"] in [doc["id"] for doc in all_documents]
+        #     ]
 
-        return {"success": True, "results": results}
+        return {"success": True, "results": filtered_results}
 
     async def add_embedding_to_vector_db(self, query: str):
         embedding = await llm_service.create_embedding(
@@ -67,24 +75,22 @@ class KnowledgeGraphRetrievalAgent(AgentInterface):
 
     async def test_neo(self):
         # test embeddings
-        embedding = await llm_service.create_embedding(
-            "Sunworld Inc. grants license to PartyX?",
-            model="text-embedding-3-small",
-        )
+        # embedding = await llm_service.create_embedding(
+        #     "Sunworld Inc. grants license to PartyX?",
+        #     model="text-embedding-3-small",
+        # )
 
-        embedding2 = await llm_service.create_embedding(
-            "what grants license to party x?",
-            model="text-embedding-3-small",
-        )
+        # embedding2 = await llm_service.create_embedding(
+        #     "what grants license to party x?",
+        #     model="text-embedding-3-small",
+        # )
 
         # Uncomment below to clear the database and vector lookup table
-        # await self._graphdb_.clear_database()
-        # await self._db_.initialize()
-        # await self._db_.clear_kg_vector_lookup_table()
-
         await self._db_.initialize()
-        # results = await self._graphdb_.test_get_data()
-        return {"success": True, "results": embedding}
+        await self._db_.clear_kg_vector_lookup_table()
+        await self._db_.initialize()
+
+        return {"success": True, "results": "success"}
 
     # TODO: Fix tools setup
     def get_tools(self) -> List[Dict[str, Any]]:
@@ -119,7 +125,8 @@ class KnowledgeGraphRetrievalAgent(AgentInterface):
             return await self.test_pg()
         elif command == "basic_question_answering_retrieval":
             return await self.basic_question_answering_retrieval(
-                request.get("query", "")
+                request.get("query", ""),
+                request.get("all_documents", []),
             )
         elif command == "add_embedding":
             return await self.add_embedding_to_vector_db(request.get("query", ""))

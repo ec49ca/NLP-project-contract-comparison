@@ -150,120 +150,19 @@ class KnowledgeGraphExtractionAgent(AgentInterface):
             # TODO: set up additional prompt text and where it goes
             additional_prompt_text = request.get("additional_prompt_text", "")
 
-            relationships_schema = request.get(
-                "relationships_schema",
-                [
-                    {
-                        "type": "WORKS_FOR",
-                        "description": "Employment relationship between a person and an organization",
-                        "examples": [
-                            "John works for Apple",
-                            "Sarah is employed by Microsoft",
-                        ],
-                    },
-                    {
-                        "type": "LOCATED_IN",
-                        "description": "Geographic location relationship",
-                        "examples": [
-                            "Apple is located in Cupertino",
-                            "Paris is in France",
-                        ],
-                    },
-                    {
-                        "type": "FOUNDED",
-                        "description": "Founding relationship between a person and an organization",
-                        "examples": [
-                            "Steve Jobs founded Apple",
-                            "Bill Gates founded Microsoft",
-                        ],
-                    },
-                    {
-                        "type": "PART_OF",
-                        "description": "Part-whole relationship",
-                        "examples": [
-                            "California is part of the United States",
-                            "iPhone is part of Apple's product line",
-                        ],
-                    },
-                    {
-                        "type": "COSTS",
-                        "description": "Monetary value relationship",
-                        "examples": [
-                            "iPhone costs $999",
-                            "Tesla Model S costs $80,000",
-                        ],
-                    },
-                    {
-                        "type": "PRODUCES",
-                        "description": "Manufacturing or creation relationship",
-                        "examples": [
-                            "Apple produces iPhones",
-                            "Tesla produces electric cars",
-                        ],
-                    },
-                    {
-                        "type": "BORN_ON",
-                        "description": "Birth date relationship",
-                        "examples": [
-                            "Einstein was born on March 14, 1879",
-                            "Steve Jobs was born on February 24, 1955",
-                        ],
-                    },
-                    {
-                        "type": "DIED_ON",
-                        "description": "Death date relationship",
-                        "examples": [
-                            "Einstein died on April 18, 1955",
-                            "Steve Jobs died on October 5, 2011",
-                        ],
-                    },
-                ],
+            # Load default schema from JSON file
+            schema_file_path = os.path.join(
+                os.path.dirname(__file__), "default_schema.json"
             )
-            entities_schema = request.get(
-                "entities_schema",
-                [
-                    {
-                        "type": "PERSON",
-                        "description": "Names of people, including fictional characters",
-                        "examples": ["John Smith", "Albert Einstein", "Harry Potter"],
-                    },
-                    {
-                        "type": "ORGANIZATION",
-                        "description": "Companies, institutions, government bodies, and other organizations",
-                        "examples": [
-                            "Apple Inc.",
-                            "Harvard University",
-                            "United Nations",
-                        ],
-                    },
-                    {
-                        "type": "LOCATION",
-                        "description": "Geographic locations, cities, countries, landmarks",
-                        "examples": ["New York", "France", "Mount Everest"],
-                    },
-                    {
-                        "type": "DATE",
-                        "description": "Specific dates, years, time periods",
-                        "examples": ["2023", "January 15th", "the 1990s"],
-                    },
-                    {
-                        "type": "MONEY",
-                        "description": "Monetary amounts and currencies",
-                        "examples": ["$100", "500 euros", "1 million dollars"],
-                    },
-                    {
-                        "type": "PRODUCT",
-                        "description": "Products, services, and commercial items",
-                        "examples": ["iPhone", "Tesla Model S", "Netflix subscription"],
-                    },
-                ],
+            with open(schema_file_path, "r") as f:
+                default_schema = json.load(f)
+
+            entities_list = request.get(
+                "entities_list", default_schema["entities_list"]
             )
 
-            # TODO: add default entities
             if not preprocessed_text:
                 return {"error": "Missing text parameter"}
-
-            print("preprocessed_text: ", preprocessed_text.keys())
 
             # Use the extract_triples tool
             result = await self._tools["extract_triples"].execute_tool(
@@ -271,8 +170,7 @@ class KnowledgeGraphExtractionAgent(AgentInterface):
                     "text": preprocessed_text["data"]["processed_content"],
                     "confidence_threshold": confidence_threshold,
                     "max_triples": max_triples,
-                    "entities_schema": entities_schema,
-                    "relationships_schema": relationships_schema,
+                    "entities_list": entities_list,
                     "document_id": document_id,
                 }
             )

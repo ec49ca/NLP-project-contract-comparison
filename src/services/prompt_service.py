@@ -154,28 +154,51 @@ class PromptService:
         )
 
     def get_entity_extraction_prompt(
-        self, text: str, entities_schema: List[str]
+        self,
+        text: str,
+        entities_list: List[Dict[str, Any]],
+        existing_entities: List[Dict[str, Any]],
     ) -> Dict[str, str]:
         """
         PROMPT for entity extraction.
         """
+        entities_list = "\n".join(
+            [
+                f"\t- {entity['type']}: {entity['description']}"
+                for entity in entities_list
+            ]
+        )
+
+        existing_entities = "\n".join(
+            [f"\t- {entity['type']}: {entity['text']}" for entity in existing_entities]
+        )
 
         return self.get_prompt(
-            "entity_extraction", text=text, entities_schema=entities_schema
+            "entity_extraction",
+            text=text,
+            entities_list=entities_list,
+            existing_entities=existing_entities,
         )
 
     def get_relationship_extraction_prompt(
-        self, text: str, entities: List[str], relationships_schema: List[str]
+        self, text: str, entities: List[Dict[str, Any]]
     ) -> Dict[str, str]:
         """
         PROMPT for relationship extraction.
         """
 
+        # Format entities as a list of entity names for the template
+        entities_list = "\n".join(
+            [
+                f"\t- {entity['text']} ({entity['type']}) - {entity['context']}"
+                for entity in entities
+            ]
+        )
+
         return self.get_prompt(
             "relationship_extraction",
             text=text,
-            entities=entities,
-            relationships_schema=relationships_schema,
+            entities=entities_list,
         )
 
     def get_relation_extraction_prompt(

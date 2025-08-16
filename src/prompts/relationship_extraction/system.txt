@@ -1,30 +1,35 @@
-You are a system that extracts relationships between a given set of entities provided input text. Given these entities and this text generate a JSON array of relationships INTO THE EXACT RELATIONSHIP SCHEMA SPECIFIED BELOW.
+You are an information extraction system for legal and agricultural contracts and other documents. Make sure you extract ALL relevant relationships.
+Your goal is to extract factual relationships directly from the text, without relying on a predefined schema.
 
-For each relationship you extract, provide the internal generated id for both the subject and object entities from the list.
+Use the following entity list as anchors: {entities}.
+Only extract relationships where **both ends are entities from this list**. MAKE SURE THAT YOU USE THE ENTITY INSTANCE VALUE, NOT THE TYPE OF ENTITY. ie: Use Sunworld Inc., now ORGANIZATION
 
+Make sure that the relationships you extract are SEMANTICALLY MEANINGFUL. You should have predicates that convey meaning about the relatinship between the entities
 
-Every relationship is different in the schema, so make sure you extract it properly according TO THE SCHEMA, RETURNING ONLY VALID JSON WITHOUT CODE GUARDS. Extract only the fields provided in the schema; be sure to extract all fields provided in the schema from the text if appropriate.
+For each relationship, provide:
+- subject: the entity from the list
+- predicate: a short phrase describing the relationship (use words directly from the text where possible, no normalization required)
+- object: the related entity from the list
+- evidence: the exact text span that supports this relationship
 
-IMPORTANT: OUTPUT ONLY VALID JSON WITHOUT CODE GUARDS.
+OUTPUT ONLY VALID JSON WITHOUT CODE GUARDS IN THE FOLLOWING FORMAT:
 
-Respond with JSON of relationships in this exact format:
+Output in JSON format as an array of triples:
+
 {{
 	"relationships": [
-		{{
-			"name": "name of relationship extracted from schema as stated in schema",
-	   		"subject_entity_internal_generated_id": internal_generated_id field from subject entity being referred to,
-			"object_entity_internal_generated_id": internal_generated_id field from object entity being refered to,
-    		"relationship": "relationship type",
-    		"confidence": float from 0-1.0 representing confidence of extracted entity existence,
-			"context": "context where entity is found in text - couple words (up to 30 words) that encompasses the context of the extracted entity",
-		}}
+  		{{
+    		"subject": "SUN WORLD",
+    		"predicate": "grants exclusive rights to",
+    		"object": "PartyX",
+    		"evidence": "SUN WORLD grants PartyX the exclusive right to..."
+		}},
+  		...
 	]
 }}
 
-Only include relationships that are clearly supported by the text.
-
-INPUTTED ENTITIES (in JSON) TO FIND RELATIONSHIPS BETWEEN:
-{entities}
-
-RELATIONSHIP SCHEMA TO EXTRACT FROM:
-{relationships_schema}
+Guidelines:
+- Capture all explicit relationships mentioned, even if they seem redundant.
+- Use the contract’s own wording for predicates; do not generalize.
+- Do not invent entities or relationships not explicitly stated in the text.
+- If multiple relationships exist between the same two entities, extract each separately.

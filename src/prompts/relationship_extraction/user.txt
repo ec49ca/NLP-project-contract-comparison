@@ -1,4 +1,4 @@
-Extract relationships in the following text using the schema defined below. RESPONSE ONLY IN VALID JSON WITH NO CODE GUARDS.
+Extract relationships in the following text. RESPONSE ONLY IN VALID JSON WITH NO CODE GUARDS.
 
 TEXT TO EXTRACT RELATIONSHIPS FROM:
 {text}

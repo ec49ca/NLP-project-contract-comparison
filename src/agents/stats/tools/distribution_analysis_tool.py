@@ -33,6 +33,14 @@ def convert_numpy_types(obj):
         return obj
 
 
+def standardize_scientific_notation(value):
+    """Standardize scientific notation format for consistency"""
+    if isinstance(value, float) and abs(value) < 1e-3 or abs(value) > 1e6:
+        # Convert to scientific notation with consistent 'e' format
+        return f"{value:.6e}".replace('e', 'E')
+    return value
+
+
 class DistributionAnalysisTool:
     """Tool for analyzing data distributions and performing goodness-of-fit tests"""
 
@@ -267,18 +275,18 @@ class DistributionAnalysisTool:
                     log_likelihood = np.sum(fitted_dist.logpdf(values))
                     aic = 2 * len(params) - 2 * log_likelihood
                     bic = len(params) * np.log(len(values)) - 2 * log_likelihood
-
+                    
+                    # Standardize parameters for consistent scientific notation
+                    params_list = params.tolist() if hasattr(params, 'tolist') else list(params)
+                    standardized_params = [standardize_scientific_notation(p) for p in params_list]
+                    
                     fits[name] = {
-                        "parameters": (
-                            params.tolist()
-                            if hasattr(params, "tolist")
-                            else list(params)
-                        ),
+                        "parameters": standardized_params,
                         "ks_statistic": float(ks_stat),
                         "ks_p_value": float(ks_p),
                         "aic": float(aic),
                         "bic": float(bic),
-                        "log_likelihood": float(log_likelihood),
+                        "log_likelihood": float(log_likelihood)
                     }
 
                 except Exception as e:
@@ -300,36 +308,89 @@ class DistributionAnalysisTool:
     def _perform_goodness_of_fit_tests(self, values: List[float]) -> Dict[str, Any]:
         """Perform goodness of fit tests"""
         try:
-            # Chi-square test (using histogram)
-            hist, bin_edges = np.histogram(values, bins="auto")
-            bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
+            sample_size = len(values)
+            
+            # Use KS test for small samples, chi-square for large samples
+            if sample_size < 30:
+                return self._perform_ks_goodness_of_fit_tests(values)
+            else:
+                return self._perform_chi_square_goodness_of_fit_tests(values)
+            
+        except Exception as e:
+            logger.error(f"Error in goodness of fit tests: {e}")
+            return {"error": str(e)}
 
+    def _perform_ks_goodness_of_fit_tests(self, values: List[float]) -> Dict[str, Any]:
+        """Perform Kolmogorov-Smirnov goodness of fit tests for small samples"""
+        try:
+            sample_size = len(values)
+            mean = np.mean(values)
+            std = np.std(values)
+            
+            # KS test against normal distribution
+            ks_stat, ks_p = stats.kstest(values, 'norm', args=(mean, std))
+            
+            return {
+                "kolmogorov_smirnov": {
+                    "statistic": float(ks_stat),
+                    "p_value": float(ks_p),
+                    "interpretation": "Good fit to normal distribution" if ks_p > 0.05 else "Poor fit to normal distribution"
+                },
+                "note": f"Using Kolmogorov-Smirnov test due to small sample size (n={sample_size}). Chi-square test requires larger samples for reliable results.",
+                "test_type": "KS_test_for_small_sample"
+            }
+            
+        except Exception as e:
+            logger.error(f"Error in KS goodness of fit tests: {e}")
+            return {"error": str(e)}
+
+    def _perform_chi_square_goodness_of_fit_tests(self, values: List[float]) -> Dict[str, Any]:
+        """Perform chi-square goodness of fit tests for large samples"""
+        try:
+            sample_size = len(values)
+            
+            # Chi-square test (using histogram)
+            hist, bin_edges = np.histogram(values, bins='auto')
+            bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
+            
             # Expected frequencies assuming normal distribution
             mean = np.mean(values)
             std = np.std(values)
-            expected = (
-                norm.pdf(bin_centers, mean, std)
-                * len(values)
-                * (bin_edges[1] - bin_edges[0])
-            )
-
+            expected = norm.pdf(bin_centers, mean, std) * len(values) * (bin_edges[1] - bin_edges[0])
+            
             # Remove bins with zero expected frequency
             valid_indices = expected > 0
             observed = hist[valid_indices]
             expected_valid = expected[valid_indices]
-
-            if len(observed) > 1:
-                chi2_stat, chi2_p = stats.chisquare(observed, expected_valid)
+            
+            result = {}
+            
+            # Only perform chi-square test if we have sufficient data and valid expected frequencies
+            if len(observed) > 1 and np.all(expected_valid > 5):
+                try:
+                    chi2_stat, chi2_p = stats.chisquare(observed, expected_valid)
+                    result["chi_square"] = {
+                        "statistic": float(chi2_stat),
+                        "p_value": float(chi2_p),
+                        "interpretation": "Good fit" if chi2_p > 0.05 else "Poor fit"
+                    }
+                except Exception as e:
+                    result["chi_square"] = {
+                        "error": f"Chi-square test failed: {str(e)}"
+                    }
             else:
-                chi2_stat, chi2_p = np.nan, np.nan
-
-            return {
-                "chi_square": {
-                    "statistic": float(chi2_stat) if not np.isnan(chi2_stat) else None,
-                    "p_value": float(chi2_p) if not np.isnan(chi2_p) else None,
-                    "interpretation": "Good fit" if chi2_p > 0.05 else "Poor fit",
+                result["chi_square"] = {
+                    "error": "Insufficient data or expected frequencies too small for reliable chi-square test"
                 }
-            }
+            
+            result["note"] = f"Using chi-square test for large sample size (n={sample_size})."
+            result["test_type"] = "chi_square_test_for_large_sample"
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error in chi-square goodness of fit tests: {e}")
+            return {"error": str(e)}
 
         except Exception as e:
             logger.error(f"Error in goodness of fit tests: {e}")

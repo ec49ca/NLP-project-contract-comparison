@@ -8,6 +8,7 @@ import json
 import logging
 from typing import Dict, Any, List, Optional
 import numpy as np
+from scipy import stats
 from collections import Counter
 from ....services.llm_service import llm_service
 from ....services.prompt_service import prompt_service
@@ -78,13 +79,13 @@ class DescriptiveStatisticsTool:
                 q3 = np.percentile(sorted_values, 75)
                 iqr = q3 - q1
                 mean = np.mean(values)
-                std_dev = np.std(values)
-                variance = np.var(values)
+                std_dev = np.std(values, ddof=1)  # Sample standard deviation
+                variance = np.var(values, ddof=1)  # Sample variance
                 min_val = np.min(values)
                 max_val = np.max(values)
                 mode = self._calc_mode(values)
-                skewness = self._calc_skewness(values)
-                kurtosis = self._calc_kurtosis(values)
+                skewness = stats.skew(values)  # Use scipy for accurate skewness
+                kurtosis = stats.kurtosis(values)  # Use scipy for accurate kurtosis
 
                 result[field] = {
                     "count": len(values),
@@ -131,18 +132,4 @@ class DescriptiveStatisticsTool:
         modes = [val for val, freq in most_common if freq == max_freq]
         return modes[0] if len(modes) == 1 else modes
 
-    def _calc_skewness(self, values: List[float]) -> float:
-        """Calculate skewness of a list of values"""
-        mean = np.mean(values)
-        std_dev = np.std(values)
-        if std_dev == 0:
-            return 0.0
-        return np.mean([(x - mean) / std_dev for x in values]) ** 3
 
-    def _calc_kurtosis(self, values: List[float]) -> float:
-        """Calculate kurtosis of a list of values"""
-        mean = np.mean(values)
-        std_dev = np.std(values)
-        if std_dev == 0:
-            return 0.0
-        return np.mean([(x - mean) / std_dev for x in values]) ** 4 - 3

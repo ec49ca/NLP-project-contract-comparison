@@ -222,12 +222,19 @@ class LinearRegressionTool:
         categorical_features = []
 
         for feature in feature_fields:
-            is_numerical = all(
-                not np.isnan(float(row[feature]))
-                for row in valid_data
-                if isinstance(row[feature], (int, float))
-            )
-            if is_numerical:
+            # Check if ALL values for this feature are numerical
+            all_numerical = True
+            for row in valid_data:
+                if not isinstance(row[feature], (int, float)):
+                    all_numerical = False
+                    break
+                try:
+                    float(row[feature])  # Test if it can be converted
+                except (ValueError, TypeError):
+                    all_numerical = False
+                    break
+            
+            if all_numerical:
                 numerical_features.append(feature)
             else:
                 categorical_features.append(feature)

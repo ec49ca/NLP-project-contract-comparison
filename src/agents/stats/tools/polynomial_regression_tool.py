@@ -191,7 +191,7 @@ class PolynomialRegressionTool:
                 }
 
         except Exception as e:
-            logger.error(f"Error in polynomial_regression: {e}")
+            logger.error("Error in polynomial_regression", extra={'error': str(e)})
             return {
                 "status": "error",
                 "message": str(e),
@@ -382,7 +382,7 @@ class PolynomialRegressionTool:
             }
 
         except Exception as e:
-            logger.error(f"Error in polynomial regression: {e}")
+            logger.error("Error in polynomial regression", extra={'error': str(e)})
             return {"status": "error", "method": "polynomial", "message": str(e)}
 
     def _generate_polynomial_feature_names(

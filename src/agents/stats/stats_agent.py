@@ -132,24 +132,24 @@ class StatsAgent(AgentInterface):
     async def initialize(self, config: Dict[str, Any]) -> None:
         """Initialize the agent with configuration."""
         try:
-            logger.info(f"Initializing {self.name} with config: {config}")
+            logger.info(f"Initializing {self.name}", extra={'config': config})
             self._initialized = True
             self.status = "ready"
-            logger.info(f"{self.name} initialized successfully")
+            logger.info("Agent initialized successfully", extra={'agent_name': self.name})
         except Exception as e:
-            logger.error(f"Failed to initialize {self.name}: {str(e)}")
+            logger.error("Failed to initialize agent", extra={'agent_name': self.name, 'error': str(e)})
             self.status = "error"
             raise
 
     async def shutdown(self) -> None:
         """Clean up resources when shutting down."""
         try:
-            logger.info(f"Shutting down {self.name}")
+            logger.info("Shutting down agent", extra={'agent_name': self.name})
             self._initialized = False
             self.status = "shutdown"
-            logger.info(f"{self.name} shutdown successfully")
+            logger.info("Agent shutdown successfully", extra={'agent_name': self.name})
         except Exception as e:
-            logger.error(f"Error during {self.name} shutdown: {str(e)}")
+            logger.error("Error during agent shutdown", extra={'agent_name': self.name, 'error': str(e)})
 
     def get_status(self) -> Dict[str, Any]:
         """Return agent's current status."""
@@ -735,12 +735,13 @@ class StatsAgent(AgentInterface):
             if relevant_document["id"]:
                 # get document data from docid
                 logger.info(
-                    f"[STATS AGENT] Getting document data from {relevant_document} for stats agent"
+                    "Getting document data for stats agent",
+                    extra={'document': relevant_document},
                 )
                 document_content = await self._db_.get_document_content(
                     relevant_document["id"]
                 )
-                logger.info(f"[STATS AGENT] Document content: {document_content}")
+                logger.info("Document content", extra={'document_content': document_content})
                 import io
                 import csv
 
@@ -781,14 +782,11 @@ class StatsAgent(AgentInterface):
                     },
                 ],
             )
-            print("field response: ", response)
             parsed_response = json.loads(
                 response.get("choices")[0].get("message").get("content")
             )
             request["targetField"] = parsed_response.get("targetField")
             request["featureFields"] = parsed_response.get("featureFields")
-
-            print("request: ", request)
 
             # Execute the appropriate tool
             if tool_name == "descriptive_statistics":
@@ -821,7 +819,7 @@ class StatsAgent(AgentInterface):
                 return {"status": "error", "message": f"Unknown tool: {tool_name}"}
 
         except Exception as e:
-            logger.error(f"Error processing request in StatsAgent: {e}")
+            logger.error("Error processing request in StatsAgent", extra={'error': str(e)})
             return {"status": "error", "message": str(e)}
 
     # TODO: Add tool-specific processing methods here

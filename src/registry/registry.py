@@ -29,7 +29,12 @@ class AgentRegistrySystem:
         namespace = SAMVID_AGENT_NAMESPACE
         agent_id = uuid.uuid5(namespace, agent.agent_id_str)
         logger.info(
-            f"Registering '{agent.name}' with string_id '{agent.agent_id_str}' and uuid: '{agent_id}'"
+            "Registering agent",
+            extra={
+                'agent_name': agent.name,
+                'agent_id_str': agent.agent_id_str,
+                'agent_uuid': str(agent_id),
+            },
         )
         agent.uuid = agent_id  # set the uuid on the agent instance
         self._agents[agent_id] = agent

@@ -46,10 +46,11 @@ class DetectDocumentTool:
                 )
                 if extraction_success:
                     actual_content = extracted_content
-                    logger.info(f"Successfully extracted content from {file_path}")
+                    logger.info("Successfully extracted content", extra={'file_path': file_path})
                 else:
                     logger.warning(
-                        f"Could not extract content from {file_path}, using filename for detection"
+                        "Could not extract content, using filename for detection",
+                        extra={'file_path': file_path},
                     )
 
             # Multi-layer detection approach
@@ -95,7 +96,7 @@ class DetectDocumentTool:
             return result
 
         except Exception as e:
-            logger.error(f"Error in detect_document_tool: {e}")
+            logger.error("Error in detect_document_tool", extra={'error': str(e)})
             return self._fallback_response()
 
     def _extract_file_content(self, file_path: str) -> Tuple[str, bool]:
@@ -116,7 +117,7 @@ class DetectDocumentTool:
                 return "", False
 
         except Exception as e:
-            logger.error(f"Error extracting content from {file_path}: {e}")
+            logger.error("Error extracting content", extra={'file_path': file_path, 'error': str(e)})
             return "", False
 
     def _extract_docx_content(self, file_path: str) -> Tuple[str, bool]:
@@ -155,7 +156,7 @@ class DetectDocumentTool:
             return content, True
 
         except Exception as e:
-            logger.error(f"Error extracting DOCX content: {e}")
+            logger.error("Error extracting DOCX content", extra={'error': str(e)})
             return "", False
 
     def _extract_text_content(self, file_path: str) -> Tuple[str, bool]:
@@ -165,7 +166,7 @@ class DetectDocumentTool:
                 content = f.read()
             return content, True
         except Exception as e:
-            logger.error(f"Error reading text file: {e}")
+            logger.error("Error reading text file", extra={'error': str(e)})
             return "", False
 
     def _extract_pdf_content(self, file_path: str) -> Tuple[str, bool]:
@@ -194,17 +195,15 @@ class DetectDocumentTool:
                     word_count = len(text.split())
                     # If it has reasonable amount of text, it's not scanned
                     if word_count > 20:
-                        logger.info(f"PDF has extractable text ({word_count} words)")
+                        logger.info("PDF has extractable text", extra={'word_count': word_count})
                         return text, True
 
                 # If we get here, the PDF is likely scanned (no text or very little text)
-                logger.info(
-                    f"PDF appears to be scanned (minimal text: {len(text)} chars)"
-                )
+                logger.info("PDF appears to be scanned", extra={'char_count': len(text)})
                 return "", False
 
         except Exception as e:
-            logger.error(f"Error extracting PDF content: {e}")
+            logger.error("Error extracting PDF content", extra={'error': str(e)})
             return "", False
 
     def _detect_file_type(
@@ -560,11 +559,18 @@ class DetectDocumentTool:
         )
 
         logger.info(
-            f"DOCX structure analysis - Score: {structure_score}, Lines: {len(non_empty_lines)}, "
-            f"Tables: {table_indicators}, Field-value pairs: {field_value_count}, "
-            f"Headers: {header_count}, Sections: {section_count}, "
-            f"Numeric lines: {numeric_lines}, Long paragraphs: {long_paragraphs}, "
-            f"Avg line length: {avg_line_length:.1f}"
+            "DOCX structure analysis",
+            extra={
+                'score': structure_score,
+                'lines': len(non_empty_lines),
+                'tables': table_indicators,
+                'field_value_pairs': field_value_count,
+                'headers': header_count,
+                'sections': section_count,
+                'numeric_lines': numeric_lines,
+                'long_paragraphs': long_paragraphs,
+                'avg_line_length': avg_line_length,
+            },
         )
 
         # Classification based on score with 7-point scale

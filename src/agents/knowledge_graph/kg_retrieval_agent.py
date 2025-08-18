@@ -51,7 +51,6 @@ class KnowledgeGraphRetrievalAgent(AgentInterface):
         # make sure its in collection
         valid_ids = {doc["id"] for doc in all_documents}
         filtered_results = [res for res in results if res["document_id"] in valid_ids]
-        print("document ids: ", valid_ids)
 
         if len(all_documents) == 0:
             filtered_results = results
@@ -145,12 +144,12 @@ class KnowledgeGraphRetrievalAgent(AgentInterface):
                 await tool.initialize(config)
 
         self._initialized = True
-        logger.info("KnowledgeGraphExtractionAgent initialized successfully")
+        logger.info("KnowledgeGraphRetrievalAgent initialized successfully")
 
     async def shutdown(self) -> None:
         """Clean up resources when shutting down."""
         self._initialized = False
-        logger.info("KnowledgeGraphExtractionAgent shutdown complete")
+        logger.info("KnowledgeGraphRetrievalAgent shutdown complete")
 
     def get_status(self) -> Dict[str, Any]:
         """Return agent's current status."""

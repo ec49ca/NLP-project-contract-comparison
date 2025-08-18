@@ -179,7 +179,7 @@ class LinearRegressionTool:
                 }
 
         except Exception as e:
-            logger.error(f"Error in linear_regression: {e}")
+            logger.error("Error in linear_regression", extra={'error': str(e)})
             return {
                 "status": "error",
                 "message": str(e),
@@ -334,5 +334,5 @@ class LinearRegressionTool:
             }
 
         except Exception as e:
-            logger.error(f"Error in linear regression: {e}")
+            logger.error("Error in linear regression", extra={'error': str(e)})
             return {"status": "error", "method": "linear", "message": str(e)}

@@ -29,9 +29,7 @@ class PGVectorService:
             self.pool = await asyncpg.create_pool(
                 self.database_url, min_size=1, max_size=10, command_timeout=60
             )
-            logger.info(
-                f"Connected to PostgreSQL with pgvector at {self.database_url.split('@')[-1]}"
-            )
+            logger.info("Connected to PostgreSQL with pgvector", extra={'database_url': self.database_url.split('@')[-1]})
             # Test the connection
             await self.ping()
 
@@ -40,7 +38,7 @@ class PGVectorService:
             await self.create_kg_vector_lookup_table()
 
         except Exception as e:
-            logger.error(f"❌ Failed to initialize PGVectorService: {e}")
+            logger.error("Failed to initialize PGVectorService", extra={'error': str(e)})
             raise Exception(f"Failed to connect to PostgreSQL: {e}")
 
     async def close(self):
@@ -54,12 +52,12 @@ class PGVectorService:
         try:
             result = await self.execute_query("SELECT 1 as test")
             if result and result[0]["test"] == 1:
-                logger.info("✅ PostgreSQL connection successful - ping test passed")
+                logger.info("PostgreSQL connection successful - ping test passed")
             else:
-                logger.error("❌ PostgreSQL ping test failed - unexpected result")
+                logger.error("PostgreSQL ping test failed - unexpected result")
                 raise Exception("PostgreSQL ping test failed")
         except Exception as e:
-            logger.error(f"❌ PostgreSQL connection failed: {e}")
+            logger.error("PostgreSQL connection failed", extra={'error': str(e)})
             raise Exception(f"Failed to ping PostgreSQL: {e}")
 
     async def insert_embedding_lookup(
@@ -79,7 +77,7 @@ class PGVectorService:
 			"""
             await self.execute_query(query, [embedding, full_triple_text, document_id])
         except Exception as e:
-            logger.error(f"Failed to insert embedding lookup: {e}")
+            logger.error("Failed to insert embedding lookup", extra={'error': str(e)})
             raise Exception(f"Failed to insert embedding lookup: {e}")
 
     async def execute_query(
@@ -100,7 +98,7 @@ class PGVectorService:
                 return [dict(record) for record in result]
 
         except Exception as e:
-            logger.error(f"Failed to execute SQL query: {e}")
+            logger.error("Failed to execute SQL query", extra={'error': str(e)})
             raise Exception(f"Failed to execute SQL query: {e}")
 
     async def create_kg_vector_lookup_table(self):
@@ -120,10 +118,10 @@ class PGVectorService:
 			"""
 
             await self.execute_query(query)
-            logger.info("✅ kg_vector_lookup table created or already exists")
+            logger.info("kg_vector_lookup table created or already exists")
 
         except Exception as e:
-            logger.error(f"Failed to create kg_vector_lookup table: {e}")
+            logger.error("Failed to create kg_vector_lookup table", extra={'error': str(e)})
             raise Exception(f"Failed to create kg_vector_lookup table: {e}")
 
     async def clear_kg_vector_lookup_table(self):
@@ -137,10 +135,10 @@ class PGVectorService:
         try:
             query = "DROP TABLE IF EXISTS kg_vector_lookup;"
             await self.execute_query(query)
-            logger.info("✅ kg_vector_lookup table dropped successfully")
+            logger.info("kg_vector_lookup table dropped successfully")
 
         except Exception as e:
-            logger.error(f"Failed to drop kg_vector_lookup table: {e}")
+            logger.error("Failed to drop kg_vector_lookup table", extra={'error': str(e)})
             raise Exception(f"Failed to drop kg_vector_lookup table: {e}")
 
     async def get_all_embeddings_and_kg_uuids(self) -> List[Dict[str, Any]]:
@@ -161,13 +159,11 @@ class PGVectorService:
 			"""
 
             result = await self.execute_query(query)
-            logger.info(
-                f"Retrieved {len(result)} embeddings and full_triple_text from kg_vector_lookup table"
-            )
+            logger.info("Retrieved embeddings and full_triple_text", extra={'count': len(result)})
             return result
 
         except Exception as e:
-            logger.error(f"Failed to retrieve embeddings and full_triple_text: {e}")
+            logger.error("Failed to retrieve embeddings and full_triple_text", extra={'error': str(e)})
             raise Exception(f"Failed to retrieve embeddings and full_triple_text: {e}")
 
     async def vector_similarity_search(
@@ -199,13 +195,11 @@ class PGVectorService:
                 query, [query_embedding, similarity_threshold, limit]
             )
 
-            logger.info(
-                f"Found {len(result)} similar vectors with threshold {similarity_threshold}"
-            )
+            logger.info("Found similar vectors", extra={'count': len(result), 'similarity_threshold': similarity_threshold})
             return result
 
         except Exception as e:
-            logger.error(f"Failed to perform vector similarity search: {e}")
+            logger.error("Failed to perform vector similarity search", extra={'error': str(e)})
             raise Exception(f"Failed to perform vector similarity search: {e}")
 
     async def get_document_content(self, document_id: str) -> str:
@@ -235,7 +229,7 @@ class PGVectorService:
                         key_hash = hashlib.sha256(key.encode()).digest()
                         cipher = AES.new(key_hash, AES.MODE_GCM, nonce=iv)
                         plaintext = cipher.decrypt_and_verify(encrypted_data, auth_tag)
-                        logger.info(f"Decrypted content: {plaintext}")
+                        logger.info("Decrypted content", extra={'plaintext_preview': plaintext[:100]})
                         return plaintext.decode("utf-8")
 
                     except ValueError as e:
@@ -243,6 +237,6 @@ class PGVectorService:
             else:
                 return result[0]["content"]
         except Exception as e:
-            logger.error(f"Failed to retrieve document content: {e}")
+            logger.error("Failed to retrieve document content", extra={'error': str(e)})
             raise Exception(f"Failed to retrieve document content: {e}")
             return None

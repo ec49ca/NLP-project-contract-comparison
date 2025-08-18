@@ -99,7 +99,7 @@ class TimeSeriesRegressionTool:
                 "period": period,
             }
         except Exception as e:
-            return {"error": f"STL decomposition failed: {e}"}
+            return {"error": "STL decomposition failed", "details": str(e)}
 
     def _fit_arima_or_sarima(
         self,
@@ -169,7 +169,7 @@ class TimeSeriesRegressionTool:
                 "model_summary": str(fitted.summary()),
             }
         except Exception as e:
-            return {"error": f"ARIMA/SARIMA fitting failed: {e}"}
+            return {"error": "ARIMA/SARIMA fitting failed", "details": str(e)}
 
     def _fit_exponential_smoothing(
         self,
@@ -208,7 +208,7 @@ class TimeSeriesRegressionTool:
                 "rmse": float(np.sqrt(mse)),
             }
         except Exception as e:
-            return {"error": f"Exponential Smoothing fitting failed: {e}"}
+            return {"error": "Exponential Smoothing fitting failed", "details": str(e)}
 
     def _auto_arima(
         self,
@@ -239,7 +239,7 @@ class TimeSeriesRegressionTool:
                 confidence_level=confidence_level,
             )
         except Exception as e:
-            return {"error": f"Auto ARIMA failed: {e}"}
+            return {"error": "Auto ARIMA failed", "details": str(e)}
 
     async def execute_tool(self, request: Dict[str, Any]) -> Dict[str, Any]:
         try:
@@ -366,4 +366,5 @@ class TimeSeriesRegressionTool:
             )
             return {"status": "success", "result": self.convert_numpy_types(result), "matched_kwargs": request, "summary": summary}
         except Exception as e:
+            logger.error("Time series regression failed", extra={'error': str(e), 'request': request})
             return {"status": "error", "result": f"Time series regression failed: {e}", "matched_kwargs": request, "summary": str(e)}

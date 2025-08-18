@@ -71,13 +71,11 @@ class RelationExtractionTool:
                     log_file_name,
                 )
 
-            logger.info(
-                f"Starting relation extraction for {len(preprocessed_content)} characters"
-            )
+            logger.info("Starting relation extraction", extra={'content_length': len(preprocessed_content)})
 
             # Process content in chunks
             chunks = self._split_into_chunks(preprocessed_content, chunk_size)
-            logger.info(f"Split content into {len(chunks)} chunks")
+            logger.info("Split content into chunks", extra={'num_chunks': len(chunks)})
 
             all_relationships = []
             processing_stats = {
@@ -91,9 +89,7 @@ class RelationExtractionTool:
             # Process each chunk
             for i, chunk in enumerate(chunks):
                 try:
-                    logger.info(
-                        f"Processing chunk {i+1}/{len(chunks)} ({len(chunk)} chars)"
-                    )
+                    logger.info("Processing chunk", extra={'chunk_num': i+1, 'total_chunks': len(chunks), 'chunk_length': len(chunk)})
 
                     chunk_relationships = await self._extract_relationships_from_chunk(
                         chunk, relation_types, confidence_threshold, session_id
@@ -111,12 +107,10 @@ class RelationExtractionTool:
                     )
                     processing_stats["high_confidence_relationships"] += high_conf
 
-                    logger.info(
-                        f"Chunk {i+1} extracted {len(chunk_relationships)} relationships"
-                    )
+                    logger.info("Chunk extracted relationships", extra={'chunk_num': i+1, 'num_relationships': len(chunk_relationships)})
 
                 except Exception as e:
-                    logger.error(f"Error processing chunk {i+1}: {e}")
+                    logger.error("Error processing chunk", extra={'chunk_num': i+1, 'error': str(e)})
                     processing_stats["processing_errors"] += 1
                     continue
 
@@ -146,13 +140,11 @@ class RelationExtractionTool:
                     session_id, result, log_file_path, log_file_name
                 )
 
-            logger.info(
-                f"Relation extraction completed: {len(final_relationships)} relationships found"
-            )
+            logger.info("Relation extraction completed", extra={'num_relationships': len(final_relationships)})
             return result
 
         except Exception as e:
-            logger.error(f"Error in relation extraction: {e}")
+            logger.error("Error in relation extraction", extra={'error': str(e)})
             return {
                 "error": f"Relation extraction failed: {str(e)}",
                 "success": False,
@@ -229,7 +221,7 @@ class RelationExtractionTool:
             return filtered_relationships
 
         except Exception as e:
-            logger.error(f"Error in GPT-4o relation extraction: {e}")
+            logger.error("Error in GPT-4o relation extraction", extra={'error': str(e)})
             return []
 
     def _parse_gpt_response(
@@ -252,7 +244,7 @@ class RelationExtractionTool:
             relationships = json.loads(response_text)
 
             if not isinstance(relationships, list):
-                logger.error(f"GPT response is not a list: {type(relationships)}")
+                logger.error("GPT response is not a list", extra={'response_type': str(type(relationships))})
                 return []
 
             # Validate and enrich each relationship
@@ -271,11 +263,11 @@ class RelationExtractionTool:
             return validated_relationships
 
         except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse GPT response as JSON: {e}")
-            logger.error(f"Response text: {response_text}")
+            logger.error("Failed to parse GPT response as JSON", extra={'error': str(e)})
+            logger.error("Response text", extra={'response_text': response_text})
             return []
         except Exception as e:
-            logger.error(f"Error parsing GPT response: {e}")
+            logger.error("Error parsing GPT response", extra={'error': str(e)})
             return []
 
     def _validate_and_enrich_relationship(
@@ -285,7 +277,7 @@ class RelationExtractionTool:
         try:
             # Required fields
             if not all(key in rel for key in ["subject", "predicate", "object"]):
-                logger.warning(f"Relationship {index} missing required fields")
+                logger.warning("Relationship missing required fields", extra={'index': index})
                 return None
 
             # Ensure string values
@@ -294,7 +286,7 @@ class RelationExtractionTool:
             object_val = str(rel["object"]).strip()
 
             if not all([subject, predicate, object_val]):
-                logger.warning(f"Relationship {index} has empty values")
+                logger.warning("Relationship has empty values", extra={'index': index})
                 return None
 
             # Build enriched relationship
@@ -326,7 +318,7 @@ class RelationExtractionTool:
             return enriched_rel
 
         except Exception as e:
-            logger.error(f"Error validating relationship {index}: {e}")
+            logger.error("Error validating relationship", extra={'index': index, 'error': str(e)})
             return None
 
     def _post_process_relationships(
@@ -353,9 +345,7 @@ class RelationExtractionTool:
         # Sort by confidence (highest first)
         unique_relationships.sort(key=lambda x: x.get("confidence", 0), reverse=True)
 
-        logger.info(
-            f"Deduplicated {len(relationships)} -> {len(unique_relationships)} relationships"
-        )
+        logger.info("Deduplicated relationships", extra={'original_count': len(relationships), 'deduplicated_count': len(unique_relationships)})
 
         return unique_relationships
 
@@ -435,7 +425,7 @@ class RelationExtractionTool:
                 f.write(json.dumps(log_entry) + "\n")
 
         except Exception as e:
-            logger.error(f"Error logging query: {e}")
+            logger.error("Error logging query", extra={'error': str(e)})
 
     async def _log_results(
         self,
@@ -476,4 +466,4 @@ class RelationExtractionTool:
                 f.write(json.dumps(log_entry) + "\n")
 
         except Exception as e:
-            logger.error(f"Error logging results: {e}")
+            logger.error("Error logging results", extra={'error': str(e)})

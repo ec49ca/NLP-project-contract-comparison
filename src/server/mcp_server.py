@@ -9,8 +9,10 @@ import asyncpg
 from ..meta.meta_agent import MetaAgent
 from ..interfaces.agent import AgentInterface
 
+from ..services.logging_config import setup_logging
+
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+setup_logging()
 logger = logging.getLogger(__name__)
 
 # TODO: add image based processing to ocr -> create vectors based on multimodal
@@ -49,10 +51,12 @@ async def lifespan(app: FastAPI):
         # Send a ping query to test the connection
         async with db_pool.acquire() as conn:
             ping_result = await conn.fetchval("SELECT 1 as ping")
-            logger.info(f"Database ping result: {ping_result}")
+            logger.info("Database ping successful", extra={"ping_result": ping_result})
 
     except Exception as e:
-        logger.error(f"Failed to initialize database connection: {e}")
+        logger.error(
+            "Failed to initialize database connection", extra={"error": str(e)}
+        )
     yield
 
     # Shutdown
@@ -65,9 +69,16 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Samvid MCP", version="0.1.0", lifespan=lifespan)
 
 # Enable CORS
+allowed_origins_str = os.getenv("ALLOWED_ORIGINS", "")
+allowed_origins = (
+    [origin.strip() for origin in allowed_origins_str.split(",")]
+    if allowed_origins_str
+    else []
+)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -87,7 +98,7 @@ async def health_check():
             await conn.fetchval("SELECT 1")
         db_status = "connected"
     except Exception as e:
-        logger.error(f"Database health check failed: {e}")
+        logger.error("Database health check failed", extra={"error": str(e)})
 
     return {
         "status": "healthy",
@@ -97,41 +108,6 @@ async def health_check():
         "database_status": db_status,
         "version": "0.1.0",
     }
-
-
-@app.get("/documents")
-async def get_all_documents():
-    """Fetch all entries from the documents table"""
-    try:
-        pool = await get_db_pool()
-        async with pool.acquire() as conn:
-            # Fetch all documents from the documents table
-            documents = await conn.fetch("SELECT * FROM documents")
-
-            # Convert to list of dictionaries for JSON serialization
-            result = []
-            for doc in documents:
-                result.append(dict(doc))
-
-            return {"success": True, "count": len(result), "documents": result}
-    except Exception as e:
-        logger.error(f"Error fetching documents: {str(e)}")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to fetch documents: {str(e)}"
-        )
-
-    # @app.get("/mcp/{agent_id}/tools")
-    # async def list_tools(agent_id: str):
-    """List all tools for a specific agent in an MCP-compliant format."""
-    try:
-        tools = await meta_agent.get_tools_for_agent(agent_id)
-        return tools
-
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid agent ID")
-    except Exception as e:
-        logger.error(f"Error listing tools for agent {agent_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/mcp/agents")
@@ -156,14 +132,14 @@ async def execute_agent(request: Dict[str, Any]):
             query, original_query, reasoning, data
         )
     except Exception as e:
-        logger.error(f"Error executing agent: {str(e)}")
+        logger.error("Error executing agent", extra={"error": str(e)})
         return HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/mcp/execute/{agent_id}")
 async def execute_agent_by_id(agent_id: str, request: Dict[str, Any]):
     try:
-        logger.info(f"Executing agent {agent_id} with request {request}")
+        logger.info("Executing agent", extra={"agent_id": agent_id, "request": request})
 
         if not request.get("query"):
             return HTTPException(status_code=400, detail="Query is required")
@@ -172,7 +148,9 @@ async def execute_agent_by_id(agent_id: str, request: Dict[str, Any]):
             agent_id, request.get("query"), request.get("data")
         )
     except Exception as e:
-        logger.error(f"Error executing agent {agent_id}: {str(e)}")
+        logger.error(
+            "Error executing agent", extra={"agent_id": agent_id, "error": str(e)}
+        )
         return HTTPException(status_code=500, detail=str(e))
 
 
@@ -188,7 +166,6 @@ if os.getenv("ENV") == "development":
         Execute a specific tool of an agent.
         This endpoint allows direct execution of agent tools by ID.
         """
-        print(f"Executing {agent_id}.{tool_id} with parameters {parameters}")
         import time
 
         start_time = time.time()
@@ -233,7 +210,10 @@ if os.getenv("ENV") == "development":
             }
         except Exception as e:
             execution_time = (time.time() - start_time) * 1000
-            logger.error(f"Error executing {agent_id}.{tool_id}: {str(e)}")
+            logger.error(
+                "Error executing tool",
+                extra={"agent_id": agent_id, "tool_id": tool_id, "error": str(e)},
+            )
             return {
                 "success": False,
                 "error": str(e),
@@ -259,7 +239,8 @@ async def auto_register_agents():
     logger.info("Calling discovery.discover_agents()...")
     agent_classes = await meta_agent.discovery.discover_agents()
     logger.info(
-        f"Discovery returned {len(agent_classes)} agent classes: {list(agent_classes.keys())}"
+        "Discovery returned agent classes",
+        extra={"count": len(agent_classes), "classes": list(agent_classes.keys())},
     )
 
     # Register each discovered agent
@@ -267,14 +248,17 @@ async def auto_register_agents():
         try:
             # Skip already registered agent classes
             if agent_class in registered_agents:
-                logger.info(f"Agent {module_name} already registered, skipping")
+                logger.info(
+                    "Agent already registered, skipping",
+                    extra={"module_name": module_name},
+                )
                 continue
 
             # Create default config - can be customized per agent type if needed
             default_config = {}
 
             # Register the agent and use the deterministic agent_id
-            logger.info(f"Registering agent {module_name}...")
+            logger.info("Registering agent", extra={"module_name": module_name})
             agent_id = await meta_agent.agent_registry.register_agent(
                 agent_class, default_config
             )
@@ -285,62 +269,26 @@ async def auto_register_agents():
             if agent:
                 # Store the mapping from agent name to ID for easier lookup
                 agent_name_to_id[agent.name] = agent_id
-                logger.info(f"Mapped agent name '{agent.name}' to ID {agent_id}")
+                logger.info(
+                    "Mapped agent name to ID",
+                    extra={"agent_name": agent.name, "agent_id": agent_id},
+                )
 
-            logger.info(f"Auto-registered agent {module_name} with ID {agent_id}")
+            logger.info(
+                "Auto-registered agent",
+                extra={"module_name": module_name, "agent_id": agent_id},
+            )
         except Exception as e:
-            logger.error(f"Error auto-registering agent {module_name}: {str(e)}")
+            logger.error(
+                "Error auto-registering agent",
+                extra={"module_name": module_name, "error": str(e)},
+            )
             import traceback
 
-            logger.error(f"Traceback: {traceback.format_exc()}")
+            logger.error("Traceback", extra={"traceback": traceback.format_exc()})
 
-    logger.info(
-        f"Auto-registration complete. {len(registered_agents)} agents registered."
-    )
-    logger.info(f"Agent name to ID mapping: {agent_name_to_id}")
-
-
-# @app.post("/tool-generator/execute")
-# async def execute_tool_generator(request: Dict[str, Any]):
-#     """
-#     Convenience endpoint for the tool generator.
-#     Accepts a query and data, then generates and executes a dynamic tool.
-#     """
-#     try:
-#         query = request.get("query", "")
-#         data = request.get("data", [])
-
-#         if not query:
-#             raise HTTPException(status_code=400, detail="Query is required")
-#         if not data:
-#             raise HTTPException(status_code=400, detail="Data is required")
-
-#         # Find the tool generator agent
-#         agent_id = agent_name_to_id.get("Tool Generator Agent")
-#         if not agent_id:
-#             raise HTTPException(
-#                 status_code=404, detail="Tool Generator Agent not found"
-#             )
-
-#         # Get the agent instance
-#         agent = await registry.get_agent(agent_id)
-#         if not agent:
-#             raise HTTPException(
-#                 status_code=404, detail="Tool Generator Agent not available"
-#             )
-
-#         # Execute the tool generation
-#         result = await agent.process_request(
-#             {"command": "generate_and_execute", "query": query, "data": data}
-#         )
-
-#         return result
-
-#     except HTTPException:
-#         raise
-#     except Exception as e:
-#         logger.error(f"Error in tool generator: {str(e)}")
-#         raise HTTPException(status_code=500, detail=str(e))
+    logger.info("Auto-registration complete", extra={"count": len(registered_agents)})
+    logger.info("Agent name to ID mapping", extra={"mapping": agent_name_to_id})
 
 
 if __name__ == "__main__":

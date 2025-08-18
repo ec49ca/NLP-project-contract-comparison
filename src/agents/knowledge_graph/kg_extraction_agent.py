@@ -76,21 +76,27 @@ class KnowledgeGraphExtractionAgent(AgentInterface):
     def get_tools(self) -> List[Dict[str, Any]]:
         return [
             {
-                "name": "retrieve",
-                "description": "Retrieve information from the knowledge graph based on the user's query",
+                "name": "extract_triples",
+                "description": "Extract triples from text data",
                 "parameters": {
-                    "query": "User query to retrieve information (required)",
-                    "intent": "Intent of the user query (optional)",
-                    "context": "Additional context for the query (optional)",
+                    "type": "object",
+                    "properties": {
+                        "text": {"type": "string"},
+                        "confidence_threshold": {"type": "number"},
+                        "max_triples": {"type": "number"},
+                        "document_id": {"type": "string"},
+                        "entities_list": {"type": "array", "items": {"type": "string"}},
+                        "additional_prompt_text": {"type": "string"},
+                    },
+                    "required": [
+                        "text",
+                        "confidence_threshold",
+                        "max_triples",
+                        "document_id",
+                        "entities_list",
+                    ],
                 },
-                "returnValues": {
-                    "intent": "string - Classified intent of the user query",
-                    "intent_confidence": "number - Confidence score for the intent classification (0.0-1.0)",
-                    "extracted_entities": "array - List of entities extracted from the query with text, type, and confidence",
-                    "extracted_relationships": "array - List of relationships extracted from the query",
-                    # "results": "array - Retrieved information from knowledge graph (future implementation)",
-                    # "metadata": "object - Additional execution metadata (future implementation)",
-                },
+                "execute": self._extract_triples,
             },
         ]
 
@@ -102,20 +108,6 @@ class KnowledgeGraphExtractionAgent(AgentInterface):
 
         if command == "extract_triples":
             return await self._extract_triples(request)
-        elif command == "detect_document_type":
-            return await self._detect_document_type(request)
-        elif command == "preprocess_document":
-            return await self._preprocess_document(request)
-        elif command == "run_ner_el":
-            return await self._run_ner_el(request)
-        elif command == "run_relation_extraction":
-            return await self._run_relation_extraction(request)
-        elif command == "create_quadruples":
-            return await self._create_quadruples(request)
-        elif command == "process_file_to_ner":
-            return await self._process_file_to_ner(request)
-        # elif command == "retrieve":
-        #     return await self._retrieve_information(request)
         else:
             return {
                 "error": f"Unknown command: {command}",
@@ -184,38 +176,8 @@ class KnowledgeGraphExtractionAgent(AgentInterface):
             return {"status": "success", "data": result}
 
         except Exception as e:
-            logger.error(f"Error extracting triples: {str(e)}")
+            logger.error("Error extracting triples", extra={"error": str(e)})
             return {"status": "error", "message": f"Error extracting triples: {str(e)}"}
-
-    async def _detect_document_type(self, request: Dict[str, Any]) -> Dict[str, Any]:
-        """Detect document type from content, filename, or MIME type."""
-        try:
-            document_content = request.get("document_content", "")
-            filename = request.get("filename", "")
-            content_type = request.get("content_type", "")
-            file_path = request.get("file_path", "")
-
-            if not document_content and not file_path:
-                return {"error": "Missing document_content or file_path parameter"}
-
-            # Use the detect_document_type tool
-            result = await self._tools["detect_document_type"].execute_tool(
-                {
-                    "document_content": document_content,
-                    "filename": filename,
-                    "content_type": content_type,
-                    "file_path": file_path,
-                }
-            )
-
-            return {"status": "success", "data": result}
-
-        except Exception as e:
-            logger.error(f"Error detecting document type: {str(e)}")
-            return {
-                "status": "error",
-                "message": f"Error detecting document type: {str(e)}",
-            }
 
     async def _preprocess_document(self, request: Dict[str, Any]) -> Dict[str, Any]:
         """Preprocess document content for knowledge extraction."""
@@ -246,687 +208,624 @@ class KnowledgeGraphExtractionAgent(AgentInterface):
             return {"status": "success", "data": result}
 
         except Exception as e:
-            logger.error(f"Error preprocessing document: {str(e)}")
+            logger.error("Error preprocessing document", extra={"error": str(e)})
             return {
                 "status": "error",
                 "message": f"Error preprocessing document: {str(e)}",
             }
 
-    async def _run_ner_el(self, request: Dict[str, Any]) -> Dict[str, Any]:
-        """Run Named Entity Recognition and Entity Linking on preprocessed text."""
-        try:
-            text = request.get("text", "")
-            if not text:
-                return {"error": "Missing text parameter"}
-            entity_types = request.get(
-                "entity_types",
-                [
-                    "PERSON",
-                    "ORGANIZATION",
-                    "LOCATION",
-                    "DATE",
-                    "ABSTRACT_TIME",
-                    "MONEY",
-                    "PRODUCT",
-                ],
-            )
-            confidence_threshold = request.get("confidence_threshold", 0.8)
-            enable_linking = request.get("enable_linking", True)
-            chunk_size = request.get("chunk_size", 2000)
-            enable_logging = request.get("enable_logging", False)
-            for_retrieval = request.get("for_retrieval", False)
-            log_file_path = request.get("log_file_path", "/app/logs")
-            log_file_name = request.get("log_file_name", "")
-
-            # Use the NER+EL tool
-            tool_args = {
-                "preprocessed_content": text,
-                "entity_types": entity_types,
-                "confidence_threshold": confidence_threshold,
-                "enable_linking": enable_linking,
-                "chunk_size": chunk_size,
-                "enable_logging": enable_logging,
-                "for_retrieval": for_retrieval,
-                "log_file_path": log_file_path,
-            }
-
-            # Add log file name if provided
-            if log_file_name:
-                tool_args["log_file_name"] = log_file_name
-
-            result = await self._tools["run_ner_el"].execute_tool(tool_args)
-
-            return {"status": "success", "data": result}
-
-        except Exception as e:
-            logger.error(f"Error running NER+EL: {str(e)}")
-            return {"status": "error", "message": f"Error running NER+EL: {str(e)}"}
-
-    async def _run_relation_extraction(self, request: Dict[str, Any]) -> Dict[str, Any]:
-        """Extract relationships between entities from preprocessed text using GPT-4o."""
-        try:
-            text = request.get("text", "")
-            relation_types = request.get("relation_types", [])
-            confidence_threshold = request.get("confidence_threshold", 0.7)
-            chunk_size = request.get("chunk_size", 2000)
-            enable_logging = request.get("enable_logging", False)
-            log_file_path = request.get("log_file_path", "/app/logs")
-            log_file_name = request.get("log_file_name", "")
-
-            if not text:
-                return {"error": "Missing text parameter"}
-
-            # Use the relation extraction tool
-            tool_args = {
-                "preprocessed_content": text,
-                "relation_types": relation_types,
-                "confidence_threshold": confidence_threshold,
-                "chunk_size": chunk_size,
-                "enable_logging": enable_logging,
-                "log_file_path": log_file_path,
-            }
-
-            # Add log file name if provided
-            if log_file_name:
-                tool_args["log_file_name"] = log_file_name
-
-            result = await self._tools["run_relation_extraction"].execute_tool(
-                tool_args
-            )
-
-            return {"status": "success", "data": result}
-
-        except Exception as e:
-            logger.error(f"Error running relation extraction: {str(e)}")
-            return {
-                "status": "error",
-                "message": f"Error running relation extraction: {str(e)}",
-            }
-
-    async def _create_quadruples(self, request: Dict[str, Any]) -> Dict[str, Any]:
-        """Create quadruples from relation extraction and NER+EL results."""
-        try:
-            relations = request.get("relations", [])
-            entities = request.get("entities", [])
-
-            if not relations:
-                return {"error": "Missing relations parameter"}
-            if not entities:
-                return {"error": "Missing entities parameter"}
-
-            # Placeholder implementation
-            result = {
-                "quadruples": [],
-                "total_found": 0,
-                "message": "Placeholder implementation",
-            }
-
-            return {"status": "success", "data": result}
-
-        except Exception as e:
-            logger.error(f"Error creating quadruples: {str(e)}")
-            return {
-                "status": "error",
-                "message": f"Error creating quadruples: {str(e)}",
-            }
-
-    async def _process_file_to_ner(self, request: Dict[str, Any]) -> Dict[str, Any]:
-        """Complete pipeline: file -> preprocessing -> NER+EL"""
-        try:
-            # Extract parameters
-            file_path = request.get("file_path", "")
-            auto_detect_type = request.get("auto_detect_type", True)
-            document_type = request.get("document_type", "")
-            entity_types = request.get(
-                "entity_types", ["PERSON", "ORGANIZATION", "LOCATION", "DATE", "MONEY"]
-            )
-            relation_types = request.get("relation_types", [])
-            ner_confidence_threshold = request.get("ner_confidence_threshold", 0.8)
-            re_confidence_threshold = request.get("re_confidence_threshold", 0.7)
-            enable_linking = request.get("enable_linking", True)
-            remove_stopwords = request.get("remove_stopwords", False)
-            normalize_text = request.get("normalize_text", True)
-            enable_logging = request.get("enable_logging", False)
-            log_file_path = request.get("log_file_path", "/app/logs")
-            log_file_name = request.get("log_file_name", "")
-
-            if not file_path:
-                return {"error": "Missing file_path parameter"}
-
-            # Initialize pipeline tracking
-            import time
-
-            pipeline_start_time = time.time()
-            logger.info(f"Starting file-to-NER pipeline for: {file_path}")
-
-            pipeline_results = {
-                "file_path": file_path,
-                "steps_completed": [],
-                "processing_time": {},
-                "pipeline_start_time": pipeline_start_time,
-            }
-
-            # Step 1: Document Type Detection (if auto_detect_type is True)
-            if auto_detect_type:
-                logger.info("Step 1: Detecting document type...")
-                step_start = time.time()
-
-                detect_request = {
-                    "command": "detect_document_type",
-                    "file_path": file_path,
-                }
-
-                detect_result = await self.process_request(detect_request)
-                step_time = time.time() - step_start
-                pipeline_results["processing_time"]["detection"] = step_time
-
-                if detect_result["status"] != "success":
-                    return {
-                        "status": "error",
-                        "message": f"Document type detection failed: {detect_result.get('message', 'Unknown error')}",
-                        "pipeline_results": pipeline_results,
-                    }
-
-                # Use structure_type for preprocessing, not document_type
-                detected_structure = detect_result["data"]["structure_type"]
-                detected_file_type = detect_result["data"]["document_type"]
-
-                pipeline_results["steps_completed"].append(
-                    {
-                        "step": "document_detection",
-                        "result": f"file_type: {detected_file_type}, structure: {detected_structure}",
-                        "processing_time": step_time,
-                    }
-                )
-
-                # Use structure type for preprocessing
-                document_type = detected_structure
-                logger.info(f"Document type detected: {document_type}")
-            else:
-                if not document_type:
-                    return {
-                        "error": "document_type parameter required when auto_detect_type is false"
-                    }
-                pipeline_results["steps_completed"].append(
-                    {
-                        "step": "document_detection",
-                        "result": f"manual override: {document_type}",
-                        "processing_time": 0,
-                    }
-                )
-
-            # Step 2: Preprocessing
-            logger.info("Step 2: Preprocessing document...")
-            step_start = time.time()
-
-            preprocess_request = {
-                "command": "preprocess_document",
-                "file_path": file_path,
-                "document_type": document_type,
-                "remove_stopwords": remove_stopwords,
-                "normalize_text": normalize_text,
-            }
-
-            preprocess_result = await self.process_request(preprocess_request)
-            step_time = time.time() - step_start
-            pipeline_results["processing_time"]["preprocessing"] = step_time
-
-            if preprocess_result["status"] != "success":
-                return {
-                    "status": "error",
-                    "message": f"Preprocessing failed: {preprocess_result.get('message', 'Unknown error')}",
-                    "pipeline_results": pipeline_results,
-                }
-
-            # Debug: log the preprocessing result structure
-            logger.info(
-                f"Preprocessing result keys: {list(preprocess_result.get('data', {}).keys())}"
-            )
-            logger.debug(f"Full preprocessing result: {preprocess_result}")
-
-            # Handle different possible response structures from preprocessing
-            preprocess_data = preprocess_result.get("data", {})
-
-            if "processed_content" in preprocess_data:
-                preprocessed_content = preprocess_data["processed_content"]
-            elif "preprocessed_content" in preprocess_data:
-                preprocessed_content = preprocess_data["preprocessed_content"]
-            elif "content" in preprocess_data:
-                preprocessed_content = preprocess_data["content"]
-            else:
-                # If no content found, log available keys and return error
-                available_keys = list(preprocess_data.keys())
-                logger.error(
-                    f"No preprocessed content found. Available keys: {available_keys}"
-                )
-                return {
-                    "status": "error",
-                    "message": f"Preprocessing did not return expected content. Available keys: {available_keys}",
-                    "pipeline_results": pipeline_results,
-                }
-
-            preprocessing_metadata = preprocess_data.get("metadata", {})
-
-            pipeline_results["steps_completed"].append(
-                {
-                    "step": "preprocessing",
-                    "result": {
-                        "content_length": len(preprocessed_content),
-                        "original_length": preprocessing_metadata.get(
-                            "original_length", 0
-                        ),
-                        "processing_type": preprocessing_metadata.get(
-                            "processing_type", "unknown"
-                        ),
-                    },
-                    "processing_time": step_time,
-                }
-            )
-
-            logger.info(
-                f"Preprocessing completed: {len(preprocessed_content)} characters"
-            )
-
-            # Step 3: NER+EL
-            logger.info("Step 3: Running NER+EL...")
-            step_start = time.time()
-
-            ner_request = {
-                "command": "run_ner_el",
-                "text": preprocessed_content,
-                "entity_types": entity_types,
-                "confidence_threshold": ner_confidence_threshold,
-                "enable_linking": enable_linking,
-                "enable_logging": enable_logging,
-                "log_file_path": log_file_path,
-            }
-
-            # Add custom log file name if provided
-            if log_file_name:
-                ner_request["log_file_name"] = log_file_name
-
-            ner_result = await self.process_request(ner_request)
-            step_time = time.time() - step_start
-            pipeline_results["processing_time"]["ner_el"] = step_time
-
-            # Debug the NER result structure
-            logger.info(f"NER result type: {type(ner_result)}")
-            logger.info(
-                f"NER result keys: {list(ner_result.keys()) if isinstance(ner_result, dict) else 'Not a dict'}"
-            )
-
-            # Handle different response formats
-            if isinstance(ner_result, dict):
-                if "status" in ner_result:
-                    # Standard wrapped response
-                    if ner_result["status"] != "success":
-                        return {
-                            "status": "error",
-                            "message": f"NER+EL failed: {ner_result.get('message', 'Unknown error')}",
-                            "pipeline_results": pipeline_results,
-                        }
-                    ner_data = ner_result["data"]
-                elif "success" in ner_result:
-                    # Direct tool response format
-                    if not ner_result["success"]:
-                        return {
-                            "status": "error",
-                            "message": f"NER+EL failed: {ner_result.get('error', 'Unknown error')}",
-                            "pipeline_results": pipeline_results,
-                        }
-                    ner_data = ner_result
-                else:
-                    # Unexpected format
-                    return {
-                        "status": "error",
-                        "message": f"NER+EL returned unexpected format: {ner_result}",
-                        "pipeline_results": pipeline_results,
-                    }
-            else:
-                return {
-                    "status": "error",
-                    "message": f"NER+EL returned non-dict result: {type(ner_result)}",
-                    "pipeline_results": pipeline_results,
-                }
-
-            pipeline_results["steps_completed"].append(
-                {
-                    "step": "ner_el",
-                    "result": {
-                        "total_entities": ner_data.get("total_entities", 0),
-                        "high_confidence_entities": ner_data.get(
-                            "high_confidence_entities", 0
-                        ),
-                        "entity_types_found": ner_data.get("entity_types_found", []),
-                        "relationships_count": len(ner_data.get("relationships", [])),
-                    },
-                    "processing_time": step_time,
-                }
-            )
-
-            logger.info(
-                f"NER+EL completed: {ner_data.get('total_entities', 0)} entities found"
-            )
-
-            # Step 4: Relation Extraction
-            logger.info("Step 4: Running Relation Extraction...")
-            step_start = time.time()
-
-            re_request = {
-                "command": "run_relation_extraction",
-                "text": preprocessed_content,
-                "relation_types": relation_types,
-                "confidence_threshold": re_confidence_threshold,
-                "enable_logging": enable_logging,
-                "log_file_path": log_file_path,
-            }
-
-            # Add custom log file name if provided
-            if log_file_name:
-                re_request["log_file_name"] = log_file_name
-
-            re_result = await self.process_request(re_request)
-            step_time = time.time() - step_start
-            pipeline_results["processing_time"]["relation_extraction"] = step_time
-
-            # Handle different response formats for RE
-            if isinstance(re_result, dict):
-                if "status" in re_result:
-                    # Standard wrapped response
-                    if re_result["status"] != "success":
-                        return {
-                            "status": "error",
-                            "message": f"Relation extraction failed: {re_result.get('message', 'Unknown error')}",
-                            "pipeline_results": pipeline_results,
-                        }
-                    re_data = re_result["data"]
-                elif "success" in re_result:
-                    # Direct tool response format
-                    if not re_result["success"]:
-                        return {
-                            "status": "error",
-                            "message": f"Relation extraction failed: {re_result.get('error', 'Unknown error')}",
-                            "pipeline_results": pipeline_results,
-                        }
-                    re_data = re_result
-                else:
-                    # Unexpected format
-                    return {
-                        "status": "error",
-                        "message": f"Relation extraction returned unexpected format: {re_result}",
-                        "pipeline_results": pipeline_results,
-                    }
-            else:
-                return {
-                    "status": "error",
-                    "message": f"Relation extraction returned non-dict result: {type(re_result)}",
-                    "pipeline_results": pipeline_results,
-                }
-
-            pipeline_results["steps_completed"].append(
-                {
-                    "step": "relation_extraction",
-                    "result": {
-                        "total_relationships": re_data.get("total_found", 0),
-                        "high_confidence_relationships": re_data.get(
-                            "processing_stats", {}
-                        ).get("high_confidence_relationships", 0),
-                        "relationship_types": list(
-                            re_data.get("metadata", {})
-                            .get("relationship_types", {})
-                            .keys()
-                        ),
-                        "processing_errors": re_data.get("processing_stats", {}).get(
-                            "processing_errors", 0
-                        ),
-                    },
-                    "processing_time": step_time,
-                }
-            )
-
-            logger.info(
-                f"Relation extraction completed: {re_data.get('total_found', 0)} relationships found"
-            )
-
-            # Calculate total processing time
-            total_time = sum(pipeline_results["processing_time"].values())
-            pipeline_results["total_processing_time"] = total_time
-
-            # Prepare final result
-            final_result = {
-                "entities": ner_data.get("entities", []),
-                "ner_relationships": ner_data.get("relationships", []),
-                "extracted_relationships": re_data.get("relationships", []),
-                "statistics": {
-                    "ner_stats": ner_data.get("statistics", {}),
-                    "re_stats": re_data.get("processing_stats", {}),
-                },
-                "entity_types_found": ner_data.get("entity_types_found", []),
-                "total_entities": ner_data.get("total_entities", 0),
-                "high_confidence_entities": ner_data.get("high_confidence_entities", 0),
-                "total_relationships": re_data.get("total_found", 0),
-                "high_confidence_relationships": re_data.get(
-                    "processing_stats", {}
-                ).get("high_confidence_relationships", 0),
-                "pipeline_metadata": {
-                    "file_path": file_path,
-                    "document_type": document_type,
-                    "preprocessing_metadata": preprocessing_metadata,
-                    "pipeline_results": pipeline_results,
-                    "total_processing_time": total_time,
-                },
-                "success": True,
-            }
-
-            logger.info(
-                f"File-to-NER-RE pipeline completed successfully in {total_time:.2f}s"
-            )
-
-            final_response = {"status": "success", "data": final_result}
-
-            # Log the final pipeline result if logging is enabled
-            if enable_logging:
-                await self._log_pipeline_result(
-                    final_response, log_file_path, log_file_name
-                )
-
-            return final_response
-
-        except Exception as e:
-            logger.error(f"Error in file-to-NER-RE pipeline: {str(e)}")
-            return {
-                "status": "error",
-                "message": f"File-to-NER-RE pipeline failed: {str(e)}",
-                "pipeline_results": (
-                    pipeline_results if "pipeline_results" in locals() else {}
-                ),
-            }
-
-    async def _log_pipeline_result(
-        self, final_response: Dict[str, Any], log_file_path: str, log_file_name: str
-    ) -> None:
-        """Log the exact pipeline response that's sent to clients"""
-        try:
-            import json
-            import os
-            from datetime import datetime
-
-            # Generate log file name if not provided
-            if not log_file_name:
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                log_file_name = f"pipeline_{timestamp}.log"
-
-            # Ensure log directory exists
-            os.makedirs(log_file_path, exist_ok=True)
-
-            log_file_full_path = os.path.join(log_file_path, log_file_name)
-
-            # Write to log file with delimiter and exact response
-            with open(log_file_full_path, "a", encoding="utf-8") as f:
-                f.write("\n" + "=" * 100 + "\n")  # Line delimiter
-                f.write("FINAL CLIENT RESPONSE:\n")
-                f.write(json.dumps(final_response, indent=2, ensure_ascii=False) + "\n")
-                f.write("=" * 100 + "\n")  # Final separator
-
-            logger.info(f"Final pipeline response logged to: {log_file_full_path}")
-
-        except Exception as e:
-            logger.error(f"Error logging pipeline result: {e}")
-
-    async def _classify_intent(self, request: Dict[str, Any]) -> Dict[str, Any]:
-        """Classify the intent of a user query into one of several categories."""
-        confidence_threshold = 0.6
-        query = request.get("query")
-        if not query:
-            raise ValueError("Missing required parameter: query")
-
-        intent = request.get("intent")
-        allowed_intents = ["comparative", "fact seeking", "aggregative", "explanatory"]
-
-        if intent and intent in allowed_intents:
-            return {
-                "intent": intent,
-                "confidence": 0.99,
-            }
-
-        # TODO: very much need to improve prompt for this if it fails, currently it is zero shotting
-        # output: {"intent": "fact seeking", "confidence": 0.95}
-        prompt = prompt_service.get_intent_classification_prompt(query=query)
-        full_prompt = prompt["system"] + "\n\n" + prompt["user"]
-
-        response = await llm_service.simple_completion(
-            prompt=full_prompt, response_format={"type": "json_object"}
-        )
-
-        # returns json as string, convert to dict
-        response = json.loads(response) if isinstance(response, str) else response
-
-        if (
-            not response
-            or response["intent"] not in allowed_intents
-            or float(response["confidence"]) < confidence_threshold
-        ):
-            raise ValueError(
-                "Invalid intent found: "
-                + response["intent"]
-                + " with confidence: "
-                + str(response["confidence"])
-            )
-
-        return response
-
-    # async def _execute_cypher_query(self, cypher_query: str) -> Dict[str, Any]:
-    #     response = await self._graphdb_.execute_cypher_query(cypher_query)
-    #     # logger.warning(f"Cypher response: {response}")
-    #     return response
-
-    # async def _retrieve_information(self, request: Dict[str, Any]) -> Any:
-    #     """Main retrieval method that follows the 4-step pipeline.
-
-    #     Args:
-    #                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     request: Dictionary containing the request parameters
-    #                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     - query: The user's natural language query (required)
-
-    #     Returns:
-    #                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     Dict containing:
-    #                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     - intent: Result from _classify_intent
-    #                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     - results: List of retrieved information
-    #                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     - metadata: Additional execution metadata
-
-    #     Raises:
-    #                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     ValueError: If required parameters are missing
-    #     """
-    #     log_response = True
+    # async def _detect_document_type(self, request: Dict[str, Any]) -> Dict[str, Any]:
+    #     """Detect document type from content, filename, or MIME type."""
     #     try:
-    #         # Step 1: Intent and entity recognition
-    #         # intent
-    #         # error handling for intent confidence being low or intent not being in allowed_intents is in classify_intent
-    #         # parallelize step 1 with 2 lambdas: 1 for classify intent and one for ner
-    #         intent_info = await self._classify_intent(request)
-    #         # logger.info(
-    #         #     f"INTENT_INFO: {intent_info['intent']} with confidence: {intent_info['confidence']}"
-    #         # )
-    #         intent = intent_info["intent"]
-    #         intent_confidence = intent_info["confidence"]
-    #         request["intent"] = intent
-    #         request["intent_confidence"] = intent_confidence
+    #         document_content = request.get("document_content", "")
+    #         filename = request.get("filename", "")
+    #         content_type = request.get("content_type", "")
+    #         file_path = request.get("file_path", "")
 
-    #         request["text"] = request["query"]
-    #         request["for_retrieval"] = True
-    #         # entity/relationship extraction
-    #         ner_el_info = await self._run_ner_el(request)
-    #         if ner_el_info["status"] != "success":
-    #             raise ValueError("NER+EL failed")
-    #         entities = ner_el_info["data"]["entities"]
-    #         relationships = ner_el_info["data"]["relationships"]
+    #         if not document_content and not file_path:
+    #             return {"error": "Missing document_content or file_path parameter"}
 
-    #         logger.info(
-    #             f"NER_EL_INFO: \nEntities:{ner_el_info['data']['entities']} \nRelationships:{ner_el_info['data']['relationships']}"
+    #         # Use the detect_document_type tool
+    #         result = await self._tools["detect_document_type"].execute_tool(
+    #             {
+    #                 "document_content": document_content,
+    #                 "filename": filename,
+    #                 "content_type": content_type,
+    #                 "file_path": file_path,
+    #             }
     #         )
 
-    #         # Step 1->2: Entity linking and reconciliation
-    #         # have lookup table
-    #         # may need vectorized lookup -> kg
+    #         return {"status": "success", "data": result}
 
-    #         # Step 2: Multi-strategy retrieval
-    #         # Entity Traversal
-
-    #         all_cypher_results = []
-    #         for entity in entities:
-    #             entity_name = entity.get("text")
-    #             if entity_name:
-    #                 # Construct Cypher query for the extracted entity
-    #                 # Note: This assumes a direct match between extracted entity text and Neo4j entity name.
-    #                 # As discussed, exact matching with URIs might be an issue.
-    #                 cypher_query = f"""
-    # 				MATCH (label_entity:Entity {{name: \"{entity_name}\"}})
-    # 				OPTIONAL MATCH (uri_entity:Entity)-[label_rel:RELATION {{type: \"http://www.w3.org/2000/01/rdf-schema#label\"}}]->(label_entity)
-    # 				WITH COALESCE(uri_entity, label_entity) AS start_node
-    # 				MATCH (start_node)-[r]-(n)
-    # 				RETURN start_node.name AS Source, r.type AS RelationshipType, n.name AS TargetName
-    # 				LIMIT 10
-    # 				"""
-    #                 logger.info(
-    #                     f"Executing Cypher query for entity '{entity_name}': {cypher_query}"
-    #                 )
-    #                 cypher_response = await self._graphdb_.execute_cypher_query(
-    #                     cypher_query
-    #                 )
-    #                 all_cypher_results.append(
-    #                     {
-    #                         "entity": entity_name,
-    #                         "query": cypher_query,
-    #                         "results": cypher_response,
-    #                     }
-    #                 )
-
-    #         # Write all Cypher query results to a log file
-    #         if log_response:
-    #             log_file_path = "logs/cypher_query_results.log"
-    #             with open(log_file_path, "w", encoding="utf-8") as f:
-    #                 f.write(
-    #                     json.dumps(all_cypher_results, indent=2, ensure_ascii=False)
-    #                 )
-    #                 f.write("\n")
-    #             logger.info(f"Wrote all Cypher query results to {log_file_path}")
-
-    #         # todo: Semantic/Vector Search
-    #         # todo: Tool generator agent: Cypher generation
-
-    #         # Step 3: Result processing and ranking
-    #         # Step 4: Context optimization
-
+    #     except Exception as e:
+    #         logger.error("Error detecting document type", extra={"error": str(e)})
     #         return {
-    #             "intent": intent,
-    #             "intent_confidence": intent_confidence,
-    #             "extracted_entities": entities,
-    #             "extracted_relationships": relationships,
-    #             # "results": [],  # Will contain final results
-    #             # "metadata": {},  # Will contain execution metadata
+    #             "status": "error",
+    #             "message": f"Error detecting document type: {str(e)}",
     #         }
 
-    #     except ValueError as e:
-    #         return {"error": str(e), "available_parameters": ["query"]}
+    # async def _run_ner_el(self, request: Dict[str, Any]) -> Dict[str, Any]:
+    #     """Run Named Entity Recognition and Entity Linking on preprocessed text."""
+    #     try:
+    #         text = request.get("text", "")
+    #         if not text:
+    #             return {"error": "Missing text parameter"}
+    #         entity_types = request.get(
+    #             "entity_types",
+    #             [
+    #                 "PERSON",
+    #                 "ORGANIZATION",
+    #                 "LOCATION",
+    #                 "DATE",
+    #                 "ABSTRACT_TIME",
+    #                 "MONEY",
+    #                 "PRODUCT",
+    #             ],
+    #         )
+    #         confidence_threshold = request.get("confidence_threshold", 0.8)
+    #         enable_linking = request.get("enable_linking", True)
+    #         chunk_size = request.get("chunk_size", 2000)
+    #         enable_logging = request.get("enable_logging", False)
+    #         for_retrieval = request.get("for_retrieval", False)
+    #         log_file_path = request.get("log_file_path", "/app/logs")
+    #         log_file_name = request.get("log_file_name", "")
+
+    #         # Use the NER+EL tool
+    #         tool_args = {
+    #             "preprocessed_content": text,
+    #             "entity_types": entity_types,
+    #             "confidence_threshold": confidence_threshold,
+    #             "enable_linking": enable_linking,
+    #             "chunk_size": chunk_size,
+    #             "enable_logging": enable_logging,
+    #             "for_retrieval": for_retrieval,
+    #             "log_file_path": log_file_path,
+    #         }
+
+    #         # Add log file name if provided
+    #         if log_file_name:
+    #             tool_args["log_file_name"] = log_file_name
+
+    #         result = await self._tools["run_ner_el"].execute_tool(tool_args)
+
+    #         return {"status": "success", "data": result}
+
+    #     except Exception as e:
+    #         logger.error("Error running NER+EL", extra={"error": str(e)})
+    #         return {"status": "error", "message": f"Error running NER+EL: {str(e)}"}
+
+    # async def _run_relation_extraction(self, request: Dict[str, Any]) -> Dict[str, Any]:
+    #     """Extract relationships between entities from preprocessed text using GPT-4o."""
+    #     try:
+    #         text = request.get("text", "")
+    #         relation_types = request.get("relation_types", [])
+    #         confidence_threshold = request.get("confidence_threshold", 0.7)
+    #         chunk_size = request.get("chunk_size", 2000)
+    #         enable_logging = request.get("enable_logging", False)
+    #         log_file_path = request.get("log_file_path", "/app/logs")
+    #         log_file_name = request.get("log_file_name", "")
+
+    #         if not text:
+    #             return {"error": "Missing text parameter"}
+
+    #         # Use the relation extraction tool
+    #         tool_args = {
+    #             "preprocessed_content": text,
+    #             "relation_types": relation_types,
+    #             "confidence_threshold": confidence_threshold,
+    #             "chunk_size": chunk_size,
+    #             "enable_logging": enable_logging,
+    #             "log_file_path": log_file_path,
+    #         }
+
+    #         # Add log file name if provided
+    #         if log_file_name:
+    #             tool_args["log_file_name"] = log_file_name
+
+    #         result = await self._tools["run_relation_extraction"].execute_tool(
+    #             tool_args
+    #         )
+
+    #         return {"status": "success", "data": result}
+
+    #     except Exception as e:
+    #         logger.error("Error running relation extraction", extra={"error": str(e)})
+    #         return {
+    #             "status": "error",
+    #             "message": f"Error running relation extraction: {str(e)}",
+    #         }
+
+    # async def _create_quadruples(self, request: Dict[str, Any]) -> Dict[str, Any]:
+    #     """Create quadruples from relation extraction and NER+EL results."""
+    #     try:
+    #         relations = request.get("relations", [])
+    #         entities = request.get("entities", [])
+
+    #         if not relations:
+    #             return {"error": "Missing relations parameter"}
+    #         if not entities:
+    #             return {"error": "Missing entities parameter"}
+
+    #         # Placeholder implementation
+    #         result = {
+    #             "quadruples": [],
+    #             "total_found": 0,
+    #             "message": "Placeholder implementation",
+    #         }
+
+    #         return {"status": "success", "data": result}
+
+    #     except Exception as e:
+    #         logger.error("Error creating quadruples", extra={"error": str(e)})
+    #         return {
+    #             "status": "error",
+    #             "message": f"Error creating quadruples: {str(e)}",
+    #         }
+
+    # async def _process_file_to_ner(self, request: Dict[str, Any]) -> Dict[str, Any]:
+    #     """Complete pipeline: file -> preprocessing -> NER+EL"""
+    #     try:
+    #         # Extract parameters
+    #         file_path = request.get("file_path", "")
+    #         auto_detect_type = request.get("auto_detect_type", True)
+    #         document_type = request.get("document_type", "")
+    #         entity_types = request.get(
+    #             "entity_types", ["PERSON", "ORGANIZATION", "LOCATION", "DATE", "MONEY"]
+    #         )
+    #         relation_types = request.get("relation_types", [])
+    #         ner_confidence_threshold = request.get("ner_confidence_threshold", 0.8)
+    #         re_confidence_threshold = request.get("re_confidence_threshold", 0.7)
+    #         enable_linking = request.get("enable_linking", True)
+    #         remove_stopwords = request.get("remove_stopwords", False)
+    #         normalize_text = request.get("normalize_text", True)
+    #         enable_logging = request.get("enable_logging", False)
+    #         log_file_path = request.get("log_file_path", "/app/logs")
+    #         log_file_name = request.get("log_file_name", "")
+
+    #         if not file_path:
+    #             return {"error": "Missing file_path parameter"}
+
+    #         # Initialize pipeline tracking
+    #         import time
+
+    #         pipeline_start_time = time.time()
+    #         logger.info("Starting file-to-NER pipeline", extra={"file_path": file_path})
+
+    #         pipeline_results = {
+    #             "file_path": file_path,
+    #             "steps_completed": [],
+    #             "processing_time": {},
+    #             "pipeline_start_time": pipeline_start_time,
+    #         }
+
+    #         # Step 1: Document Type Detection (if auto_detect_type is True)
+    #         if auto_detect_type:
+    #             logger.info("Step 1: Detecting document type...")
+    #             step_start = time.time()
+
+    #             detect_request = {
+    #                 "command": "detect_document_type",
+    #                 "file_path": file_path,
+    #             }
+
+    #             detect_result = await self.process_request(detect_request)
+    #             step_time = time.time() - step_start
+    #             pipeline_results["processing_time"]["detection"] = step_time
+
+    #             if detect_result["status"] != "success":
+    #                 return {
+    #                     "status": "error",
+    #                     "message": f"Document type detection failed: {detect_result.get('message', 'Unknown error')}",
+    #                     "pipeline_results": pipeline_results,
+    #                 }
+
+    #             # Use structure_type for preprocessing, not document_type
+    #             detected_structure = detect_result["data"]["structure_type"]
+    #             detected_file_type = detect_result["data"]["document_type"]
+
+    #             pipeline_results["steps_completed"].append(
+    #                 {
+    #                     "step": "document_detection",
+    #                     "result": f"file_type: {detected_file_type}, structure: {detected_structure}",
+    #                     "processing_time": step_time,
+    #                 }
+    #             )
+
+    #             # Use structure type for preprocessing
+    #             document_type = detected_structure
+    #             logger.info(
+    #                 "Document type detected", extra={"document_type": document_type}
+    #             )
+    #         else:
+    #             if not document_type:
+    #                 return {
+    #                     "error": "document_type parameter required when auto_detect_type is false"
+    #                 }
+    #             pipeline_results["steps_completed"].append(
+    #                 {
+    #                     "step": "document_detection",
+    #                     "result": f"manual override: {document_type}",
+    #                     "processing_time": 0,
+    #                 }
+    #             )
+
+    #         # Step 2: Preprocessing
+    #         logger.info("Step 2: Preprocessing document...")
+    #         step_start = time.time()
+
+    #         preprocess_request = {
+    #             "command": "preprocess_document",
+    #             "file_path": file_path,
+    #             "document_type": document_type,
+    #             "remove_stopwords": remove_stopwords,
+    #             "normalize_text": normalize_text,
+    #         }
+
+    #         preprocess_result = await self.process_request(preprocess_request)
+    #         step_time = time.time() - step_start
+    #         pipeline_results["processing_time"]["preprocessing"] = step_time
+
+    #         if preprocess_result["status"] != "success":
+    #             return {
+    #                 "status": "error",
+    #                 "message": f"Preprocessing failed: {preprocess_result.get('message', 'Unknown error')}",
+    #                 "pipeline_results": pipeline_results,
+    #             }
+
+    #         # Debug: log the preprocessing result structure
+    #         logger.info(
+    #             "Preprocessing result keys",
+    #             extra={"keys": list(preprocess_result.get("data", {}).keys())},
+    #         )
+    #         logger.debug(
+    #             "Full preprocessing result", extra={"result": preprocess_result}
+    #         )
+
+    #         # Handle different possible response structures from preprocessing
+    #         preprocess_data = preprocess_result.get("data", {})
+
+    #         if "processed_content" in preprocess_data:
+    #             preprocessed_content = preprocess_data["processed_content"]
+    #         elif "preprocessed_content" in preprocess_data:
+    #             preprocessed_content = preprocess_data["preprocessed_content"]
+    #         elif "content" in preprocess_data:
+    #             preprocessed_content = preprocess_data["content"]
+    #         else:
+    #             # If no content found, log available keys and return error
+    #             available_keys = list(preprocess_data.keys())
+    #             logger.error(
+    #                 "No preprocessed content found",
+    #                 extra={"available_keys": available_keys},
+    #             )
+    #             return {
+    #                 "status": "error",
+    #                 "message": f"Preprocessing did not return expected content. Available keys: {available_keys}",
+    #                 "pipeline_results": pipeline_results,
+    #             }
+
+    #         preprocessing_metadata = preprocess_data.get("metadata", {})
+
+    #         pipeline_results["steps_completed"].append(
+    #             {
+    #                 "step": "preprocessing",
+    #                 "result": {
+    #                     "content_length": len(preprocessed_content),
+    #                     "original_length": preprocessing_metadata.get(
+    #                         "original_length", 0
+    #                     ),
+    #                     "processing_type": preprocessing_metadata.get(
+    #                         "processing_type", "unknown"
+    #                     ),
+    #                 },
+    #                 "processing_time": step_time,
+    #             }
+    #         )
+
+    #         logger.info(
+    #             "Preprocessing completed",
+    #             extra={"char_count": len(preprocessed_content)},
+    #         )
+
+    #         # Step 3: NER+EL
+    #         logger.info("Step 3: Running NER+EL...")
+    #         step_start = time.time()
+
+    #         ner_request = {
+    #             "command": "run_ner_el",
+    #             "text": preprocessed_content,
+    #             "entity_types": entity_types,
+    #             "confidence_threshold": ner_confidence_threshold,
+    #             "enable_linking": enable_linking,
+    #             "enable_logging": enable_logging,
+    #             "log_file_path": log_file_path,
+    #         }
+
+    #         # Add custom log file name if provided
+    #         if log_file_name:
+    #             ner_request["log_file_name"] = log_file_name
+
+    #         ner_result = await self.process_request(ner_request)
+    #         step_time = time.time() - step_start
+    #         pipeline_results["processing_time"]["ner_el"] = step_time
+
+    #         # Debug the NER result structure
+    #         logger.info("NER result type", extra={"result_type": str(type(ner_result))})
+    #         logger.info(
+    #             "NER result keys",
+    #             extra={
+    #                 "keys": (
+    #                     list(ner_result.keys())
+    #                     if isinstance(ner_result, dict)
+    #                     else "Not a dict"
+    #                 )
+    #             },
+    #         )
+
+    #         # Handle different response formats
+    #         if isinstance(ner_result, dict):
+    #             if "status" in ner_result:
+    #                 # Standard wrapped response
+    #                 if ner_result["status"] != "success":
+    #                     return {
+    #                         "status": "error",
+    #                         "message": f"NER+EL failed: {ner_result.get('message', 'Unknown error')}",
+    #                         "pipeline_results": pipeline_results,
+    #                     }
+    #                 ner_data = ner_result["data"]
+    #             elif "success" in ner_result:
+    #                 # Direct tool response format
+    #                 if not ner_result["success"]:
+    #                     return {
+    #                         "status": "error",
+    #                         "message": f"NER+EL failed: {ner_result.get('error', 'Unknown error')}",
+    #                         "pipeline_results": pipeline_results,
+    #                     }
+    #                 ner_data = ner_result
+    #             else:
+    #                 # Unexpected format
+    #                 return {
+    #                     "status": "error",
+    #                     "message": f"NER+EL returned unexpected format: {ner_result}",
+    #                     "pipeline_results": pipeline_results,
+    #                 }
+    #         else:
+    #             return {
+    #                 "status": "error",
+    #                 "message": f"NER+EL returned non-dict result: {type(ner_result)}",
+    #                 "pipeline_results": pipeline_results,
+    #             }
+
+    #         pipeline_results["steps_completed"].append(
+    #             {
+    #                 "step": "ner_el",
+    #                 "result": {
+    #                     "total_entities": ner_data.get("total_entities", 0),
+    #                     "high_confidence_entities": ner_data.get(
+    #                         "high_confidence_entities", 0
+    #                     ),
+    #                     "entity_types_found": ner_data.get("entity_types_found", []),
+    #                     "relationships_count": len(ner_data.get("relationships", [])),
+    #                 },
+    #                 "processing_time": step_time,
+    #             }
+    #         )
+
+    #         logger.info(
+    #             "NER+EL completed",
+    #             extra={"total_entities": ner_data.get("total_entities", 0)},
+    #         )
+
+    #         # Step 4: Relation Extraction
+    #         logger.info("Step 4: Running Relation Extraction...")
+    #         step_start = time.time()
+
+    #         re_request = {
+    #             "command": "run_relation_extraction",
+    #             "text": preprocessed_content,
+    #             "relation_types": relation_types,
+    #             "confidence_threshold": re_confidence_threshold,
+    #             "enable_logging": enable_logging,
+    #             "log_file_path": log_file_path,
+    #         }
+
+    #         # Add custom log file name if provided
+    #         if log_file_name:
+    #             re_request["log_file_name"] = log_file_name
+
+    #         re_result = await self.process_request(re_request)
+    #         step_time = time.time() - step_start
+    #         pipeline_results["processing_time"]["relation_extraction"] = step_time
+
+    #         # Handle different response formats for RE
+    #         if isinstance(re_result, dict):
+    #             if "status" in re_result:
+    #                 # Standard wrapped response
+    #                 if re_result["status"] != "success":
+    #                     return {
+    #                         "status": "error",
+    #                         "message": f"Relation extraction failed: {re_result.get('message', 'Unknown error')}",
+    #                         "pipeline_results": pipeline_results,
+    #                     }
+    #                 re_data = re_result["data"]
+    #             elif "success" in re_result:
+    #                 # Direct tool response format
+    #                 if not re_result["success"]:
+    #                     return {
+    #                         "status": "error",
+    #                         "message": f"Relation extraction failed: {re_result.get('error', 'Unknown error')}",
+    #                         "pipeline_results": pipeline_results,
+    #                     }
+    #                 re_data = re_result
+    #             else:
+    #                 # Unexpected format
+    #                 return {
+    #                     "status": "error",
+    #                     "message": f"Relation extraction returned unexpected format: {re_result}",
+    #                     "pipeline_results": pipeline_results,
+    #                 }
+    #         else:
+    #             return {
+    #                 "status": "error",
+    #                 "message": f"Relation extraction returned non-dict result: {type(re_result)}",
+    #                 "pipeline_results": pipeline_results,
+    #             }
+
+    #         pipeline_results["steps_completed"].append(
+    #             {
+    #                 "step": "relation_extraction",
+    #                 "result": {
+    #                     "total_relationships": re_data.get("total_found", 0),
+    #                     "high_confidence_relationships": re_data.get(
+    #                         "processing_stats", {}
+    #                     ).get("high_confidence_relationships", 0),
+    #                     "relationship_types": list(
+    #                         re_data.get("metadata", {})
+    #                         .get("relationship_types", {})
+    #                         .keys()
+    #                     ),
+    #                     "processing_errors": re_data.get("processing_stats", {}).get(
+    #                         "processing_errors", 0
+    #                     ),
+    #                 },
+    #                 "processing_time": step_time,
+    #             }
+    #         )
+
+    #         logger.info(
+    #             "Relation extraction completed",
+    #             extra={"total_relationships": re_data.get("total_found", 0)},
+    #         )
+
+    #         # Calculate total processing time
+    #         total_time = sum(pipeline_results["processing_time"].values())
+    #         pipeline_results["total_processing_time"] = total_time
+
+    #         # Prepare final result
+    #         final_result = {
+    #             "entities": ner_data.get("entities", []),
+    #             "ner_relationships": ner_data.get("relationships", []),
+    #             "extracted_relationships": re_data.get("relationships", []),
+    #             "statistics": {
+    #                 "ner_stats": ner_data.get("statistics", {}),
+    #                 "re_stats": re_data.get("processing_stats", {}),
+    #             },
+    #             "entity_types_found": ner_data.get("entity_types_found", []),
+    #             "total_entities": ner_data.get("total_entities", 0),
+    #             "high_confidence_entities": ner_data.get("high_confidence_entities", 0),
+    #             "total_relationships": re_data.get("total_found", 0),
+    #             "high_confidence_relationships": re_data.get(
+    #                 "processing_stats", {}
+    #             ).get("high_confidence_relationships", 0),
+    #             "pipeline_metadata": {
+    #                 "file_path": file_path,
+    #                 "document_type": document_type,
+    #                 "preprocessing_metadata": preprocessing_metadata,
+    #                 "pipeline_results": pipeline_results,
+    #                 "total_processing_time": total_time,
+    #             },
+    #             "success": True,
+    #         }
+
+    #         logger.info(
+    #             "File-to-NER-RE pipeline completed successfully",
+    #             extra={"total_time_seconds": total_time},
+    #         )
+
+    #         final_response = {"status": "success", "data": final_result}
+
+    #         # Log the final pipeline result if logging is enabled
+    #         if enable_logging:
+    #             await self._log_pipeline_result(
+    #                 final_response, log_file_path, log_file_name
+    #             )
+
+    #         return final_response
+
+    #     except Exception as e:
+    #         logger.error("Error in file-to-NER-RE pipeline", extra={"error": str(e)})
+    #         return {
+    #             "status": "error",
+    #             "message": f"File-to-NER-RE pipeline failed: {str(e)}",
+    #             "pipeline_results": (
+    #                 pipeline_results if "pipeline_results" in locals() else {}
+    #             ),
+    #         }
+
+    # async def _log_pipeline_result(
+    #     self, final_response: Dict[str, Any], log_file_path: str, log_file_name: str
+    # ) -> None:
+    #     """Log the exact pipeline response that's sent to clients"""
+    #     try:
+    #         import json
+    #         import os
+    #         from datetime import datetime
+
+    #         # Generate log file name if not provided
+    #         if not log_file_name:
+    #             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    #             log_file_name = f"pipeline_{timestamp}.log"
+
+    #         # Ensure log directory exists
+    #         os.makedirs(log_file_path, exist_ok=True)
+
+    #         log_file_full_path = os.path.join(log_file_path, log_file_name)
+
+    #         # Write to log file with delimiter and exact response
+    #         with open(log_file_full_path, "a", encoding="utf-8") as f:
+    #             f.write("\n" + "=" * 100 + "\n")  # Line delimiter
+    #             f.write("FINAL CLIENT RESPONSE:\n")
+    #             f.write(json.dumps(final_response, indent=2, ensure_ascii=False) + "\n")
+    #             f.write("=" * 100 + "\n")  # Final separator
+
+    #         logger.info(
+    #             "Final pipeline response logged",
+    #             extra={"log_file_path": log_file_full_path},
+    #         )
+
+    #     except Exception as e:
+    #         logger.error("Error logging pipeline result", extra={"error": str(e)})
+
+    # async def _classify_intent(self, request: Dict[str, Any]) -> Dict[str, Any]:
+    # """Classify the intent of a user query into one of several categories."""
+    # confidence_threshold = 0.6
+    # query = request.get("query")
+    # if not query:
+    #     raise ValueError("Missing required parameter: query")
+
+    # intent = request.get("intent")
+    # allowed_intents = ["comparative", "fact seeking", "aggregative", "explanatory"]
+
+    # if intent and intent in allowed_intents:
+    #     return {
+    #         "intent": intent,
+    #         "confidence": 0.99,
+    #     }
+
+    # # TODO: very much need to improve prompt for this if it fails, currently it is zero shotting
+    # # output: {"intent": "fact seeking", "confidence": 0.95}
+    # prompt = prompt_service.get_intent_classification_prompt(query=query)
+    # full_prompt = prompt["system"] + "\n\n" + prompt["user"]
+
+    # response = await llm_service.simple_completion(
+    #     prompt=full_prompt, response_format={"type": "json_object"}
+    # )
+
+    # # returns json as string, convert to dict
+    # response = json.loads(response) if isinstance(response, str) else response
+
+    # if (
+    #     not response
+    #     or response["intent"] not in allowed_intents
+    #     or float(response["confidence"]) < confidence_threshold
+    # ):
+    #     raise ValueError(
+    #         "Invalid intent found: "
+    #         + response["intent"]
+    #         + " with confidence: "
+    #         + str(response["confidence"])
+    #     )
+
+    # return response
 
     @property
     def agent_id_str(self) -> str:

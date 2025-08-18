@@ -144,7 +144,7 @@ class CorrelationAnalysisTool:
             }
 
         except Exception as e:
-            logger.error(f"Error in correlation_analysis: {e}")
+            logger.error("Error in correlation_analysis", extra={'error': str(e)})
             return {
                 "status": "error",
                 "message": str(e),
@@ -221,7 +221,8 @@ class CorrelationAnalysisTool:
 
         except Exception as e:
             logger.error(
-                f"Error calculating {method} correlation between {field1} and {field2}: {e}"
+                "Error calculating correlation",
+                extra={'method': method, 'field1': field1, 'field2': field2, 'error': str(e)},
             )
             return None
 

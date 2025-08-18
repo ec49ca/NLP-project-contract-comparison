@@ -179,7 +179,7 @@ class LogisticRegressionTool:
                 }
 
         except Exception as e:
-            logger.error(f"Error in logistic_regression: {e}")
+            logger.error("Error in logistic_regression", extra={'error': str(e)})
             return {
                 "status": "error",
                 "message": str(e),
@@ -375,5 +375,5 @@ class LogisticRegressionTool:
             }
 
         except Exception as e:
-            logger.error(f"Error in logistic regression: {e}")
+            logger.error("Error in logistic regression", extra={'error': str(e)})
             return {"status": "error", "method": "logistic", "message": str(e)}

@@ -74,7 +74,7 @@ class ContractsAgent(AgentInterface):
 
     async def initialize(self, config: Dict[str, Any]) -> None:
         """Initialize the agent with configuration."""
-        logger.info("Initializing ContractsAgent with config: %s", config)
+        logger.info("Initializing ContractsAgent", extra={'config': config})
         self._initialized = True
         self.status = "ready"
 
@@ -82,7 +82,7 @@ class ContractsAgent(AgentInterface):
         """Clean up resources when shutting down."""
         self._initialized = False
         self.status = "shutdown"
-        logger.info("ContractsAgent shutdown successfully")
+        logger.info("ContractsAgent shutdown complete")
 
     def get_tools(self) -> List[Dict[str, Any]]:
         """Return agent's capabilities metadata. Empty for now."""

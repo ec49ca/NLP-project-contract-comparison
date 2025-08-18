@@ -80,18 +80,12 @@ class PreprocessDocumentTool:
                 processed_content = document_content
 
             # Debug: log content info
-            logger.info(
-                f"Input content length: {len(document_content) if document_content else 0}"
-            )
-            logger.info(
-                f"Processed content length before NER processing: {len(processed_content) if processed_content else 0}"
-            )
+            logger.info("Input content length", extra={'content_length': len(document_content) if document_content else 0})
+            logger.info("Processed content length before NER processing", extra={'content_length': len(processed_content) if processed_content else 0})
 
             # If we have no content, try to extract from file_path
             if not processed_content and file_path:
-                logger.info(
-                    f"No content provided, attempting to extract from file: {file_path}"
-                )
+                logger.info("No content provided, attempting to extract from file", extra={'file_path': file_path})
                 try:
                     if file_path.endswith(".docx"):
                         from docx import Document
@@ -102,24 +96,18 @@ class PreprocessDocumentTool:
                             if para.text.strip():
                                 paragraphs.append(para.text.strip())
                         processed_content = "\n".join(paragraphs)
-                        logger.info(
-                            f"Extracted {len(processed_content)} characters from DOCX"
-                        )
+                        logger.info("Extracted characters from DOCX", extra={'char_count': len(processed_content)})
                     elif file_path.endswith((".txt", ".csv", ".json", ".html", ".md")):
                         with open(
                             file_path, "r", encoding="utf-8", errors="ignore"
                         ) as f:
                             processed_content = f.read()
-                        logger.info(
-                            f"Extracted {len(processed_content)} characters from text file"
-                        )
+                        logger.info("Extracted characters from text file", extra={'char_count': len(processed_content)})
                 except Exception as e:
-                    logger.error(f"Failed to extract content from {file_path}: {e}")
+                    logger.error("Failed to extract content from file", extra={'file_path': file_path, 'error': str(e)})
 
             if not processed_content:
-                logger.warning(
-                    f"No content available for processing. Document type: {document_type}, File path: {file_path}"
-                )
+                logger.warning("No content available for processing", extra={'document_type': document_type, 'file_path': file_path})
                 return {
                     "error": "No content available for preprocessing",
                     "success": False,
@@ -160,7 +148,7 @@ class PreprocessDocumentTool:
             return result
 
         except Exception as e:
-            logger.error(f"Error in NER/EL/RE preprocessing: {e}")
+            logger.error("Error in NER/EL/RE preprocessing", extra={'error': str(e)})
             return {"error": f"Preprocessing failed: {str(e)}", "success": False}
 
     def _preprocess_for_ner_el_re(self, content: str, document_type: str) -> str:
@@ -753,18 +741,18 @@ class PreprocessDocumentTool:
         """Process scanned documents with OCR including PDFs"""
         try:
             if not os.path.exists(file_path):
-                logger.error(f"File not found: {file_path}")
+                logger.error("File not found", extra={'file_path': file_path})
                 return "", False
 
             try:
                 import pytesseract
                 from PIL import Image, ImageEnhance, ImageFilter
             except ImportError as e:
-                logger.error(f"OCR libraries not available: {e}")
+                logger.error("OCR libraries not available", extra={'error': str(e)})
                 return "", False
 
             file_ext = Path(file_path).suffix.lower()
-            logger.info(f"Processing scanned document: {file_path} (type: {file_ext})")
+            logger.info("Processing scanned document", extra={'file_path': file_path, 'file_type': file_ext})
 
             if file_ext == ".pdf":
                 # Handle PDF files
@@ -783,11 +771,11 @@ class PreprocessDocumentTool:
                 return await self._process_image_with_ocr(file_path)
 
             else:
-                logger.warning(f"Unsupported file type for OCR: {file_ext}")
+                logger.warning("Unsupported file type for OCR", extra={'file_type': file_ext})
                 return "", False
 
         except Exception as e:
-            logger.error(f"Error in OCR processing: {e}")
+            logger.error("Error in OCR processing", extra={'error': str(e)})
             import traceback
 
             logger.error(f"Full traceback: {traceback.format_exc()}")
@@ -804,13 +792,11 @@ class PreprocessDocumentTool:
                 # PDF already has text, check if it's meaningful
                 word_count = len(existing_text.split())
                 if word_count > 20:  # Threshold for meaningful text
-                    logger.info(
-                        f"PDF {file_path} already has text content, skipping OCR"
-                    )
+                    logger.info("PDF already has text content, skipping OCR", extra={'file_path': file_path})
                     return existing_text, True
 
             # PDF appears to be scanned, convert to images and OCR
-            logger.info(f"PDF {file_path} appears to be scanned, performing OCR")
+            logger.info("PDF appears to be scanned, performing OCR", extra={'file_path': file_path})
 
             try:
                 from pdf2image import convert_from_path
@@ -823,9 +809,9 @@ class PreprocessDocumentTool:
                 images = convert_from_path(
                     file_path, dpi=300
                 )  # High DPI for better OCR
-                logger.info(f"Converted PDF to {len(images)} images")
+                logger.info("Converted PDF to images", extra={'num_images': len(images)})
             except Exception as e:
-                logger.error(f"Failed to convert PDF to images: {e}")
+                logger.error("Failed to convert PDF to images", extra={'error': str(e)})
                 return "", False
 
             # OCR each page
@@ -834,7 +820,7 @@ class PreprocessDocumentTool:
             pages_processed = 0
 
             for page_num, image in enumerate(images, 1):
-                logger.info(f"Processing page {page_num}/{len(images)}")
+                logger.info("Processing page", extra={'page_num': page_num, 'total_pages': len(images)})
 
                 # OCR this page
                 page_text, confidence = await self._ocr_single_image(
@@ -846,23 +832,21 @@ class PreprocessDocumentTool:
                     total_confidence += confidence
                     pages_processed += 1
                 else:
-                    logger.warning(f"No text extracted from page {page_num}")
+                    logger.warning("No text extracted from page", extra={'page_num': page_num})
 
             if all_text:
                 combined_text = "\n\n".join(all_text)
                 avg_confidence = (
                     total_confidence / pages_processed if pages_processed > 0 else 0
                 )
-                logger.info(
-                    f"PDF OCR completed. Pages: {pages_processed}, Avg confidence: {avg_confidence:.2f}"
-                )
+                logger.info("PDF OCR completed", extra={'pages_processed': pages_processed, 'avg_confidence': avg_confidence})
                 return combined_text, True
             else:
                 logger.error("No text extracted from any PDF page")
                 return "", False
 
         except Exception as e:
-            logger.error(f"Error in PDF OCR processing: {e}")
+            logger.error("Error in PDF OCR processing", extra={'error': str(e)})
             return "", False
 
     def _extract_pdf_text(self, file_path: str) -> str:
@@ -881,7 +865,7 @@ class PreprocessDocumentTool:
                 return text.strip()
 
         except Exception as e:
-            logger.warning(f"Failed to extract text from PDF: {e}")
+            logger.warning("Failed to extract text from PDF", extra={'error': str(e)})
             return ""
 
     async def _process_image_with_ocr(self, file_path: str) -> Tuple[str, bool]:
@@ -889,22 +873,20 @@ class PreprocessDocumentTool:
         try:
             # Load and enhance image for better OCR
             image = Image.open(file_path)
-            logger.info(f"Original image size: {image.size}, mode: {image.mode}")
+            logger.info("Original image info", extra={'image_size': image.size, 'image_mode': image.mode})
 
             # OCR the image
             text, confidence = await self._ocr_single_image(image, file_path)
 
             if text:
-                logger.info(
-                    f"Image OCR completed for {file_path}. Confidence: {confidence:.2f}"
-                )
+                logger.info("Image OCR completed", extra={'file_path': file_path, 'confidence': confidence})
                 return text, True
             else:
-                logger.error(f"No text extracted from image {file_path}")
+                logger.error("No text extracted from image", extra={'file_path': file_path})
                 return "", False
 
         except Exception as e:
-            logger.error(f"Error in image OCR: {e}")
+            logger.error("Error in image OCR", extra={'error': str(e)})
             return "", False
 
     async def _ocr_single_image(
@@ -957,22 +939,20 @@ class PreprocessDocumentTool:
                     # Get text
                     text = pytesseract.image_to_string(image, config=config)
 
-                    logger.info(
-                        f"OCR Config: {config}, Confidence: {avg_confidence:.2f}, Text length: {len(text)}"
-                    )
+                    logger.info("OCR Config details", extra={'ocr_config': config, 'confidence': avg_confidence, 'text_length': len(text)})
 
                     if avg_confidence > best_confidence and len(text.strip()) > 0:
                         best_text = text
                         best_confidence = avg_confidence
 
                 except Exception as config_error:
-                    logger.warning(f"OCR config failed {config}: {config_error}")
+                    logger.warning("OCR config failed", extra={'ocr_config': config, 'error': str(config_error)})
                     continue
 
             return best_text.strip(), best_confidence
 
         except Exception as e:
-            logger.error(f"Error in single image OCR: {e}")
+            logger.error("Error in single image OCR", extra={'error': str(e)})
             return "", 0.0
 
     def _generate_ner_metadata(

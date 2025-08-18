@@ -190,7 +190,7 @@ class LassoRegressionTool:
                 }
 
         except Exception as e:
-            logger.error(f"Error in lasso_regression: {e}")
+            logger.error("Error in lasso_regression", extra={'error': str(e)})
             return {
                 "status": "error",
                 "message": str(e),
@@ -384,5 +384,5 @@ class LassoRegressionTool:
             }
 
         except Exception as e:
-            logger.error(f"Error in lasso regression: {e}")
+            logger.error("Error in lasso regression", extra={'error': str(e)})
             return {"status": "error", "method": "lasso", "message": str(e)}

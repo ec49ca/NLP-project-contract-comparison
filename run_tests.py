@@ -1,3 +1,7 @@
+import logging
+
+logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+
 #!/usr/bin/env python3
 """
 Simple test runner to verify our test setup works.
@@ -12,29 +16,29 @@ import os
 
 def run_command(command, description):
     """Run a command and print the result."""
-    print(f"\n{'='*50}")
-    print(f"Running: {description}")
-    print(f"Command: {command}")
+    logger.info(f"\n{'='*50}")
+    logger.info(f"Running: {description}")
+    logger.info(f"Command: {command}")
     print(f"{'='*50}")
 
     result = subprocess.run(command, shell=True, capture_output=False)
 
     if result.returncode == 0:
-        print(f"✅ {description} - PASSED")
+        logger.info(f"✅ {description} - PASSED")
     else:
-        print(f"❌ {description} - FAILED")
+        logger.error(f"❌ {description} - FAILED")
 
     return result.returncode == 0
 
 
 def main():
     """Main test runner function."""
-    print("🧪 Test Suite Runner")
-    print("===================")
+    logger.info("🧪 Test Suite Runner")
+    logger.info("===================")
 
     # Check if we're in the right directory
     if not os.path.exists("src") or not os.path.exists("tests"):
-        print("❌ Error: Please run this script from the project root directory")
+        logger.error("Error: Please run this script from the project root directory")
         sys.exit(1)
 
     # Run different test categories
@@ -54,8 +58,8 @@ def main():
         results.append((description, success))
 
     # Summary
-    print(f"\n{'='*50}")
-    print("📊 TEST SUMMARY")
+    logger.info(f"\n{'='*50}")
+    logger.info("📊 TEST SUMMARY")
     print(f"{'='*50}")
 
     passed = sum(1 for _, success in results if success)
@@ -63,15 +67,16 @@ def main():
 
     for description, success in results:
         status = "✅ PASSED" if success else "❌ FAILED"
-        print(f"{description}: {status}")
+        logger.info(f"{description}: {status}")
 
-    print(f"\nOverall: {passed}/{total} test categories passed")
+    logger.info(f"
+Overall: {passed}/{total} test categories passed")
 
     if passed == total:
-        print("🎉 All tests passed!")
+        logger.info("🎉 All tests passed!")
         return 0
     else:
-        print("💥 Some tests failed!")
+        logger.error("💥 Some tests failed!")
         return 1
 
 

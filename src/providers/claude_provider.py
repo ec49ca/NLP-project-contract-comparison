@@ -43,9 +43,7 @@ class ClaudeProvider(LLMInterface):
         # from anthropic import Anthropic
         # self.client = Anthropic(api_key=self.api_key)
 
-        logger.info(
-            f"Claude Provider initialized with default model: {self.default_model}"
-        )
+        logger.info("Claude Provider initialized", extra={'default_model': self.default_model})
 
     async def chat_completion(
         self,
@@ -60,9 +58,7 @@ class ClaudeProvider(LLMInterface):
         try:
             actual_model = model or self.default_model
 
-            logger.info(
-                f"Making Claude chat completion call with model: {actual_model}"
-            )
+            logger.info("Making Claude chat completion call", extra={'model': actual_model})
 
             # TODO: Implement actual Claude API call
             # response = self.client.messages.create(
@@ -91,7 +87,7 @@ class ClaudeProvider(LLMInterface):
             }
 
         except Exception as e:
-            logger.error(f"Claude chat completion failed: {e}")
+            logger.error("Claude chat completion failed", extra={'error': str(e)})
             raise
 
     async def simple_completion(
@@ -119,7 +115,7 @@ class ClaudeProvider(LLMInterface):
             return response["choices"][0]["message"]["content"]
 
         except Exception as e:
-            logger.error(f"Claude simple completion failed: {e}")
+            logger.error("Claude simple completion failed", extra={'error': str(e)})
             raise
 
     def get_provider_name(self) -> str:
@@ -141,7 +137,7 @@ class ClaudeProvider(LLMInterface):
             logger.warning("Claude connection validation not implemented")
             return True
         except Exception as e:
-            logger.error(f"Claude connection validation failed: {e}")
+            logger.error("Claude connection validation failed", extra={'error': str(e)})
             return False
 
     async def create_embedding(

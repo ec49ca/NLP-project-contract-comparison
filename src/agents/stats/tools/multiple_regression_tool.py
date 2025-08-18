@@ -194,7 +194,7 @@ class MultipleRegressionTool:
                 }
 
         except Exception as e:
-            logger.error(f"Error in multiple_regression: {e}")
+            logger.error("Error in multiple_regression", extra={'error': str(e)})
             return {
                 "status": "error",
                 "message": str(e),
@@ -468,7 +468,7 @@ class MultipleRegressionTool:
             }
 
         except Exception as e:
-            logger.error(f"Error in multiple regression: {e}")
+            logger.error("Error in multiple regression", extra={'error': str(e)})
             return {
                 "status": "error",
                 "method": "multiple_regression",

@@ -22,7 +22,7 @@ class Neo4jService:
         user = os.getenv("NEO4J_USER", "neo4j")
         password = os.getenv("NEO4J_PASSWORD", "samvidneo4j")
         self.driver = GraphDatabase.driver(uri, auth=(user, password))
-        logger.info(f"Connected to Neo4j at {uri} as {user}")
+        logger.info("Connected to Neo4j", extra={'uri': uri, 'user': user})
 
         # Test the connection with a ping
         self.ping()
@@ -37,12 +37,12 @@ class Neo4jService:
                 result = session.run("RETURN 1 as test")
                 record = result.single()
                 if record and record["test"] == 1:
-                    logger.info("✅ Neo4j connection successful - ping test passed")
+                    logger.info("Neo4j connection successful - ping test passed")
                 else:
-                    logger.error("❌ Neo4j ping test failed - unexpected result")
+                    logger.error("Neo4j ping test failed - unexpected result")
                     raise Exception("Neo4j ping test failed")
         except Exception as e:
-            logger.error(f"❌ Neo4j connection failed: {e}")
+            logger.error("Neo4j connection failed", extra={'error': str(e)})
             raise Exception(f"Failed to connect to Neo4j: {e}")
 
     async def execute_cypher_query(
@@ -60,7 +60,7 @@ class Neo4jService:
             loop = asyncio.get_event_loop()
             return await loop.run_in_executor(None, _run_query)
         except Exception as e:
-            logger.error(f"Failed to execute Cypher query: {e}")
+            logger.error("Failed to execute Cypher query", extra={'error': str(e)})
             raise Exception(f"Failed to execute Cypher query: {e}")
 
     async def test_get_data(self) -> List[Dict[str, Any]]:
@@ -130,8 +130,8 @@ class Neo4jService:
             query = "MATCH (n) DETACH DELETE n"
             await self.execute_cypher_query(query)
 
-            logger.info("✅ Neo4j database cleared successfully")
+            logger.info("Neo4j database cleared successfully")
             return {"status": "success", "message": "Database cleared successfully"}
         except Exception as e:
-            logger.error(f"❌ Failed to clear Neo4j database: {e}")
+            logger.error("Failed to clear Neo4j database", extra={'error': str(e)})
             raise Exception(f"Failed to clear Neo4j database: {e}")

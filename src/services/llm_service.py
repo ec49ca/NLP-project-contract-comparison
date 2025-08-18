@@ -42,19 +42,19 @@ class LLMService:
         try:
             # Register OpenAI (always available)
             self.providers["openai"] = OpenAIProvider()
-            logger.info("✅ OpenAI provider registered")
+            logger.info("OpenAI provider registered")
         except Exception as e:
-            logger.warning(f"⚠️  OpenAI provider registration failed: {e}")
+            logger.warning("OpenAI provider registration failed", extra={'error': str(e)})
 
         try:
             # Register Claude (if API key available)
             if os.getenv("CLAUDE_API_KEY"):
                 self.providers["claude"] = ClaudeProvider()
-                logger.info("✅ Claude provider registered")
+                logger.info("Claude provider registered")
             else:
-                logger.info("⏭️  Claude provider skipped (no API key)")
+                logger.info("Claude provider skipped", extra={'reason': 'no API key'})
         except Exception as e:
-            logger.warning(f"⚠️  Claude provider registration failed: {e}")
+            logger.warning("Claude provider registration failed", extra={'error': str(e)})
 
         # TODO: Add Grok provider when available
         # try:
@@ -65,19 +65,17 @@ class LLMService:
         #     logger.warning(f"⚠️  Grok provider registration failed: {e}")
 
         if len(list(self.providers.keys())) == 0:
-            logger.error("⚠️ No LLM providers registered")
-        logger.info(f"📝 Available providers: {list(self.providers.keys())}")
+            logger.error("No LLM providers registered")
+        logger.info("Available providers", extra={'providers': list(self.providers.keys())})
 
     def set_provider(self, provider_name: str) -> bool:
         """Switch to a different LLM provider"""
         if provider_name not in self.providers:
-            logger.error(
-                f"❌ Provider '{provider_name}' not available. Available: {list(self.providers.keys())}"
-            )
+            logger.error("Provider not available", extra={'requested_provider': provider_name, 'available_providers': list(self.providers.keys())})
             return False
 
         self.current_provider = self.providers[provider_name]
-        logger.info(f"🔄 Switched to LLM provider: {provider_name}")
+        logger.info("Switched to LLM provider", extra={'provider_name': provider_name})
         return True
 
     def get_current_provider(self) -> str:
@@ -219,7 +217,7 @@ class LLMService:
             try:
                 results[name] = await provider.validate_connection()
             except Exception as e:
-                logger.error(f"Provider {name} validation failed: {e}")
+                logger.error("Provider validation failed", extra={'provider_name': name, 'error': str(e)})
                 results[name] = False
         return results
 

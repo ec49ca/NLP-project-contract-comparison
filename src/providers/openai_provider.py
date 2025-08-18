@@ -45,9 +45,7 @@ class OpenAIProvider(LLMInterface):
         self.default_temperature = config["default_temperature"]
         self.default_max_tokens = config["default_max_tokens"]
 
-        logger.info(
-            f"OpenAI Provider initialized with default model: {self.default_model}"
-        )
+        logger.info("OpenAI Provider initialized", extra={'default_model': self.default_model})
 
     async def chat_completion(
         self,
@@ -78,9 +76,7 @@ class OpenAIProvider(LLMInterface):
             # Add any additional OpenAI-specific parameters
             params.update(kwargs)
 
-            logger.info(
-                f"Making OpenAI chat completion call with model: {actual_model}"
-            )
+            logger.info("Making OpenAI chat completion call", extra={'model': actual_model})
 
             response = self.client.chat.completions.create(**params)
 
@@ -99,7 +95,7 @@ class OpenAIProvider(LLMInterface):
             }
 
         except Exception as e:
-            logger.error(f"OpenAI chat completion failed: {e}")
+            logger.error("OpenAI chat completion failed", extra={'error': str(e)})
             raise
 
     async def simple_completion(
@@ -127,7 +123,7 @@ class OpenAIProvider(LLMInterface):
             return response["choices"][0]["message"]["content"]
 
         except Exception as e:
-            logger.error(f"OpenAI simple completion failed: {e}")
+            logger.error("OpenAI simple completion failed", extra={'error': str(e)})
             raise
 
     def get_provider_name(self) -> str:
@@ -149,7 +145,7 @@ class OpenAIProvider(LLMInterface):
             logger.info("OpenAI connection validated successfully")
             return True
         except Exception as e:
-            logger.error(f"OpenAI connection validation failed: {e}")
+            logger.error("OpenAI connection validation failed", extra={'error': str(e)})
             return False
 
     async def create_embedding(
@@ -160,7 +156,7 @@ class OpenAIProvider(LLMInterface):
             # Use provided model or default embedding model
             actual_model = model or self.default_embedding_model
 
-            logger.info(f"Creating embedding with model: {actual_model}")
+            logger.info("Creating embedding", extra={'model': actual_model})
 
             response = self.client.embeddings.create(
                 input=text, model=actual_model, **kwargs
@@ -169,11 +165,9 @@ class OpenAIProvider(LLMInterface):
             # Extract embedding vector from response
             embedding = response.data[0].embedding
 
-            logger.info(
-                f"Successfully created embedding with {len(embedding)} dimensions"
-            )
+            logger.info("Successfully created embedding", extra={'dimensions': len(embedding)})
             return embedding
 
         except Exception as e:
-            logger.error(f"OpenAI embedding creation failed: {e}")
+            logger.error("OpenAI embedding creation failed", extra={'error': str(e)})
             raise

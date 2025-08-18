@@ -55,13 +55,14 @@ class ExtractTriplesTool:
             return {"success": False, "error": "No entities list provided"}
 
         try:
-            logger.info(f"Starting triple extraction. Content length: {len(text)}")
+            logger.info("Starting triple extraction", extra={'content_length': len(text)})
 
             # Step 2: Split text into manageable chunks
             chunks = self._split_into_chunks(text, chunk_size)
 
             logger.info(
-                f"Processing {len(chunks)} chunks for entity and relationship extraction"
+                "Processing chunks for entity and relationship extraction",
+                extra={'num_chunks': len(chunks)},
             )
 
             # Step 3: Process chunks sequentially, maintaining running entity list
@@ -78,7 +79,7 @@ class ExtractTriplesTool:
             # First loop: Extract all entities from all chunks
             logger.info("Starting entity extraction phase")
             for chunk_num, chunk in enumerate(chunks, 1):
-                logger.info(f"Extracting entities from chunk {chunk_num}/{len(chunks)}")
+                logger.info("Extracting entities from chunk", extra={'chunk_num': chunk_num, 'total_chunks': len(chunks)})
 
                 try:
                     # Extract entities from this chunk
@@ -86,26 +87,18 @@ class ExtractTriplesTool:
                         chunk, entities_list, chunk_num, all_entities
                     )
 
-                    logger.info(
-                        f"Chunk {chunk_num}:  Total: {len(all_entities)} entities"
-                    )
+                    logger.info("Chunk entities extracted", extra={'chunk_num': chunk_num, 'total_entities': len(all_entities)})
 
                 except Exception as chunk_error:
-                    logger.error(
-                        f"Error processing chunk {chunk_num} for entities: {chunk_error}"
-                    )
+                    logger.error("Error processing chunk for entities", extra={'chunk_num': chunk_num, 'error': str(chunk_error)})
                     processing_stats["processing_errors"] += 1
                     continue
 
-            logger.info(
-                f"All Entities: {all_entities}",
-            )
+            logger.info("All Entities", extra={'entities': all_entities})
             # Second loop: Extract all relationships from all chunks using all entities
             logger.info("Starting relationship extraction phase")
             for chunk_num, chunk in enumerate(chunks, 1):
-                logger.info(
-                    f"Extracting relationships from chunk {chunk_num}/{len(chunks)}"
-                )
+                logger.info("Extracting relationships from chunk", extra={'chunk_num': chunk_num, 'total_chunks': len(chunks)})
 
                 try:
                     # Extract relationships using all entities found in first phase
@@ -118,17 +111,20 @@ class ExtractTriplesTool:
                     processing_stats["total_relationships"] += len(chunk_relationships)
 
                     logger.info(
-                        f"Chunk {chunk_num}: +{len(chunk_relationships)} relationships. Total: {len(all_relationships)} relationships"
+                        "Chunk relationships extracted",
+                        extra={
+                            'chunk_num': chunk_num,
+                            'new_relationships': len(chunk_relationships),
+                            'total_relationships': len(all_relationships),
+                        },
                     )
 
                 except Exception as chunk_error:
-                    logger.error(
-                        f"Error processing chunk {chunk_num} for relationships: {chunk_error}"
-                    )
+                    logger.error("Error processing chunk for relationships", extra={'chunk_num': chunk_num, 'error': str(chunk_error)})
                     processing_stats["processing_errors"] += 1
                     continue
 
-            logger.info(f"All Relationships: {all_relationships}")
+            logger.info("All Relationships", extra={'relationships': all_relationships})
 
             processing_stats["chunks_processed"] = len(chunks)
 
@@ -152,18 +148,16 @@ class ExtractTriplesTool:
                         full_triple_text,
                         document_id,
                     )
-                    logger.info(
-                        f"Inserted vector embedding lookup for: {full_triple_text}"
-                    )
+                    logger.info("Inserted vector embedding lookup", extra={'triple_text': full_triple_text})
 
                 except Exception as e:
-                    logger.error(f"Error inserting vector embedding lookup: {e}")
+                    logger.error("Error inserting vector embedding lookup", extra={'error': str(e)})
                     continue
 
             return {"success": True}
 
         except Exception as e:
-            logger.error(f"Error in extract_triples: {e}")
+            logger.error("Error in extract_triples", extra={'error': str(e)})
             # Fallback to placeholder implementation
             return self._fallback_response(confidence_threshold)
 
@@ -182,7 +176,7 @@ class ExtractTriplesTool:
             response = await self._make_llm_call(prompt)
             return response
         except Exception as e:
-            logger.error(f"Error extracting relationships: {e}")
+            logger.error("Error extracting relationships", extra={'error': str(e)})
             return []
 
     async def _make_llm_call(self, prompt: str) -> str:
@@ -204,7 +198,7 @@ class ExtractTriplesTool:
 
             return response
         except Exception as e:
-            logger.error(f"LLM API call failed: {e}")
+            logger.error("LLM API call failed", extra={'error': str(e)})
             raise
 
     def _fallback_response(self) -> Dict[str, Any]:
@@ -313,7 +307,7 @@ class ExtractTriplesTool:
             return entities
 
         except Exception as e:
-            logger.error(f"Error extracting entities from chunk {chunk_num}: {e}")
+            logger.error("Error extracting entities from chunk", extra={'chunk_num': chunk_num, 'error': str(e)})
             return []
 
     async def _extract_relationships_from_chunk(
@@ -338,11 +332,9 @@ class ExtractTriplesTool:
                 "relationships"
             ]
 
-            logger.info(
-                f"Extracted {len(relationships)} relationships from chunk {chunk_num} using {len(all_entities)} entities"
-            )
+            logger.info("Extracted relationships from chunk", extra={'num_relationships': len(relationships), 'chunk_num': chunk_num, 'num_entities': len(all_entities)})
             return relationships
 
         except Exception as e:
-            logger.error(f"Error extracting relationships from chunk {chunk_num}: {e}")
+            logger.error("Error extracting relationships from chunk", extra={'chunk_num': chunk_num, 'error': str(e)})
             return []

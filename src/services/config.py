@@ -131,22 +131,20 @@ PROVIDER_CONFIGS = get_provider_registry()
 def validate_openai_config() -> bool:
     """Validate OpenAI configuration (backward compatibility)"""
     logger.info("Validating OpenAI configuration...")
-    logger.info(f"OPENAI_API_KEY present: {bool(OPENAI_API_KEY)}")
+    logger.info("OPENAI_API_KEY present", extra={'present': bool(OPENAI_API_KEY)})
 
     config = get_provider_config("openai")
     if config:
-        logger.info(f"OPENAI_DEFAULT_MODEL: {config['default_model']}")
-        logger.info(f"OPENAI_MAX_TOKENS: {config['default_max_tokens']}")
-        logger.info(f"OPENAI_TEMPERATURE: {config['default_temperature']}")
+        logger.info("OPENAI_DEFAULT_MODEL", extra={'model': config['default_model']})
+        logger.info("OPENAI_MAX_TOKENS", extra={'max_tokens': config['default_max_tokens']})
+        logger.info("OPENAI_TEMPERATURE", extra={'temperature': config['default_temperature']})
 
     if not OPENAI_API_KEY:
         logger.error("OPENAI_API_KEY environment variable is required")
         raise ValueError("OPENAI_API_KEY environment variable is required")
 
     if not OPENAI_API_KEY.startswith("sk-"):
-        logger.warning(
-            f"OPENAI_API_KEY doesn't start with 'sk-': {OPENAI_API_KEY[:10]}..."
-        )
+        logger.warning("OPENAI_API_KEY doesn't start with 'sk-'", extra={'key_preview': OPENAI_API_KEY[:10]})
 
     logger.info("OpenAI configuration validation successful")
     return True
@@ -155,13 +153,13 @@ def validate_openai_config() -> bool:
 def validate_claude_config() -> bool:
     """Validate Claude configuration"""
     logger.info("Validating Claude configuration...")
-    logger.info(f"CLAUDE_API_KEY present: {bool(CLAUDE_API_KEY)}")
+    logger.info("CLAUDE_API_KEY present", extra={'present': bool(CLAUDE_API_KEY)})
 
     config = get_provider_config("claude")
     if config:
-        logger.info(f"CLAUDE_DEFAULT_MODEL: {config['default_model']}")
-        logger.info(f"CLAUDE_MAX_TOKENS: {config['default_max_tokens']}")
-        logger.info(f"CLAUDE_TEMPERATURE: {config['default_temperature']}")
+        logger.info("CLAUDE_DEFAULT_MODEL", extra={'model': config['default_model']})
+        logger.info("CLAUDE_MAX_TOKENS", extra={'max_tokens': config['default_max_tokens']})
+        logger.info("CLAUDE_TEMPERATURE", extra={'temperature': config['default_temperature']})
 
     if not CLAUDE_API_KEY:
         logger.warning(
@@ -176,13 +174,13 @@ def validate_claude_config() -> bool:
 def validate_grok_config() -> bool:
     """Validate Grok configuration"""
     logger.info("Validating Grok configuration...")
-    logger.info(f"GROK_API_KEY present: {bool(GROK_API_KEY)}")
+    logger.info("GROK_API_KEY present", extra={'present': bool(GROK_API_KEY)})
 
     config = get_provider_config("grok")
     if config:
-        logger.info(f"GROK_DEFAULT_MODEL: {config['default_model']}")
-        logger.info(f"GROK_MAX_TOKENS: {config['default_max_tokens']}")
-        logger.info(f"GROK_TEMPERATURE: {config['default_temperature']}")
+        logger.info("GROK_DEFAULT_MODEL", extra={'model': config['default_model']})
+        logger.info("GROK_MAX_TOKENS", extra={'max_tokens': config['default_max_tokens']})
+        logger.info("GROK_TEMPERATURE", extra={'temperature': config['default_temperature']})
 
     if not GROK_API_KEY:
         logger.warning("GROK_API_KEY not provided - Grok provider will be unavailable")
@@ -201,7 +199,7 @@ def validate_provider_config(provider_name: str) -> bool:
     elif provider_name == "grok":
         return validate_grok_config()
     else:
-        logger.error(f"Unknown provider: {provider_name}")
+        logger.error("Unknown provider", extra={'provider_name': provider_name})
         return False
 
 
@@ -223,7 +221,7 @@ def validate_all_provider_configs() -> Dict[str, bool]:
                 )
 
         except Exception as e:
-            logger.error(f"Error validating {provider_name}: {e}")
+            logger.error("Error validating provider", extra={'provider_name': provider_name, 'error': str(e)})
             results[provider_name] = False
 
             if config["required"]:
@@ -231,20 +229,16 @@ def validate_all_provider_configs() -> Dict[str, bool]:
 
     # Validate global provider selection
     if LLM_PROVIDER not in provider_registry:
-        logger.error(
-            f"Invalid LLM_PROVIDER '{LLM_PROVIDER}'. Available: {list(provider_registry.keys())}"
-        )
+        logger.error("Invalid LLM_PROVIDER", extra={'invalid_provider': LLM_PROVIDER, 'available_providers': list(provider_registry.keys())})
         raise ValueError(f"Invalid LLM_PROVIDER '{LLM_PROVIDER}'")
 
     if not results.get(LLM_PROVIDER, False):
-        logger.error(
-            f"Selected LLM_PROVIDER '{LLM_PROVIDER}' is not properly configured"
-        )
+        logger.error("Selected LLM_PROVIDER is not properly configured", extra={'selected_provider': LLM_PROVIDER})
         raise ValueError(f"Selected LLM_PROVIDER '{LLM_PROVIDER}' is not available")
 
     available_providers = [name for name, valid in results.items() if valid]
-    logger.info(f"✅ Provider validation complete. Available: {available_providers}")
-    logger.info(f"🎯 Selected provider: {LLM_PROVIDER}")
+    logger.info("Provider validation complete", extra={'available_providers': available_providers})
+    logger.info("Selected provider", extra={'selected_provider': LLM_PROVIDER})
 
     return results
 

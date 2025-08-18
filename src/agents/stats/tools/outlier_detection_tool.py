@@ -98,7 +98,11 @@ class OutlierDetectionTool:
 
                 if len(values_with_indices) < 10:
                     logger.warning(
-                        f"Insufficient data for field {field}: {len(values_with_indices)} values"
+                        "Insufficient data for field",
+                        extra={
+                            'field': field,
+                            'num_values': len(values_with_indices),
+                        },
                     )
                     continue
 
@@ -167,7 +171,7 @@ class OutlierDetectionTool:
             }
 
         except Exception as e:
-            logger.error(f"Error in outlier_detection: {e}")
+            logger.error("Error in outlier_detection", extra={'error': str(e)})
             return {
                 "status": "error",
                 "message": str(e),
@@ -254,7 +258,7 @@ class OutlierDetectionTool:
                 "quartiles": {"q1": float(q1), "q3": float(q3)},
             }
         except Exception as e:
-            logger.error(f"Error in IQR outlier detection: {e}")
+            logger.error("Error in IQR outlier detection", extra={'error': str(e)})
             return {"error": str(e)}
 
     def _detect_outliers_zscore(
@@ -292,7 +296,7 @@ class OutlierDetectionTool:
                 "std": float(std),
             }
         except Exception as e:
-            logger.error(f"Error in Z-score outlier detection: {e}")
+            logger.error("Error in Z-score outlier detection", extra={'error': str(e)})
             return {"error": str(e)}
 
     def _detect_outliers_modified_zscore(
@@ -336,7 +340,7 @@ class OutlierDetectionTool:
                 "modified_mad": float(modified_mad),
             }
         except Exception as e:
-            logger.error(f"Error in Modified Z-score outlier detection: {e}")
+            logger.error("Error in Modified Z-score outlier detection", extra={'error': str(e)})
             return {"error": str(e)}
 
     def _detect_outliers_isolation_forest(
@@ -380,7 +384,7 @@ class OutlierDetectionTool:
                 "std": float(std),
             }
         except Exception as e:
-            logger.error(f"Error in Isolation Forest outlier detection: {e}")
+            logger.error("Error in Isolation Forest outlier detection", extra={'error': str(e)})
             return {"error": str(e)}
 
     def _determine_severity(self, score: float) -> str:
@@ -426,7 +430,7 @@ class OutlierDetectionTool:
             return summary
 
         except Exception as e:
-            logger.error(f"Error calculating outlier summary: {e}")
+            logger.error("Error calculating outlier summary", extra={'error': str(e)})
             return {"error": str(e)}
 
     def _find_global_outliers(self, outliers: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -466,7 +470,7 @@ class OutlierDetectionTool:
             return multi_method_outliers
 
         except Exception as e:
-            logger.error(f"Error finding global outliers: {e}")
+            logger.error("Error finding global outliers", extra={'error': str(e)})
             return []
 
     def _calculate_overall_summary(self, outliers: Dict[str, Any]) -> Dict[str, Any]:
@@ -500,5 +504,5 @@ class OutlierDetectionTool:
             return summary
 
         except Exception as e:
-            logger.error(f"Error calculating overall summary: {e}")
+            logger.error("Error calculating overall summary", extra={'error': str(e)})
             return {"error": str(e)}

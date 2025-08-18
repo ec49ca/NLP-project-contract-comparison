@@ -200,7 +200,7 @@ class ElasticNetRegressionTool:
                 }
 
         except Exception as e:
-            logger.error(f"Error in elastic_net_regression: {e}")
+            logger.error("Error in elastic_net_regression", extra={'error': str(e)})
             return {
                 "status": "error",
                 "message": str(e),
@@ -414,5 +414,5 @@ class ElasticNetRegressionTool:
             }
 
         except Exception as e:
-            logger.error(f"Error in elastic net regression: {e}")
+            logger.error("Error in elastic net regression", extra={'error': str(e)})
             return {"status": "error", "method": "elastic_net", "message": str(e)}

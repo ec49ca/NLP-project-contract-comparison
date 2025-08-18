@@ -121,7 +121,7 @@ class MetaAgent:
                 return self.tools[agent_id]
 
         except Exception as e:
-            logger.error(f"Error getting tools for agent {agent_id}: {e}")
+            logger.error("Error getting tools for agent", extra={'agent_id': agent_id, 'error': str(e)})
             return []
 
     # query has information about what orchestrator wants meta_agent -> agent to do
@@ -153,8 +153,6 @@ class MetaAgent:
             ]
         )
 
-        print("llm_response: ", llm_response)
-
         response_raw = llm_response.get("choices")[0].get("message").get("content")
         parsed_response = json.loads(response_raw)
 
@@ -174,9 +172,7 @@ class MetaAgent:
             **parsed_response.get("parameters"),
         }
 
-        print("request: ", request)
         result = await agent.process_request(request)
-        print("result: ", result)
 
         return result
 

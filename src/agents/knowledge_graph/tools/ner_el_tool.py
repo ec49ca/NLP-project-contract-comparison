@@ -79,9 +79,7 @@ class NEREntityLinkingTool:
                     "success": False,
                 }
 
-            logger.info(
-                f"Starting NER+EL processing. Content length: {len(preprocessed_content)}"
-            )
+            logger.info("Starting NER+EL processing", extra={'content_length': len(preprocessed_content)})
 
             # Initialize logging if enabled
             if enable_logging:
@@ -104,7 +102,7 @@ class NEREntityLinkingTool:
 
             # TODO: if using chunks, can parallelize
             for chunk_num, chunk in enumerate(chunks, 1):
-                logger.info(f"Processing chunk {chunk_num}/{len(chunks)}")
+                logger.info("Processing chunk", extra={'chunk_num': chunk_num, 'total_chunks': len(chunks)})
 
                 try:
                     # Extract entities from this chunk
@@ -131,7 +129,7 @@ class NEREntityLinkingTool:
                             processing_stats["high_confidence_entities"] += 1
 
                 except Exception as chunk_error:
-                    logger.error(f"Error processing chunk {chunk_num}: {chunk_error}")
+                    logger.error("Error processing chunk", extra={'chunk_num': chunk_num, 'error': str(chunk_error)})
                     processing_stats["processing_errors"] += 1
                     continue
 
@@ -160,9 +158,7 @@ class NEREntityLinkingTool:
                 "success": True,
             }
 
-            logger.info(
-                f"NER+EL completed. Found {len(final_entities)} entities, {len(relationships)} relationships"
-            )
+            logger.info("NER+EL completed", extra={'total_entities': len(final_entities), 'total_relationships': len(relationships)})
 
             # Log results if logging is enabled
             if enable_logging and log_data:
@@ -171,7 +167,7 @@ class NEREntityLinkingTool:
             return result
 
         except Exception as e:
-            logger.error(f"Error in NER+EL processing: {e}")
+            logger.error("Error in NER+EL processing", extra={'error': str(e)})
             error_result = {"error": f"NER+EL failed: {str(e)}", "success": False}
 
             # Log error if logging is enabled
@@ -242,12 +238,12 @@ class NEREntityLinkingTool:
                 return validated_entities
 
             except json.JSONDecodeError as e:
-                logger.error(f"Failed to parse GPT response as JSON: {e}")
-                logger.error(f"Response content: {content[:500]}...")
+                logger.error("Failed to parse GPT response as JSON", extra={'error': str(e)})
+                logger.error("Response content", extra={'content_preview': content[:500]})
                 return []
 
         except Exception as e:
-            logger.error(f"Error in entity extraction: {e}")
+            logger.error("Error in entity extraction", extra={'error': str(e)})
             return []
 
     def _validate_entity(self, entity: Dict[str, Any], valid_types: List[str]) -> bool:
@@ -624,11 +620,11 @@ class NEREntityLinkingTool:
 
             self._write_log_entry(log_data["log_file_path"], log_entry)
 
-            logger.info(f"NER+EL logging initialized: {full_log_path}")
+            logger.info("NER+EL logging initialized", extra={'log_file_path': full_log_path})
             return log_data
 
         except Exception as e:
-            logger.error(f"Failed to initialize logging: {e}")
+            logger.error("Failed to initialize logging", extra={'error': str(e)})
             return None
 
     def _log_results(self, log_data: Dict[str, Any], result: Dict[str, Any]) -> None:
@@ -673,10 +669,10 @@ class NEREntityLinkingTool:
 
             self._write_log_entry(log_data["log_file_path"], log_entry)
 
-            logger.info(f"NER+EL results logged to: {log_data['log_file_path']}")
+            logger.info("NER+EL results logged", extra={'log_file_path': log_data['log_file_path']})
 
         except Exception as e:
-            logger.error(f"Failed to log results: {e}")
+            logger.error("Failed to log results", extra={'error': str(e)})
 
     def _write_log_entry(self, log_file_path: str, log_entry: Dict[str, Any]) -> None:
         """Write a log entry to the log file"""
@@ -685,4 +681,4 @@ class NEREntityLinkingTool:
                 f.write(json.dumps(log_entry, indent=2, ensure_ascii=False) + "\n")
                 f.write("-" * 80 + "\n")  # Separator between entries
         except Exception as e:
-            logger.error(f"Failed to write log entry: {e}")
+            logger.error("Failed to write log entry", extra={'error': str(e)})

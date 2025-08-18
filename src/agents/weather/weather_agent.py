@@ -100,7 +100,7 @@ class WeatherAgent(AgentInterface):
             self._initialized = True
             logger.info("WeatherAgent initialized successfully")
         except Exception as e:
-            logger.error(f"Error initializing WeatherAgent: {str(e)}")
+            logger.error("Error initializing WeatherAgent", extra={'error': str(e)})
             raise e
 
     async def process_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
@@ -150,7 +150,7 @@ class WeatherAgent(AgentInterface):
             }
 
         except Exception as e:
-            logger.error(f"Error getting weather: {str(e)}")
+            logger.error("Error getting weather", extra={'error': str(e)})
             return {"status": "error", "message": f"Error getting weather: {str(e)}"}
 
     async def _get_forecast(self, request: Dict[str, Any]) -> Dict[str, Any]:
@@ -203,7 +203,7 @@ class WeatherAgent(AgentInterface):
             }
 
         except Exception as e:
-            logger.error(f"Error getting forecast: {str(e)}")
+            logger.error("Error getting forecast", extra={'error': str(e)})
             return {"status": "error", "message": f"Error getting forecast: {str(e)}"}
 
     async def _list_cities(self, request: Dict[str, Any]) -> Dict[str, Any]:
@@ -222,7 +222,7 @@ class WeatherAgent(AgentInterface):
             }
 
         except Exception as e:
-            logger.error(f"Error listing cities: {str(e)}")
+            logger.error("Error listing cities", extra={'error': str(e)})
             return {"status": "error", "message": f"Error listing cities: {str(e)}"}
 
     async def shutdown(self) -> None:

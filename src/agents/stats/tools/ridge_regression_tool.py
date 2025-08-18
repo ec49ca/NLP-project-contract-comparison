@@ -191,7 +191,7 @@ class RidgeRegressionTool:
                 }
 
         except Exception as e:
-            logger.error(f"Error in ridge_regression: {e}")
+            logger.error("Error in ridge_regression", extra={'error': str(e)})
             return {
                 "status": "error",
                 "message": str(e),
@@ -375,5 +375,5 @@ class RidgeRegressionTool:
             }
 
         except Exception as e:
-            logger.error(f"Error in ridge regression: {e}")
+            logger.error("Error in ridge regression", extra={'error': str(e)})
             return {"status": "error", "method": "ridge", "message": str(e)}

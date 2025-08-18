@@ -94,7 +94,8 @@ class DistributionAnalysisTool:
 
                 if len(values) < 10:
                     logger.warning(
-                        f"Insufficient data for field {field}: {len(values)} values"
+                        "Insufficient data for field",
+                        extra={'field': field, 'value_count': len(values)},
                     )
                     continue
 
@@ -154,7 +155,7 @@ class DistributionAnalysisTool:
             }
 
         except Exception as e:
-            logger.error(f"Error in distribution_analysis: {e}")
+            logger.error("Error in distribution_analysis", extra={'error': str(e)})
             return {
                 "status": "error",
                 "message": str(e),
@@ -234,7 +235,7 @@ class DistributionAnalysisTool:
                 "confidence": "high" if is_normal else "low",
             }
         except Exception as e:
-            logger.error(f"Error in normality test: {e}")
+            logger.error("Error in normality test", extra={'error': str(e)})
             return {"error": str(e)}
 
     def _fit_distributions(self, values: List[float]) -> Dict[str, Any]:
@@ -290,7 +291,10 @@ class DistributionAnalysisTool:
                     }
 
                 except Exception as e:
-                    logger.warning(f"Could not fit {name} distribution: {e}")
+                    logger.warning(
+                        "Could not fit distribution",
+                        extra={'distribution_name': name, 'error': str(e)},
+                    )
                     continue
 
             # Find best fit based on AIC
@@ -302,7 +306,7 @@ class DistributionAnalysisTool:
             return fits
 
         except Exception as e:
-            logger.error(f"Error in distribution fitting: {e}")
+            logger.error("Error in distribution fitting", extra={'error': str(e)})
             return {"error": str(e)}
 
     def _perform_goodness_of_fit_tests(self, values: List[float]) -> Dict[str, Any]:
@@ -317,7 +321,7 @@ class DistributionAnalysisTool:
                 return self._perform_chi_square_goodness_of_fit_tests(values)
             
         except Exception as e:
-            logger.error(f"Error in goodness of fit tests: {e}")
+            logger.error("Error in goodness of fit tests", extra={'error': str(e)})
             return {"error": str(e)}
 
     def _perform_ks_goodness_of_fit_tests(self, values: List[float]) -> Dict[str, Any]:
@@ -341,7 +345,7 @@ class DistributionAnalysisTool:
             }
             
         except Exception as e:
-            logger.error(f"Error in KS goodness of fit tests: {e}")
+            logger.error("Error in KS goodness of fit tests", extra={'error': str(e)})
             return {"error": str(e)}
 
     def _perform_chi_square_goodness_of_fit_tests(self, values: List[float]) -> Dict[str, Any]:
@@ -389,11 +393,11 @@ class DistributionAnalysisTool:
             return result
             
         except Exception as e:
-            logger.error(f"Error in chi-square goodness of fit tests: {e}")
+            logger.error("Error in chi-square goodness of fit tests", extra={'error': str(e)})
             return {"error": str(e)}
 
         except Exception as e:
-            logger.error(f"Error in goodness of fit tests: {e}")
+            logger.error("Error in goodness of fit tests", extra={'error': str(e)})
             return {"error": str(e)}
 
     def _calculate_distribution_stats(self, values: List[float]) -> Dict[str, Any]:
@@ -425,7 +429,7 @@ class DistributionAnalysisTool:
                 "iqr": float(np.percentile(values, 75) - np.percentile(values, 25)),
             }
         except Exception as e:
-            logger.error(f"Error calculating distribution stats: {e}")
+            logger.error("Error calculating distribution stats", extra={'error': str(e)})
             return {"error": str(e)}
 
     def _generate_histogram_data(self, values: List[float]) -> Dict[str, Any]:
@@ -441,7 +445,7 @@ class DistributionAnalysisTool:
                 "density": (hist / len(values)).tolist(),
             }
         except Exception as e:
-            logger.error(f"Error generating histogram data: {e}")
+            logger.error("Error generating histogram data", extra={'error': str(e)})
             return {"error": str(e)}
 
     def _calculate_summary_stats(self, distributions: Dict[str, Any]) -> Dict[str, Any]:
@@ -479,5 +483,5 @@ class DistributionAnalysisTool:
             return summary
 
         except Exception as e:
-            logger.error(f"Error calculating summary stats: {e}")
+            logger.error("Error calculating summary stats", extra={'error': str(e)})
             return {"error": str(e)}

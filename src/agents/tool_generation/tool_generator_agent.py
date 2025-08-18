@@ -77,7 +77,7 @@ class ToolGeneratorAgent(AgentInterface):
                     f.write(str(data))
                 f.write(f"\n{'='*80}\n\n")
         except Exception as e:
-            logger.error(f"Debug logging failed: {str(e)}")
+            logger.error("Debug logging failed", extra={'error': str(e)})
 
     def execute_code(
         self, code: str, data: List[Dict[str, Any]], kwargs: Dict[str, Any]
@@ -159,7 +159,7 @@ class ToolGeneratorAgent(AgentInterface):
 
             return kwargs
         except Exception as e:
-            logger.error(f"Error extracting kwargs: {str(e)}")
+            logger.error("Error extracting kwargs", extra={'error': str(e)})
             return {}
 
     @property
@@ -197,7 +197,7 @@ class ToolGeneratorAgent(AgentInterface):
             self._initialized = True
             logger.info("ToolGeneratorAgent initialized successfully")
         except Exception as e:
-            logger.error(f"Error initializing ToolGeneratorAgent: {str(e)}")
+            logger.error("Error initializing ToolGeneratorAgent", extra={'error': str(e)})
             raise e
 
     async def process_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
@@ -307,7 +307,7 @@ class ToolGeneratorAgent(AgentInterface):
                 "message": f"Error assessing complexity: {str(e)}",
             }
             self.log_debug("COMPLEXITY_ASSESSMENT_ERROR", error_result, "ERROR")
-            logger.error(f"Error assessing complexity: {str(e)}")
+            logger.error("Error assessing complexity", extra={'error': str(e)})
             return error_result
 
     async def _generate_direct(self, request: Dict[str, Any]) -> Dict[str, Any]:
@@ -376,7 +376,7 @@ class ToolGeneratorAgent(AgentInterface):
                 "message": f"Error in direct generation: {str(e)}",
             }
             self.log_debug("DIRECT_GENERATION_ERROR", error_result, "ERROR")
-            logger.error(f"Error in direct generation: {str(e)}")
+            logger.error("Error in direct generation", extra={'error': str(e)})
             return error_result
 
     async def _analyze_and_plan(self, request: Dict[str, Any]) -> Dict[str, Any]:
@@ -446,7 +446,7 @@ class ToolGeneratorAgent(AgentInterface):
                 "message": f"Error in analyze and plan: {str(e)}",
             }
             self.log_debug("ANALYZE_AND_PLAN_ERROR", error_result, "ERROR")
-            logger.error(f"Error in analyze and plan: {str(e)}")
+            logger.error("Error in analyze and plan", extra={'error': str(e)})
             return error_result
 
     async def _generate_complete_solution(
@@ -520,7 +520,7 @@ class ToolGeneratorAgent(AgentInterface):
                 "message": f"Error in complete solution: {str(e)}",
             }
             self.log_debug("COMPLETE_SOLUTION_ERROR", error_result, "ERROR")
-            logger.error(f"Error in complete solution: {str(e)}")
+            logger.error("Error in complete solution", extra={'error': str(e)})
             return error_result
 
     async def _generate_and_execute(self, request: Dict[str, Any]) -> Dict[str, Any]:
@@ -664,7 +664,7 @@ class ToolGeneratorAgent(AgentInterface):
                 "message": f"Error in generate and execute: {str(e)}",
             }
             self.log_debug("GENERATE_AND_EXECUTE_ERROR", error_result, "ERROR")
-            logger.error(f"Error in generate and execute: {str(e)}")
+            logger.error("Error in generate and execute", extra={'error': str(e)})
             return error_result
 
     async def _get_pending_tools(self, request: Dict[str, Any]) -> Dict[str, Any]:
@@ -679,7 +679,7 @@ class ToolGeneratorAgent(AgentInterface):
                 },
             }
         except Exception as e:
-            logger.error(f"Error getting pending tools: {str(e)}")
+            logger.error("Error getting pending tools", extra={'error': str(e)})
             return {
                 "status": "error",
                 "message": f"Error getting pending tools: {str(e)}",
@@ -711,7 +711,7 @@ class ToolGeneratorAgent(AgentInterface):
             }
 
         except Exception as e:
-            logger.error(f"Error approving tool: {str(e)}")
+            logger.error("Error approving tool", extra={'error': str(e)})
             return {"status": "error", "message": f"Error approving tool: {str(e)}"}
 
     async def _reject_tool(self, request: Dict[str, Any]) -> Dict[str, Any]:
@@ -741,7 +741,7 @@ class ToolGeneratorAgent(AgentInterface):
             }
 
         except Exception as e:
-            logger.error(f"Error rejecting tool: {str(e)}")
+            logger.error("Error rejecting tool", extra={'error': str(e)})
             return {"status": "error", "message": f"Error rejecting tool: {str(e)}"}
 
     async def _get_approved_tools(self, request: Dict[str, Any]) -> Dict[str, Any]:
@@ -756,7 +756,7 @@ class ToolGeneratorAgent(AgentInterface):
                 },
             }
         except Exception as e:
-            logger.error(f"Error getting approved tools: {str(e)}")
+            logger.error("Error getting approved tools", extra={'error': str(e)})
             return {
                 "status": "error",
                 "message": f"Error getting approved tools: {str(e)}",

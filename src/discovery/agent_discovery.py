@@ -51,7 +51,8 @@ class AgentDiscovery:
             exported_names = getattr(package, "__all__", [])
             if not exported_names:
                 logger.warning(
-                    f"No public agents exported via __all__ in {self.agents_package}. Nothing to discover."
+                    "No public agents exported via __all__. Nothing to discover.",
+                    extra={'package': self.agents_package},
                 )
                 return {}
 
@@ -66,24 +67,35 @@ class AgentDiscovery:
                     ):
                         self._discovered_agents[export_name] = obj
                         logger.info(
-                            f"Discovered agent export: {export_name} ({obj.__name__})"
+                            "Discovered agent export",
+                            extra={'export_name': export_name, 'class_name': obj.__name__},
                         )
                     else:
                         logger.debug(
-                            f"Skipped export '{export_name}' - not an AgentInterface subclass"
+                            "Skipped export",
+                            extra={
+                                'export_name': export_name,
+                                'reason': "Not an AgentInterface subclass",
+                            },
                         )
                 except Exception as e:
                     logger.error(
-                        f"Error processing export '{export_name}' in {self.agents_package}: {str(e)}"
+                        "Error processing export",
+                        extra={
+                            'export_name': export_name,
+                            'package': self.agents_package,
+                            'error': str(e),
+                        },
                     )
 
             logger.info(
-                f"Discovered {len(self._discovered_agents)} agents from exports"
+                "Discovered agents from exports",
+                extra={'count': len(self._discovered_agents)},
             )
             return self._discovered_agents
 
         except Exception as e:
-            logger.error(f"Error discovering agents from exports: {str(e)}")
+            logger.error("Error discovering agents from exports", extra={'error': str(e)})
             return {}
 
     def get_agent_class(self, agent_module_name: str) -> Optional[Type[AgentInterface]]:

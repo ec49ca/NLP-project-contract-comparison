@@ -114,7 +114,7 @@ class DescriptiveStatisticsTool:
             }
 
         except Exception as e:
-            logger.error(f"Error in descriptive_statistics: {e}")
+            logger.error("Error in descriptive_statistics", extra={'error': str(e)})
             return {
                 "status": "error",
                 "message": str(e),

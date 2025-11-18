@@ -4,8 +4,8 @@ import type { Metadata } from 'next';
 import { ThemeProvider } from './components/theme-provider';
 
 export const metadata: Metadata = {
-  title: 'Samvid Agent Hub',
-  description: 'A modern, intelligent web interface for discovering and executing agents from MCP servers',
+  title: 'MCP Server Client',
+  description: 'A modern, intelligent web interface for querying MCP servers with multi-agent orchestration',
   icons: {
     icon: '/favicon.ico',
   },

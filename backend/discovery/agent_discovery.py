@@ -1,5 +1,5 @@
 """
-Agent Discovery module for AgentForge.
+Agent Discovery module for MCP Server.
 Provides functionality to automatically discover and register agents.
 """
 
@@ -21,7 +21,7 @@ class AgentDiscovery:
     Discovers and manages agent classes available in the system.
     """
 
-    def __init__(self, agents_package="src.agents"):
+    def __init__(self, agents_package="backend.agents"):
         """
         Initialize the agent discovery system.
 
@@ -35,7 +35,7 @@ class AgentDiscovery:
         """
         Discover agent classes strictly from the public exports of the agents package.
 
-        Only classes exported via src.agents.__all__ will be considered. This ensures
+        Only classes exported via backend.agents.__all__ will be considered. This ensures
         that discovery is controlled centrally by the package API surface.
 
         Returns:

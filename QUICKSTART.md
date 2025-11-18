@@ -20,7 +20,7 @@
 
 ```bash
 # Navigate to project root
-cd /Users/eanchen/Desktop/NLP/agentforge
+cd /path/to/mcp-server-orchestration  # Update with your actual path
 
 # Activate virtual environment (already created)
 source venv/bin/activate
@@ -29,7 +29,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 
 # Start the MCP server
-python3 -m uvicorn src.server.mcp_server:app --reload --host 0.0.0.0 --port 8000
+python3 -m uvicorn backend.server.mcp_server:app --reload --host 0.0.0.0 --port 8000
 
 # Or use the startup script:
 ./start_server.sh
@@ -41,7 +41,7 @@ The server will start on `http://localhost:8000`
 
 ```bash
 # In a new terminal, navigate to frontend
-cd /Users/eanchen/Desktop/NLP/agentforge/agenthub-main
+cd /path/to/mcp-server-orchestration  # Update with your actual path/frontend
 
 # Install dependencies (already done, but if needed):
 npm install

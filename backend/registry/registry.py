@@ -5,7 +5,7 @@ from .registry_models import AgentRegistry, AgentStatus
 from ..interfaces.agent import AgentInterface
 import uuid
 import logging
-from src.constants import AGENT_NAMESPACE
+from ..constants import AGENT_NAMESPACE
 
 logger = logging.getLogger(__name__)
 

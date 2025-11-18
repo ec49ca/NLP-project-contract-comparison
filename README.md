@@ -28,7 +28,7 @@ A Model Context Protocol (MCP) server with multi-agent orchestration capabilitie
 ```bash
 # 1. Clone repository
 git clone <repository-url>
-cd agentforge
+cd mcp-server-orchestration  # or whatever you name the repository
 
 # 2. Set up Python backend
 python3 -m venv venv
@@ -36,7 +36,7 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
 # 3. Set up frontend
-cd agenthub-main
+cd frontend
 npm install
 cd ..
 
@@ -51,10 +51,10 @@ cp env.example .env
 # 6. Start servers
 # Terminal 1: MCP Server
 source venv/bin/activate
-python3 -m uvicorn src.server.mcp_server:app --host 0.0.0.0 --port 8000
+python3 -m uvicorn backend.server.mcp_server:app --host 0.0.0.0 --port 8000
 
 # Terminal 2: Frontend
-cd agenthub-main
+cd frontend
 npm run dev
 ```
 
@@ -122,8 +122,8 @@ User Query → Orchestrator → Query Analysis (LLM)
 ## Project Structure
 
 ```
-agentforge/
-├── src/
+mcp-server-orchestration/        # Project root
+├── backend/                      # Backend MCP Server (Python/FastAPI)
 │   ├── server/
 │   │   └── mcp_server.py          # FastAPI server
 │   ├── agents/
@@ -139,7 +139,7 @@ agentforge/
 │   │   └── registry.py            # Agent registry
 │   └── discovery/
 │       └── agent_discovery.py     # Auto-discovery
-├── agenthub-main/                 # Frontend
+├── frontend/                      # Frontend UI (Next.js)
 │   ├── app/
 │   │   ├── api/chat/route.ts      # Chat API
 │   │   └── components/chat.tsx    # Chat UI

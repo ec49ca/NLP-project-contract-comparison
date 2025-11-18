@@ -22,7 +22,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the application code
-COPY src/ ./src/
+COPY backend/ ./backend/
 COPY version.py ./
 
 # Create a non-root user for security
@@ -38,4 +38,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:8000/health || exit 1
 
 # Default command to run the application
-CMD ["python", "-m", "src.server.mcp_server"]
+CMD ["python", "-m", "backend.server.mcp_server"]

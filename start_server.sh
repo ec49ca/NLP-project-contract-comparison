@@ -16,7 +16,7 @@ sleep 1
 
 # Start server in background with unbuffered output (-u flag)
 echo "Starting MCP server..."
-python3 -u -m uvicorn src.server.mcp_server:app --host 0.0.0.0 --port 8000 --log-level info >> /tmp/mcp_server.log 2>&1 &
+python3 -u -m uvicorn backend.server.mcp_server:app --host 0.0.0.0 --port 8000 --log-level info >> /tmp/mcp_server.log 2>&1 &
 SERVER_PID=$!
 
 # Wait a moment for server to start

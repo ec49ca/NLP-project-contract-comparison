@@ -80,7 +80,7 @@ This project consists of:
 
 ```bash
 git clone <repository-url>
-cd agentforge
+cd mcp-server-orchestration  # or whatever you name the repository
 ```
 
 ### Step 2: Set Up Python Backend
@@ -116,7 +116,7 @@ python3 -c "import fastapi, uvicorn, httpx; print('✅ All dependencies installe
 #### 3.1 Navigate to Frontend Directory
 
 ```bash
-cd agenthub-main
+cd frontend
 ```
 
 #### 3.2 Install Node Dependencies
@@ -163,7 +163,7 @@ OLLAMA_MODEL=llama3:latest
 The frontend is configured to connect to `http://localhost:8000` by default. If you need to change this, edit:
 
 ```
-agenthub-main/app/api/chat/route.ts
+frontend/app/api/chat/route.ts
 ```
 
 Look for the `MCP_SERVER_URL` constant.
@@ -201,7 +201,7 @@ The frontend connects to the MCP server at `http://localhost:8000` by default.
 
 ### Agent Configuration
 
-Agents are automatically discovered from `src/agents/` directory. Each agent:
+Agents are automatically discovered from `backend/agents/` directory. Each agent:
 - Must inherit from `AgentInterface`
 - Must implement required methods
 - Is automatically registered on server startup
@@ -219,7 +219,7 @@ Agents are automatically discovered from `src/agents/` directory. Each agent:
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # Start server
-python3 -m uvicorn src.server.mcp_server:app --host 0.0.0.0 --port 8000 --log-level info
+python3 -m uvicorn backend.server.mcp_server:app --host 0.0.0.0 --port 8000 --log-level info
 ```
 
 The server will start on `http://localhost:8000`
@@ -227,7 +227,7 @@ The server will start on `http://localhost:8000`
 #### Terminal 2: Start Frontend
 
 ```bash
-cd agenthub-main
+cd frontend
 npm run dev
 ```
 
@@ -249,7 +249,7 @@ This script:
 #### Start Frontend with MCP Server Logs
 
 ```bash
-cd agenthub-main
+cd frontend
 npm run dev
 ```
 
@@ -271,8 +271,8 @@ tail -f /tmp/mcp_server.log
 ## Project Structure
 
 ```
-agentforge/
-├── src/
+mcp-server-orchestration/        # Project root
+├── backend/                      # Backend MCP Server (Python/FastAPI)
 │   ├── server/
 │   │   └── mcp_server.py          # FastAPI server and endpoints
 │   ├── agents/
@@ -288,7 +288,7 @@ agentforge/
 │   │   └── registry.py            # Agent registry system
 │   └── discovery/
 │       └── agent_discovery.py     # Automatic agent discovery
-├── agenthub-main/                 # Frontend application
+├── frontend/                      # Frontend UI (Next.js)
 │   ├── app/
 │   │   ├── api/
 │   │   │   └── chat/
@@ -350,12 +350,12 @@ kill -9 $(lsof -ti:3000)
 **Solution:**
 1. Verify backend is running: `curl http://localhost:8000/health`
 2. Check CORS settings in `.env`
-3. Verify frontend is pointing to correct URL in `agenthub-main/app/api/chat/route.ts`
+3. Verify frontend is pointing to correct URL in `frontend/app/api/chat/route.ts`
 
 ### Issue: Agents not being discovered
 
 **Solution:**
-1. Ensure agents are in `src/agents/` directory
+1. Ensure agents are in `backend/agents/` directory
 2. Check that agents inherit from `AgentInterface`
 3. Verify `__init__.py` files exist in agent directories
 4. Check server logs for discovery errors
@@ -380,13 +380,13 @@ kill -9 $(lsof -ti:3000)
 
 ### Making Changes to Agents
 
-1. Edit agent files in `src/agents/`
+1. Edit agent files in `backend/agents/`
 2. Restart the MCP server
 3. Agents are automatically re-discovered
 
 ### Making Changes to Frontend
 
-1. Edit files in `agenthub-main/app/`
+1. Edit files in `frontend/app/`
 2. Frontend auto-reloads (hot reload)
 3. No restart needed
 
@@ -488,8 +488,8 @@ After setup:
 1. **Test the system** with sample queries
 2. **Customize agents** for your specific use case
 3. **Adjust prompts** in agent files and orchestrator
-4. **Add new agents** by creating files in `src/agents/`
-5. **Modify frontend** UI in `agenthub-main/app/`
+4. **Add new agents** by creating files in `backend/agents/`
+5. **Modify frontend** UI in `frontend/app/`
 
 ---
 

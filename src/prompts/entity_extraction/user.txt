@@ -1,4 +1,0 @@
-Extract the entities from the following text. RESPONSE ONLY IN VALID JSON WITH NO CODE GUARDS:
-
-TEXT TO EXTRACT FROM:
-{text}

@@ -1,2 +1,0 @@
-Classify the intent of the following query:
-"{query}"

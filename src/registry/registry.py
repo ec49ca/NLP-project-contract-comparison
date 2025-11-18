@@ -5,7 +5,7 @@ from .registry_models import AgentRegistry, AgentStatus
 from ..interfaces.agent import AgentInterface
 import uuid
 import logging
-from src.constants import SAMVID_AGENT_NAMESPACE
+from src.constants import AGENT_NAMESPACE
 
 logger = logging.getLogger(__name__)
 
@@ -24,9 +24,9 @@ class AgentRegistrySystem:
         agent = agent_class()
         await agent.initialize(config)
 
-        # Use a deterministic UUID based on agent_id_str and the custom Samvid namespace
+        # Use a deterministic UUID based on agent_id_str and the custom namespace
         # NOTE: this is the ONLY time UUID should be GENERATED, retrieval should happen from agent.uuid
-        namespace = SAMVID_AGENT_NAMESPACE
+        namespace = AGENT_NAMESPACE
         agent_id = uuid.uuid5(namespace, agent.agent_id_str)
         logger.info(
             "Registering agent",

@@ -1,69 +1,12 @@
 services:
-  # neo4j:
-  #   image: neo4j:5.19-community
-  #   ports:
-  #     - "7474:7474" # HTTP
-  #     - "7687:7687" # Bolt
-  #   environment:
-  #     # TODO: more secure password
-  #     - NEO4J_AUTH=neo4j/samvidneo4j # username=neo4j, password=samvidneo4j
-  #   volumes:
-  #     - neo4j_data:/data
-  #   networks:
-  #     - samvid-network
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "cypher-shell -u neo4j -p samvidneo4j 'RETURN 1'"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
-  #     start_period: 10s
-
   mcp-server:
     build: .
     ports:
-      - "8001:8001"
+      - "8000:8000"
     env_file:
       - .env
     environment:
-      - NEO4J_URI=bolt://neo4j:7687
-      - NEO4J_USER=neo4j
-      - NEO4J_PASSWORD=samvidneo4j
-      # - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:password@db:5432/samvid}
-      - POSTGRES_DATABASE_URL=postgres://postgres:postgres@samvid-postgres:5432/samvid-db
-      - SAMVID_API_URL=${SAMVID_API_URL:-http://host.docker.internal:3000/api}
-      - PORT=8001
+      - PORT=8000
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
-    volumes:
-      - ./generated_tools:/app/generated_tools
-      - ./logs:/app/logs
-      - ./sunworld_test_data:/app/sunworld_test_data
-    # depends_on:
-    # neo4j:
-    #   condition: service_healthy
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-*}
     restart: unless-stopped
-    networks:
-      - samvid-network
-
-  # db:
-  #   image: pgvector/pgvector:pg14
-  #   container_name: samvid-postgres
-  #   restart: always
-  #   ports:
-  #     - "5434:5432"
-  #   environment:
-  #     POSTGRES_USER: postgres
-  #     POSTGRES_PASSWORD: postgres
-  #     POSTGRES_DB: samvid-notebook
-  #   volumes:
-  #     - postgres-data:/var/lib/postgresql/data
-  #   networks:
-  #     - samvid-network
-
-volumes:
-  postgres-data:
-  # neo4j_data:
-
-networks:
-  samvid-network:
-    external: true
-    driver: bridge

@@ -1,6 +1,0 @@
-Complex query: "{query}"
-
-Data structure:
-{data_sample}
-
-Analyze this query and create a comprehensive execution plan.

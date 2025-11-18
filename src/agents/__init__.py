@@ -1,9 +1,19 @@
-from .stats.stats_agent import StatsAgent
-from .knowledge_graph.kg_extraction_agent import KnowledgeGraphExtractionAgent
-from .knowledge_graph.kg_retrieval_agent import KnowledgeGraphRetrievalAgent
+"""
+Agents package for MCP Server.
 
-__all__ = [
-    "StatsAgent",
-    "KnowledgeGraphExtractionAgent",
-    "KnowledgeGraphRetrievalAgent",
-]
+To add a new agent:
+1. Create your agent class implementing AgentInterface
+2. Add it to __all__ below
+3. Import it here
+
+Example:
+    from .my_agent import MyAgent
+    __all__ = ["MyAgent"]
+"""
+
+from .internal_agent import InternalAgent
+from .external_agent import ExternalAgent
+
+# Export all agent classes here
+# Agents are automatically discovered and registered on server startup
+__all__ = ["InternalAgent", "ExternalAgent"]

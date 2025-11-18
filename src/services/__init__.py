@@ -1,3 +1,4 @@
 """
-Services package for external API integrations
+Services module for shared services like LLM providers.
 """
+

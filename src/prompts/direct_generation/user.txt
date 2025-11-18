@@ -1,7 +1,0 @@
-Query: "{query}"
-
-Data structure:
-{data_sample}
-
-Generate a complete function that processes this data according to the query.
-Include the kwargs documentation comment.

@@ -1,9 +1,0 @@
-Query: "{query}"
-
-Function code:
-{function_code}
-
-Data structure:
-{data_sample}
-
-Extract kwargs and generate metadata for this function.

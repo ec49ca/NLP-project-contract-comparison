@@ -59,7 +59,7 @@ class TestAgentListingEndpoints:
 
     def test_list_agents_endpoint(self, client: TestClient):
         """Test that the agents listing endpoint works."""
-        response = client.get("/agents")
+        response = client.get("/mcp/agents")
 
         assert response.status_code == 200
 
@@ -80,7 +80,7 @@ class TestAgentListingEndpoints:
 
     def test_list_agents_contains_valid_agents(self, client: TestClient):
         """Test that the agents list contains properly structured agent data."""
-        response = client.get("/agents")
+        response = client.get("/mcp/agents")
 
         assert response.status_code == 200
         data = response.json()
@@ -90,20 +90,20 @@ class TestAgentListingEndpoints:
             agent = data["agents"][0]
 
             # Check agent has expected fields
-            expected_agent_fields = ["name", "description", "capabilities"]
+            expected_agent_fields = ["agent_id", "name", "description", "status", "tools"]
             for field in expected_agent_fields:
                 assert (
                     field in agent
                 ), f"Expected field '{field}' not found in agent data"
 
-            # Check capabilities structure
-            assert isinstance(agent["capabilities"], list)
+            # Check tools structure
+            assert isinstance(agent["tools"], list)
 
-            # If there are capabilities, check their structure
-            if agent["capabilities"]:
-                capability = agent["capabilities"][0]
-                assert isinstance(capability, dict)
-                assert "name" in capability
+            # If there are tools, check their structure
+            if agent["tools"]:
+                tool = agent["tools"][0]
+                assert isinstance(tool, dict)
+                assert "name" in tool
 
 
 @pytest.mark.server
@@ -149,7 +149,7 @@ class TestBasicErrorHandling:
 
     def test_invalid_agent_id_returns_400(self, client: TestClient):
         """Test that invalid agent IDs return proper error."""
-        response = client.get("/agents/not-a-valid-uuid")
+        response = client.post("/mcp/execute/not-a-valid-uuid", json={"tool": "test"})
 
         assert response.status_code == 400
 
@@ -160,39 +160,13 @@ class TestBasicErrorHandling:
     def test_nonexistent_agent_returns_404(self, client: TestClient):
         """Test that requesting non-existent agent returns 404."""
         fake_uuid = "12345678-1234-5678-9abc-123456789abc"
-        response = client.get(f"/agents/{fake_uuid}")
+        response = client.post(f"/mcp/execute/{fake_uuid}", json={"tool": "test"})
 
         assert response.status_code == 404
 
         data = response.json()
         assert "detail" in data
         assert "not found" in data["detail"].lower()
-
-
-@pytest.mark.server
-@pytest.mark.integration
-class TestToolGeneratorEndpoint:
-    """Test the tool generator convenience endpoint."""
-
-    def test_tool_generator_missing_query(self, client: TestClient):
-        """Test tool generator endpoint with missing query parameter."""
-        response = client.post("/tool-generator/execute", json={"data": [1, 2, 3]})
-
-        assert response.status_code == 400
-
-        data = response.json()
-        assert "detail" in data
-        assert "Query is required" in data["detail"]
-
-    def test_tool_generator_missing_data(self, client: TestClient):
-        """Test tool generator endpoint with missing data parameter."""
-        response = client.post("/tool-generator/execute", json={"query": "Test query"})
-
-        assert response.status_code == 400
-
-        data = response.json()
-        assert "detail" in data
-        assert "Data is required" in data["detail"]
 
 
 @pytest.mark.server

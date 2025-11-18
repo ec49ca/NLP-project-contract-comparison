@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   title: 'MCP Server Client',
   description: 'A modern, intelligent web interface for querying MCP servers with multi-agent orchestration',
   icons: {
-    icon: '/favicon.ico',
+    icon: '/favicon.svg',
   },
 };
 
@@ -19,7 +19,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <link rel="icon" href="/favicon.ico" />
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
       </head>
       <body className="min-h-screen bg-background">
         <ThemeProvider defaultTheme="system">

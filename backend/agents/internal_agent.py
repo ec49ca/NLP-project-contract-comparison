@@ -16,12 +16,12 @@ class InternalAgent(AgentInterface):
 	def __init__(self):
 		self._uuid: UUID = None
 		self._ollama: OllamaService = None
-		self._system_prompt = """You are an internal document retrieval agent that searches through a company's internal document database.
+		self._system_prompt = """You are an internal document retrieval agent that searches through an internal document database.
 
 Your database contains:
 - Contract documents from various countries (Italy, France, Germany, etc.)
 - Legal agreements and terms
-- Internal policy documents
+- Policy documents
 - Compliance documentation
 - Setup and implementation guides
 

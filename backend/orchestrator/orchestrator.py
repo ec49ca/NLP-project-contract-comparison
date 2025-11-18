@@ -27,7 +27,7 @@ class Orchestrator:
 		self._split_prompt = """You are an intelligent query analyzer for a contract and compliance system. Given a user query, determine which agents are needed and generate optimized queries for each.
 
 Available agents:
-- internal_agent: Searches internal company documents (contracts, agreements, internal policies, setup guides from various countries like Italy, France, etc.)
+- internal_agent: Searches internal documents (contracts, agreements, policies, setup guides from various countries like Italy, France, etc.)
 - external_agent: Queries external databases (WIPO, regional compliance databases, international regulations, regional setup requirements for Africa, Asia, etc.)
 
 CRITICAL: Keep all queries under 100 words. Be concise and focused.

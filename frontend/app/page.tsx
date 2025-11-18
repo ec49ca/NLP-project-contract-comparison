@@ -7,10 +7,10 @@ export default function Home() {
 			<div className="w-full max-w-4xl mx-auto space-y-8">
 				<header className="text-center space-y-4">
 					<h1 className="text-4xl font-bold">
-						MCP Server <span className="text-primary">Client</span>
+						Contract <span className="text-primary">Comparisons</span>
 					</h1>
 					<p className="text-lg text-muted-foreground">
-						Simple interface for querying MCP servers
+						Using WIPO to give recommendations
 					</p>
 				</header>
 				

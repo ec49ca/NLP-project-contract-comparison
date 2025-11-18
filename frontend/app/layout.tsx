@@ -4,8 +4,8 @@ import type { Metadata } from 'next';
 import { ThemeProvider } from './components/theme-provider';
 
 export const metadata: Metadata = {
-  title: 'MCP Server Client',
-  description: 'A modern, intelligent web interface for querying MCP servers with multi-agent orchestration',
+  title: 'Contract Comparisons',
+  description: 'Using WIPO to give recommendations',
   icons: {
     icon: '/favicon.svg',
   },

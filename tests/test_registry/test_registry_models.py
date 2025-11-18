@@ -7,7 +7,7 @@ Simple tests for registry data models and enums.
 import pytest
 from datetime import datetime
 from uuid import uuid4, UUID
-from src.registry.registry_models import AgentStatus, AgentInfo, AgentRegistry
+from backend.registry.registry_models import AgentStatus, AgentInfo, AgentRegistry
 
 
 @pytest.mark.unit

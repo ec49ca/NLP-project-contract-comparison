@@ -1,6 +1,6 @@
 # Test Suite Documentation
 
-This directory contains comprehensive tests for the Samvid MCP project, organized by component and functionality.
+This directory contains comprehensive tests for the MCP Server project, organized by component and functionality.
 
 ## 🎯 Test Status Summary
 

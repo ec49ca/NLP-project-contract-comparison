@@ -7,9 +7,9 @@ Simple tests for agent registration and management.
 import pytest
 from unittest.mock import Mock, AsyncMock, patch
 from uuid import uuid4, UUID
-from src.registry.registry import AgentRegistrySystem
-from src.registry.registry_models import AgentStatus
-from src.interfaces.agent import AgentInterface
+from backend.registry.registry import AgentRegistrySystem
+from backend.registry.registry_models import AgentStatus
+from backend.interfaces.agent import AgentInterface
 
 
 class MockAgent(AgentInterface):
@@ -86,7 +86,7 @@ class TestAgentRegistrySystem:
 
         config = {"test": "config"}
 
-        with patch("src.constants.AGENT_NAMESPACE", uuid4()):
+        with patch("backend.constants.AGENT_NAMESPACE", uuid4()):
             agent_id = await registry.register_agent(mock_agent_class, config)
 
         assert isinstance(agent_id, UUID)
@@ -110,7 +110,7 @@ class TestAgentRegistrySystem:
 
         config = {}
 
-        with patch("src.constants.AGENT_NAMESPACE", uuid4()):
+        with patch("backend.constants.AGENT_NAMESPACE", uuid4()):
             agent_id_1 = await registry.register_agent(mock_agent_class_1, config)
             agent_id_2 = await registry.register_agent(mock_agent_class_2, config)
 
@@ -131,10 +131,10 @@ class TestAgentRegistrySystem:
         config = {}
         namespace = uuid4()
 
-        with patch("src.constants.SAMVID_AGENT_NAMESPACE", namespace):
+        with patch("backend.constants.AGENT_NAMESPACE", namespace):
             agent_id_1 = await registry1.register_agent(mock_agent_class, config)
 
-        with patch("src.constants.SAMVID_AGENT_NAMESPACE", namespace):
+        with patch("backend.constants.AGENT_NAMESPACE", namespace):
             agent_id_2 = await registry2.register_agent(mock_agent_class, config)
 
         # Same agent_id_str with same namespace should generate same UUID
@@ -159,7 +159,7 @@ class TestAgentRegistrySystemEdgeCases:
 
         config = {"test_config": "value"}
 
-        with patch("src.constants.AGENT_NAMESPACE", uuid4()):
+        with patch("backend.constants.AGENT_NAMESPACE", uuid4()):
             await registry.register_agent(mock_agent_class, config)
 
         # Verify initialize was called with config
@@ -177,7 +177,7 @@ class TestAgentRegistrySystemEdgeCases:
 
         config = {}
 
-        with patch("src.constants.AGENT_NAMESPACE", uuid4()):
+        with patch("backend.constants.AGENT_NAMESPACE", uuid4()):
             agent_id = await registry.register_agent(mock_agent_class, config)
 
         # Agent should have UUID assigned
@@ -195,7 +195,7 @@ class TestAgentRegistrySystemEdgeCases:
 
         config = {}
 
-        with patch("src.constants.AGENT_NAMESPACE", uuid4()):
+        with patch("backend.constants.AGENT_NAMESPACE", uuid4()):
             agent_id = await registry.register_agent(mock_agent_class, config)
 
         # Check that both internal registries are consistent
@@ -227,7 +227,7 @@ class TestAgentRegistrySystemIntegration:
 
         config = {}
 
-        with patch("src.constants.AGENT_NAMESPACE", uuid4()):
+        with patch("backend.constants.AGENT_NAMESPACE", uuid4()):
             await registry.register_agent(mock_agent_class, config)
 
         assert len(instantiated) == 1
@@ -251,7 +251,7 @@ class TestAgentRegistrySystemIntegration:
 
         test_config = {"api_key": "test123", "debug": True}
 
-        with patch("src.constants.AGENT_NAMESPACE", uuid4()):
+        with patch("backend.constants.AGENT_NAMESPACE", uuid4()):
             await registry.register_agent(mock_agent_class, test_config)
 
         assert received_config == test_config
@@ -266,7 +266,7 @@ class TestAgentRegistrySystemIntegration:
 
         config = {}
 
-        with patch("src.constants.AGENT_NAMESPACE", uuid4()):
+        with patch("backend.constants.AGENT_NAMESPACE", uuid4()):
             agent_id = await registry.register_agent(mock_agent_class, config)
 
         # Registry should have proper state

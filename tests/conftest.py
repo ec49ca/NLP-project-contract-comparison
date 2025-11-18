@@ -42,6 +42,6 @@ def test_env() -> Generator[Dict[str, str], None, None]:
 def client(test_env) -> TestClient:
 	"""Create a test client for the FastAPI app."""
 	# Import here to ensure test_env is applied first
-	from src.server.mcp_server import app
+	from backend.server.mcp_server import app
 
 	return TestClient(app)

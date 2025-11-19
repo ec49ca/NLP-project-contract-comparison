@@ -80,7 +80,9 @@ Be authoritative, reference external sources, and provide specific but concise c
 				}
 			
 			logger.info(f"      🟢 EXTERNAL AGENT: Processing query...")
+			logger.info(f"      📋 Full query for external_agent: {query}")
 			print(f"      🟢 EXTERNAL AGENT: Processing query...")
+			print(f"      📋 Full query for external_agent: {query}")
 			try:
 				# Limit agent responses to 400 tokens (approximately 300 words)
 				response = await self._ollama.generate(

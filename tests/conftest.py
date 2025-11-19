@@ -17,31 +17,31 @@ sys.path.insert(0, project_root)
 
 @pytest.fixture
 def test_env() -> Generator[Dict[str, str], None, None]:
-	"""Set up clean test environment variables."""
-	# Store original environment
-	original_env = os.environ.copy()
+    """Set up clean test environment variables."""
+    # Store original environment
+    original_env = os.environ.copy()
 
-	# Set minimal test environment variables
-	test_vars = {
-		"LOG_LEVEL": "ERROR",  # Reduce logging noise during tests
+    # Set minimal test environment variables
+    test_vars = {
+        "LOG_LEVEL": "ERROR",  # Reduce logging noise during tests
 		"ALLOWED_ORIGINS": "*",
-	}
+    }
 
-	# Apply test environment
-	for key, value in test_vars.items():
-		os.environ[key] = value
+    # Apply test environment
+    for key, value in test_vars.items():
+        os.environ[key] = value
 
-	yield test_vars
+    yield test_vars
 
-	# Restore original environment
-	os.environ.clear()
-	os.environ.update(original_env)
+    # Restore original environment
+    os.environ.clear()
+    os.environ.update(original_env)
 
 
 @pytest.fixture
 def client(test_env) -> TestClient:
-	"""Create a test client for the FastAPI app."""
-	# Import here to ensure test_env is applied first
+    """Create a test client for the FastAPI app."""
+    # Import here to ensure test_env is applied first
 	from backend.server.mcp_server import app
 
-	return TestClient(app)
+    return TestClient(app)

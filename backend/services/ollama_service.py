@@ -146,7 +146,7 @@ IMPORTANT: Respond with ONLY valid JSON, no other text. Keep queries under 100 w
 			# Try to return a fallback response
 			logger.warning("Attempting to use fallback JSON parsing...")
 			try:
-				# Try to extract just the agents_needed and queries if possible
+				# Try to extract agents_needed, queries, and matched_documents if possible
 				import re
 				agents_match = re.search(r'"agents_needed"\s*:\s*\[(.*?)\]', response)
 				if agents_match:
@@ -158,14 +158,24 @@ IMPORTANT: Respond with ONLY valid JSON, no other text. Keep queries under 100 w
 						if query_match:
 							queries[agent] = query_match.group(1)
 					
+					# Try to extract matched_documents
+					matched_docs = []
+					matched_docs_match = re.search(r'"matched_documents"\s*:\s*\[(.*?)\]', response)
+					if matched_docs_match:
+						docs_str = matched_docs_match.group(1)
+						matched_docs = [d.strip().strip('"') for d in docs_str.split(',') if d.strip()]
+					
 					if agents:
 						logger.info("   ✅ OLLAMA: Successfully parsed JSON using fallback method")
 						print(f"   ✅ OLLAMA: Successfully parsed JSON using fallback method")
-						return {
+						result = {
 							"agents_needed": agents,
 							"queries": queries,
 							"reasoning": "Parsed using fallback method"
 						}
+						if matched_docs:
+							result["matched_documents"] = matched_docs
+						return result
 			except Exception as fallback_error:
 				logger.error(f"Fallback parsing also failed: {fallback_error}")
 			

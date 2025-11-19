@@ -21,3 +21,4 @@ typing-extensions>=4.8.0
 
 # HTTP requests for Ollama (async)
 httpx>=0.24.0
+pdfplumber>=0.10.0

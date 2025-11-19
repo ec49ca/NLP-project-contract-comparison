@@ -1,7 +1,7 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 import os
-from typing import Dict, Any, Set, Type
+from typing import Dict, Any, Set, Type, List, Optional
 from uuid import UUID
 import logging
 from contextlib import asynccontextmanager
@@ -11,6 +11,7 @@ from ..registry.registry import AgentRegistrySystem
 from ..discovery.agent_discovery import AgentDiscovery
 from ..orchestrator.orchestrator import Orchestrator
 from ..services.ollama_service import OllamaService
+from ..services.document_storage import DocumentStorage
 
 # Configure logging to also output to console with immediate flushing
 import sys
@@ -36,7 +37,10 @@ ollama_service = OllamaService(
 	base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
 	default_model=os.getenv("OLLAMA_MODEL", "llama3:latest")
 )
-orchestrator = Orchestrator(registry, ollama_service)
+# Initialize document storage
+document_storage = DocumentStorage(upload_dir="backend/uploads")
+
+orchestrator = Orchestrator(registry, ollama_service, document_storage)
 
 # Keep track of registered agent classes to avoid duplicates
 registered_agents: Set[Type[AgentInterface]] = set()
@@ -178,7 +182,7 @@ async def orchestrate_query(request: Dict[str, Any]):
 	Orchestrate a user query across multiple agents.
 	
 	Args:
-		request: Dict with "query" key containing the user's query
+		request: Dict with "query" key containing the user's query and optional "selected_documents" list
 		
 	Returns:
 		Dict with agents_used, results, comparison, and interpreted_response
@@ -188,12 +192,18 @@ async def orchestrate_query(request: Dict[str, Any]):
 		if not query:
 			raise HTTPException(status_code=400, detail="Query is required")
 		
-		logger.info(f"\n🌐 SERVER: Received orchestrate request")
-		logger.info(f"   Query: {query}\n")
-		print(f"\n🌐 SERVER: Received orchestrate request")
-		print(f"   Query: {query}\n")
+		selected_documents = request.get("selected_documents", [])
 		
-		result = await orchestrator.process_query(query)
+		logger.info(f"\n🌐 SERVER: Received orchestrate request")
+		logger.info(f"   Query: {query}")
+		if selected_documents:
+			logger.info(f"   Selected documents: {selected_documents}\n")
+		print(f"\n🌐 SERVER: Received orchestrate request")
+		print(f"   Query: {query}")
+		if selected_documents:
+			print(f"   Selected documents: {selected_documents}\n")
+		
+		result = await orchestrator.process_query(query, selected_documents=selected_documents)
 		
 		logger.info(f"🌐 SERVER: Returning response to client\n")
 		print(f"🌐 SERVER: Returning response to client\n")
@@ -217,6 +227,94 @@ async def discover_agents():
 		"status": "success",
 		"agents_registered": registry_state.get("total_agents", 0)
 	}
+
+
+@app.post("/api/upload")
+async def upload_document(file: UploadFile = File(...)):
+	"""
+	Upload a PDF document.
+	
+	Args:
+		file: PDF file to upload
+		
+	Returns:
+		Dict with document info
+	"""
+	try:
+		# Validate file type
+		if not file.filename.endswith('.pdf'):
+			raise HTTPException(status_code=400, detail="Only PDF files are supported")
+		
+		# Read file content
+		file_content = await file.read()
+		
+		# Save document
+		doc_info = document_storage.save_document(file.filename, file_content)
+		
+		logger.info(f"📄 Document uploaded: {doc_info['filename']}")
+		print(f"📄 Document uploaded: {doc_info['filename']}")
+		
+		return {
+			"success": True,
+			"document": doc_info
+		}
+	except HTTPException:
+		raise
+	except Exception as e:
+		error_msg = f"Error uploading document: {str(e)}"
+		logger.error(error_msg)
+		raise HTTPException(status_code=500, detail=error_msg)
+
+
+@app.get("/api/documents")
+async def list_documents():
+	"""
+	List all uploaded documents.
+	
+	Returns:
+		List of document info dicts
+	"""
+	try:
+		documents = document_storage.get_documents()
+		return {
+			"success": True,
+			"documents": documents
+		}
+	except Exception as e:
+		error_msg = f"Error listing documents: {str(e)}"
+		logger.error(error_msg)
+		raise HTTPException(status_code=500, detail=error_msg)
+
+
+@app.delete("/api/documents/{filename}")
+async def delete_document(filename: str):
+	"""
+	Delete a document.
+	
+	Args:
+		filename: Document filename to delete
+		
+	Returns:
+		Success status
+	"""
+	try:
+		success = document_storage.delete_document(filename)
+		if not success:
+			raise HTTPException(status_code=404, detail="Document not found")
+		
+		logger.info(f"📄 Document deleted: {filename}")
+		print(f"📄 Document deleted: {filename}")
+		
+		return {
+			"success": True,
+			"message": f"Document {filename} deleted"
+		}
+	except HTTPException:
+		raise
+	except Exception as e:
+		error_msg = f"Error deleting document: {str(e)}"
+		logger.error(error_msg)
+		raise HTTPException(status_code=500, detail=error_msg)
 
 
 async def auto_register_agents():
@@ -243,6 +341,16 @@ async def auto_register_agents():
 				"ollama_base_url": os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
 				"ollama_model": os.getenv("OLLAMA_MODEL", "llama3:latest")
 			}
+			
+			# Add document storage to config if this is the internal agent
+			# Check by creating a temporary instance to get agent_id_str
+			try:
+				temp_agent = agent_class()
+				if hasattr(temp_agent, 'agent_id_str') and temp_agent.agent_id_str == "internal_agent":
+					default_config["document_storage"] = document_storage
+			except:
+				# If we can't check, skip
+				pass
 			
 			# Register the agent
 			agent_id = await registry.register_agent(agent_class, default_config)

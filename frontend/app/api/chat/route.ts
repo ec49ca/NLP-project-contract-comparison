@@ -5,7 +5,7 @@ const MCP_SERVER_URL = process.env.MCP_SERVER_URL || 'http://localhost:8000';
 
 export async function POST(request: Request) {
 	try {
-		const { message } = await request.json();
+		const { message, selectedDocuments } = await request.json();
 
 		if (!message) {
 			return NextResponse.json(
@@ -15,12 +15,17 @@ export async function POST(request: Request) {
 		}
 
 		// Forward query to MCP server orchestrator endpoint
+		const requestBody: any = { query: message };
+		if (selectedDocuments && selectedDocuments.length > 0) {
+			requestBody.selected_documents = selectedDocuments;
+		}
+
 		const response = await fetch(`${MCP_SERVER_URL}/orchestrate`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
 			},
-			body: JSON.stringify({ query: message }),
+			body: JSON.stringify(requestBody),
 		});
 
 		if (!response.ok) {

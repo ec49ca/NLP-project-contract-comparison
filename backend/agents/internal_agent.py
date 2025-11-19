@@ -2,10 +2,11 @@
 Faux Internal Agent - Simulates internal document processing.
 """
 from uuid import UUID
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 import logging
 from ..interfaces.agent import AgentInterface
 from ..services.ollama_service import OllamaService
+from ..services.document_storage import DocumentStorage
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +17,7 @@ class InternalAgent(AgentInterface):
 	def __init__(self):
 		self._uuid: UUID = None
 		self._ollama: OllamaService = None
+		self._document_storage: Optional[DocumentStorage] = None
 		self._system_prompt = """You are an internal document retrieval agent that searches through an internal document database.
 
 Your database contains:
@@ -66,6 +68,9 @@ Be factual, concise, and reference document sources in your responses."""
 			base_url=config.get("ollama_base_url"),
 			default_model=config.get("ollama_model")
 		)
+		# Document storage is passed separately if available
+		if "document_storage" in config:
+			self._document_storage = config["document_storage"]
 	
 	async def process_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
 		"""Process a query request."""
@@ -79,12 +84,44 @@ Be factual, concise, and reference document sources in your responses."""
 					"error": "Query is required"
 				}
 			
+			selected_documents = request.get("selected_documents", [])
+			
 			logger.info(f"      🔵 INTERNAL AGENT: Processing query...")
+			if selected_documents:
+				logger.info(f"      📄 Using selected documents: {selected_documents}")
 			print(f"      🔵 INTERNAL AGENT: Processing query...")
+			if selected_documents:
+				print(f"      📄 Using selected documents: {selected_documents}")
+			
 			try:
+				# Get document context if documents are selected
+				document_context = ""
+				if selected_documents and self._document_storage:
+					document_context = self._document_storage.get_selected_documents_text(selected_documents)
+					if document_context:
+						# Update prompt to include document context
+						enhanced_prompt = f"""User Query: {query}
+
+Available Documents:
+{document_context}
+
+Please answer the query based on the information in the provided documents. Reference specific documents and sections when relevant."""
+						logger.info(f"      📄 Document context retrieved: {len(document_context)} characters")
+						logger.info(f"      📝 Enhanced prompt length: {len(enhanced_prompt)} characters")
+						print(f"      📄 Document context retrieved: {len(document_context)} characters")
+						print(f"      📝 Enhanced prompt (first 500 chars): {enhanced_prompt[:500]}...")
+					else:
+						enhanced_prompt = query
+						logger.info(f"      ⚠️  No document context found for selected documents")
+						print(f"      ⚠️  No document context found for selected documents")
+				else:
+					enhanced_prompt = query
+					logger.info(f"      ℹ️  No documents selected, using original query only")
+					print(f"      ℹ️  No documents selected, using original query only")
+				
 				# Limit agent responses to 400 tokens (approximately 300 words)
 				response = await self._ollama.generate(
-					prompt=query,
+					prompt=enhanced_prompt,
 					system=self._system_prompt,
 					max_tokens=400
 				)

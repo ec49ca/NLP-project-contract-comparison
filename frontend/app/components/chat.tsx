@@ -30,7 +30,11 @@ function ClientTimestamp({ timestamp }: { timestamp: Date }) {
 	return <span className="text-xs opacity-70 mt-1 block">{timeString}</span>;
 }
 
-export function Chat() {
+type ChatProps = {
+	selectedDocuments?: string[];
+};
+
+export function Chat({ selectedDocuments = [] }: ChatProps) {
 	const [messages, setMessages] = useState<Message[]>([
 		{
 			id: '1',
@@ -85,7 +89,10 @@ export function Chat() {
 				headers: {
 					'Content-Type': 'application/json',
 				},
-				body: JSON.stringify({ message: currentInput }),
+				body: JSON.stringify({ 
+					message: currentInput,
+					selectedDocuments: selectedDocuments.length > 0 ? selectedDocuments : undefined
+				}),
 			});
 
 			if (!response.ok) {

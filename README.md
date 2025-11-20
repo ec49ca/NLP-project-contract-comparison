@@ -268,6 +268,7 @@ GOOGLE_MODEL=gemini-pro
 - **[SETUP.md](./SETUP.md)** - Comprehensive setup guide with step-by-step instructions
 - **[WORKFLOW.md](./WORKFLOW.md)** - Detailed workflow explanation including document upload, processing, and LLM provider architecture
 - **[QUICKSTART.md](./QUICKSTART.md)** - Quick start guide for getting up and running in 5 minutes
+- **[FUTURE_GOALS.md](./FUTURE_GOALS.md)** - Planned improvements and next steps (LangGraph, WIPO integration, agent enhancements)
 
 ## Key Features Explained
 

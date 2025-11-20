@@ -1,5 +1,5 @@
 """
-Ollama service for making LLM API calls to local Ollama instance.
+OpenAI service for making LLM API calls to OpenAI API.
 """
 import os
 import httpx
@@ -11,23 +11,26 @@ from .llm_service import LLMService
 logger = logging.getLogger(__name__)
 
 
-class OllamaService(LLMService):
-	"""Service for interacting with Ollama API."""
+class OpenAIService(LLMService):
+	"""Service for interacting with OpenAI API."""
 	
-	def __init__(self, base_url: Optional[str] = None, default_model: Optional[str] = None):
+	def __init__(self, api_key: Optional[str] = None, default_model: Optional[str] = None):
 		"""
-		Initialize Ollama service.
+		Initialize OpenAI service.
 		
 		Args:
-			base_url: Base URL for Ollama API (defaults to http://localhost:11434)
-			default_model: Default model to use (defaults to llama3:latest)
+			api_key: OpenAI API key (defaults to OPENAI_API_KEY env var)
+			default_model: Default model to use (defaults to gpt-4)
 		"""
-		self.base_url = base_url or os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-		self.default_model = default_model or os.getenv("OLLAMA_MODEL", "llama3:latest")
+		self.api_key = api_key or os.getenv("OPENAI_API_KEY")
+		if not self.api_key:
+			raise ValueError("OpenAI API key is required. Set OPENAI_API_KEY environment variable.")
+		self.default_model = default_model or os.getenv("OPENAI_MODEL", "gpt-4")
+		self.base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
 	
 	async def generate(self, prompt: str, model: Optional[str] = None, system: Optional[str] = None, max_tokens: Optional[int] = None) -> str:
 		"""
-		Generate text using Ollama.
+		Generate text using OpenAI.
 		
 		Args:
 			prompt: User prompt
@@ -39,7 +42,7 @@ class OllamaService(LLMService):
 			Generated text response
 		"""
 		model = model or self.default_model
-		max_tokens = max_tokens or 1000  # Default limit
+		max_tokens = max_tokens or 1000
 		
 		messages = []
 		if system:
@@ -49,17 +52,15 @@ class OllamaService(LLMService):
 		payload = {
 			"model": model,
 			"messages": messages,
-			"stream": False,
-			"options": {
-				"num_predict": max_tokens  # Limit output tokens
-			}
+			"max_tokens": max_tokens,
+			"temperature": 0.7
 		}
 		
-		logger.info(f"   📡 LLM: Calling {model} API (Ollama)...")
+		logger.info(f"   📡 LLM: Calling {model} API (OpenAI)...")
 		logger.info(f"      Prompt length: {len(prompt)} chars")
 		if system:
 			logger.info(f"      System prompt: {len(system)} chars")
-		print(f"   📡 LLM: Calling {model} API (Ollama)...")
+		print(f"   📡 LLM: Calling {model} API (OpenAI)...")
 		print(f"      Prompt length: {len(prompt)} chars")
 		if system:
 			print(f"      System prompt: {len(system)} chars")
@@ -67,30 +68,34 @@ class OllamaService(LLMService):
 		try:
 			async with httpx.AsyncClient(timeout=120.0) as client:
 				response = await client.post(
-					f"{self.base_url}/api/chat",
-					json=payload
+					f"{self.base_url}/chat/completions",
+					json=payload,
+					headers={
+						"Authorization": f"Bearer {self.api_key}",
+						"Content-Type": "application/json"
+					}
 				)
 				response.raise_for_status()
 				
 				result = response.json()
-				content = result.get("message", {}).get("content", "")
+				content = result.get("choices", [{}])[0].get("message", {}).get("content", "")
 				logger.info(f"   ✅ LLM: Received response ({len(content)} chars)\n")
 				print(f"   ✅ LLM: Received response ({len(content)} chars)\n")
 				return content
 		except httpx.RequestError as e:
-			error_msg = f"   ❌ LLM ERROR (Ollama): {str(e)}\n"
+			error_msg = f"   ❌ LLM ERROR (OpenAI): {str(e)}\n"
 			logger.error(error_msg)
 			print(error_msg)
-			raise Exception(f"Failed to generate response from Ollama: {str(e)}")
+			raise Exception(f"Failed to generate response from OpenAI: {str(e)}")
 		except httpx.HTTPStatusError as e:
-			error_msg = f"   ❌ LLM HTTP ERROR (Ollama): {e.response.status_code} - {str(e)}\n"
+			error_msg = f"   ❌ LLM HTTP ERROR (OpenAI): {e.response.status_code} - {str(e)}\n"
 			logger.error(error_msg)
 			print(error_msg)
-			raise Exception(f"Failed to generate response from Ollama: HTTP {e.response.status_code}")
+			raise Exception(f"Failed to generate response from OpenAI: HTTP {e.response.status_code}")
 	
 	async def generate_json(self, prompt: str, model: Optional[str] = None, system: Optional[str] = None) -> Dict[str, Any]:
 		"""
-		Generate JSON response using Ollama.
+		Generate JSON response using OpenAI.
 		
 		Args:
 			prompt: User prompt

@@ -5,12 +5,16 @@ from typing import Dict, Any, Set, Type, List, Optional
 from uuid import UUID
 import logging
 from contextlib import asynccontextmanager
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 from ..interfaces.agent import AgentInterface
 from ..registry.registry import AgentRegistrySystem
 from ..discovery.agent_discovery import AgentDiscovery
 from ..orchestrator.orchestrator import Orchestrator
-from ..services.ollama_service import OllamaService
+from ..services.llm_factory import create_llm_service
 from ..services.document_storage import DocumentStorage
 
 # Configure logging to also output to console with immediate flushing
@@ -32,15 +36,12 @@ logger = logging.getLogger(__name__)
 registry = AgentRegistrySystem()
 discovery = AgentDiscovery()
 
-# Initialize Ollama service and orchestrator
-ollama_service = OllamaService(
-	base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
-	default_model=os.getenv("OLLAMA_MODEL", "llama3:latest")
-)
+# Initialize LLM service (Ollama or OpenAI based on LLM_PROVIDER env var)
+llm_service = create_llm_service()
 # Initialize document storage
 document_storage = DocumentStorage(upload_dir="backend/uploads")
 
-orchestrator = Orchestrator(registry, ollama_service, document_storage)
+orchestrator = Orchestrator(registry, llm_service, document_storage)
 
 # Keep track of registered agent classes to avoid duplicates
 registered_agents: Set[Type[AgentInterface]] = set()
@@ -176,13 +177,103 @@ async def execute_agent_by_id(agent_id: str, request: Dict[str, Any]):
 		raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/providers")
+async def get_available_providers():
+	"""
+	Get list of configured LLM providers.
+	
+	Returns:
+		Dict with available_providers list and current_provider
+	"""
+	available_providers = []
+	current_provider = os.getenv("LLM_PROVIDER", "ollama").lower()
+	
+	# Check which providers are configured
+	# Note: Ollama is assumed available if base URL is set (defaults to localhost)
+	ollama_base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+	if ollama_base_url:
+		available_providers.append("ollama")
+	
+	if os.getenv("OPENAI_API_KEY"):
+		available_providers.append("openai")
+	
+	if os.getenv("ANTHROPIC_API_KEY"):
+		available_providers.append("anthropic")
+	
+	if os.getenv("GOOGLE_API_KEY"):
+		available_providers.append("google")
+	
+	return {
+		"current_provider": current_provider,
+		"available_providers": available_providers
+	}
+
+
+@app.get("/api/models")
+async def get_available_models(provider: Optional[str] = None):
+	"""
+	Get available models for a specific provider.
+	
+	Args:
+		provider: Provider name (defaults to LLM_PROVIDER env var)
+	
+	Returns:
+		Dict with provider, default_model, and available_models list
+	"""
+	if not provider:
+		provider = os.getenv("LLM_PROVIDER", "ollama").lower()
+	
+	if provider == "ollama":
+		default_model = os.getenv("OLLAMA_MODEL", "llama3:latest")
+		models_str = os.getenv("OLLAMA_MODELS", default_model)
+		models = [m.strip() for m in models_str.split(",") if m.strip()]
+		return {
+			"provider": "ollama",
+			"default_model": default_model,
+			"available_models": models
+		}
+	elif provider == "openai":
+		default_model = os.getenv("OPENAI_MODEL", "gpt-4")
+		models_str = os.getenv("OPENAI_MODELS", default_model)
+		models = [m.strip() for m in models_str.split(",") if m.strip()]
+		return {
+			"provider": "openai",
+			"default_model": default_model,
+			"available_models": models
+		}
+	elif provider == "anthropic":
+		default_model = os.getenv("ANTHROPIC_MODEL", "claude-3-5-sonnet-20241022")
+		models_str = os.getenv("ANTHROPIC_MODELS", default_model)
+		models = [m.strip() for m in models_str.split(",") if m.strip()]
+		return {
+			"provider": "anthropic",
+			"default_model": default_model,
+			"available_models": models
+		}
+	elif provider == "google":
+		default_model = os.getenv("GOOGLE_MODEL", "gemini-pro")
+		models_str = os.getenv("GOOGLE_MODELS", default_model)
+		models = [m.strip() for m in models_str.split(",") if m.strip()]
+		return {
+			"provider": "google",
+			"default_model": default_model,
+			"available_models": models
+		}
+	else:
+		return {
+			"provider": provider,
+			"default_model": None,
+			"available_models": []
+		}
+
+
 @app.post("/orchestrate")
 async def orchestrate_query(request: Dict[str, Any]):
 	"""
 	Orchestrate a user query across multiple agents.
 	
 	Args:
-		request: Dict with "query" key containing the user's query and optional "selected_documents" list
+		request: Dict with "query" key containing the user's query, optional "selected_documents" list, and optional "model" override
 		
 	Returns:
 		Dict with agents_used, results, comparison, and interpreted_response
@@ -193,17 +284,45 @@ async def orchestrate_query(request: Dict[str, Any]):
 			raise HTTPException(status_code=400, detail="Query is required")
 		
 		selected_documents = request.get("selected_documents", [])
+		provider_override = request.get("provider")  # Optional provider override
+		model_override = request.get("model")  # Optional model override
+		
+		# If provider is overridden, create a new LLM service for this request
+		# Pass it through the call chain instead of mutating global state (avoids race conditions)
+		llm_service_override = None
+		if provider_override:
+			from ..services.llm_factory import create_llm_service
+			try:
+				llm_service_override = create_llm_service(provider=provider_override)
+				logger.info(f"   🔄 Using provider override: {provider_override}")
+				print(f"   🔄 Using provider override: {provider_override}")
+			except ValueError as e:
+				logger.warning(f"   ⚠️  Provider override failed: {e}, using default provider")
+				print(f"   ⚠️  Provider override failed: {e}, using default provider")
 		
 		logger.info(f"\n🌐 SERVER: Received orchestrate request")
 		logger.info(f"   Query: {query}")
 		if selected_documents:
-			logger.info(f"   Selected documents: {selected_documents}\n")
+			logger.info(f"   Selected documents: {selected_documents}")
+		if provider_override:
+			logger.info(f"   Provider override: {provider_override}")
+		if model_override:
+			logger.info(f"   Model override: {model_override}")
 		print(f"\n🌐 SERVER: Received orchestrate request")
 		print(f"   Query: {query}")
 		if selected_documents:
-			print(f"   Selected documents: {selected_documents}\n")
+			print(f"   Selected documents: {selected_documents}")
+		if provider_override:
+			print(f"   Provider override: {provider_override}")
+		if model_override:
+			print(f"   Model override: {model_override}\n")
 		
-		result = await orchestrator.process_query(query, selected_documents=selected_documents)
+		result = await orchestrator.process_query(
+			query, 
+			selected_documents=selected_documents, 
+			model_override=model_override,
+			llm_service_override=llm_service_override
+		)
 		
 		logger.info(f"🌐 SERVER: Returning response to client\n")
 		print(f"🌐 SERVER: Returning response to client\n")
@@ -337,9 +456,9 @@ async def auto_register_agents():
 				continue
 			
 			# Create config with Ollama settings
+			# Pass the LLM service instance to agents instead of config
 			default_config = {
-				"ollama_base_url": os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
-				"ollama_model": os.getenv("OLLAMA_MODEL", "llama3:latest")
+				"llm_service": llm_service
 			}
 			
 			# Add document storage to config if this is the internal agent

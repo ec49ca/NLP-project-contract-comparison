@@ -5,7 +5,7 @@ from uuid import UUID
 from typing import Dict, Any, List
 import logging
 from ..interfaces.agent import AgentInterface
-from ..services.ollama_service import OllamaService
+from ..services.llm_service import LLMService
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +15,7 @@ class ExternalAgent(AgentInterface):
 	
 	def __init__(self):
 		self._uuid: UUID = None
-		self._ollama: OllamaService = None
+		self._ollama: LLMService = None  # Keep variable name for backward compatibility
 		self._system_prompt = """You are an external database agent that queries international legal and compliance databases.
 
 Your databases include:
@@ -62,10 +62,19 @@ Be authoritative, reference external sources, and provide specific but concise c
 	
 	async def initialize(self, config: Dict[str, Any]) -> None:
 		"""Initialize the agent."""
-		self._ollama = OllamaService(
-			base_url=config.get("ollama_base_url"),
-			default_model=config.get("ollama_model")
-		)
+		# Accept either llm_service instance or create from config
+		if "llm_service" in config:
+			self._ollama = config["llm_service"]
+		else:
+			# Fallback: create from config (backward compatibility)
+			from ..services.llm_factory import create_llm_service
+			self._ollama = create_llm_service()
+	
+	def _get_llm_service(self, request: Dict[str, Any]) -> LLMService:
+		"""Get LLM service from request override or use default."""
+		if "llm_service" in request:
+			return request["llm_service"]
+		return self._ollama
 	
 	async def process_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
 		"""Process a query request."""
@@ -84,11 +93,16 @@ Be authoritative, reference external sources, and provide specific but concise c
 			print(f"      🟢 EXTERNAL AGENT: Processing query...")
 			print(f"      📋 Full query for external_agent: {query}")
 			try:
+				# Get model override and LLM service from request if provided
+				model_override = request.get("model")
+				llm_service_to_use = self._get_llm_service(request)
+				
 				# Limit agent responses to 400 tokens (approximately 300 words)
-				response = await self._ollama.generate(
+				response = await llm_service_to_use.generate(
 					prompt=query,
 					system=self._system_prompt,
-					max_tokens=400
+					max_tokens=400,
+					model=model_override
 				)
 				
 				logger.info(f"      ✅ EXTERNAL AGENT: Got response ({len(response)} chars)")

@@ -34,6 +34,22 @@ type ChatProps = {
 	selectedDocuments?: string[];
 };
 
+// Use the same MCP server URL as the chat API route
+const MCP_SERVER_URL = typeof window !== 'undefined' 
+	? (process.env.NEXT_PUBLIC_MCP_SERVER_URL || 'http://localhost:8000')
+	: 'http://localhost:8000';
+
+type ModelInfo = {
+	provider: string;
+	default_model: string;
+	available_models: string[];
+};
+
+type ProviderInfo = {
+	current_provider: string;
+	available_providers: string[];
+};
+
 export function Chat({ selectedDocuments = [] }: ChatProps) {
 	const [messages, setMessages] = useState<Message[]>([
 		{
@@ -45,7 +61,51 @@ export function Chat({ selectedDocuments = [] }: ChatProps) {
 	]);
 	const [input, setInput] = useState('');
 	const [isLoading, setIsLoading] = useState(false);
+	const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
+	const [selectedModel, setSelectedModel] = useState<string | null>(null);
+	const [availableProviders, setAvailableProviders] = useState<ProviderInfo | null>(null);
+	const [availableModels, setAvailableModels] = useState<ModelInfo | null>(null);
 	const messagesEndRef = useRef<HTMLDivElement>(null);
+	
+	// Fetch available providers on component mount
+	useEffect(() => {
+		const fetchProviders = async () => {
+			try {
+				const response = await fetch(`${MCP_SERVER_URL}/api/providers`);
+				if (response.ok) {
+					const data = await response.json();
+					setAvailableProviders(data);
+					setSelectedProvider(data.current_provider);
+					// Fetch models for the current provider
+					fetchModels(data.current_provider);
+				}
+			} catch (error) {
+				console.error('Error fetching providers:', error);
+			}
+		};
+		fetchProviders();
+	}, []);
+	
+	// Fetch models for a specific provider
+	const fetchModels = async (provider: string) => {
+		try {
+			const response = await fetch(`${MCP_SERVER_URL}/api/models?provider=${provider}`);
+			if (response.ok) {
+				const data = await response.json();
+				setAvailableModels(data);
+				setSelectedModel(data.default_model);
+			}
+		} catch (error) {
+			console.error('Error fetching models:', error);
+		}
+	};
+	
+	// When provider changes, fetch its models
+	useEffect(() => {
+		if (selectedProvider) {
+			fetchModels(selectedProvider);
+		}
+	}, [selectedProvider]);
 
 	const scrollToBottom = () => {
 		messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -91,7 +151,9 @@ export function Chat({ selectedDocuments = [] }: ChatProps) {
 				},
 				body: JSON.stringify({ 
 					message: currentInput,
-					selectedDocuments: selectedDocuments.length > 0 ? selectedDocuments : undefined
+					selectedDocuments: selectedDocuments.length > 0 ? selectedDocuments : undefined,
+					provider: selectedProvider || undefined,
+					model: selectedModel || undefined
 				}),
 			});
 
@@ -120,7 +182,48 @@ export function Chat({ selectedDocuments = [] }: ChatProps) {
 	};
 
 	return (
-		<div className="flex flex-col h-[600px] max-h-[80vh] w-full bg-background border rounded-lg shadow-lg">
+		<div className="flex flex-col h-[700px] max-h-[85vh] w-full bg-background border rounded-lg shadow-lg">
+			{/* Provider and Model Selectors */}
+			{(availableProviders || availableModels) && (
+				<div className="border-b p-3 bg-muted/30">
+					<div className="flex gap-3 items-end">
+						{availableProviders && availableProviders.available_providers.length > 0 && (
+							<div className="flex-1">
+								<label className="text-sm font-medium mb-1 block">Provider:</label>
+								<select
+									value={selectedProvider || availableProviders.current_provider}
+									onChange={(e) => setSelectedProvider(e.target.value)}
+									className="w-full px-3 py-2 border rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+									disabled={isLoading}
+								>
+									{availableProviders.available_providers.map((provider) => (
+										<option key={provider} value={provider}>
+											{provider} {provider === availableProviders.current_provider ? '(default)' : ''}
+										</option>
+									))}
+								</select>
+							</div>
+						)}
+						{availableModels && availableModels.available_models.length > 0 && (
+							<div className="flex-1">
+								<label className="text-sm font-medium mb-1 block">Model:</label>
+								<select
+									value={selectedModel || availableModels.default_model}
+									onChange={(e) => setSelectedModel(e.target.value)}
+									className="w-full px-3 py-2 border rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+									disabled={isLoading}
+								>
+									{availableModels.available_models.map((model) => (
+										<option key={model} value={model}>
+											{model} {model === availableModels.default_model ? '(default)' : ''}
+										</option>
+									))}
+								</select>
+							</div>
+						)}
+					</div>
+				</div>
+			)}
 			{/* Messages */}
 			<div className="flex-1 overflow-y-auto p-4 space-y-4">
 				{messages.map((message) => (

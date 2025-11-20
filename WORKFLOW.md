@@ -1,6 +1,6 @@
 # System Workflow - Based on Log Analysis
 
-This document describes the actual workflow of the MCP server system based on observed logs. It shows how a user query flows through the system from input to output.
+This document describes the actual workflow of the MCP server system based on observed logs. It shows how documents are uploaded, how queries are processed, and how the system uses uploaded PDF documents to answer questions.
 
 ## System Initialization
 
@@ -17,6 +17,32 @@ When the server starts:
 
 ---
 
+## Document Upload Workflow
+
+### Document Upload Process
+
+**Log Evidence:**
+```
+📄 Document uploaded: Italy-111.pdf
+Saved document: Italy-111.pdf (1376 characters)
+```
+
+**What Happens:**
+1. User clicks "Upload PDF" in frontend sidebar
+2. Frontend sends POST request to `/api/upload` with PDF file
+3. Backend validates file is PDF
+4. PDF saved to `backend/uploads/` directory
+5. pdfplumber extracts text from all pages
+6. Text stored in memory cache: `{filename: {text, uploaded_at, filepath}}`
+7. Document appears in sidebar with checkbox
+
+**Storage:**
+- **Filesystem**: PDF files stored in `backend/uploads/` (persists across restarts)
+- **Memory**: Extracted text cached for fast access during queries
+- **On startup**: System loads existing PDFs and extracts text automatically
+
+---
+
 ## Query Processing Workflow
 
 ### Step 0: Request Reception
@@ -25,49 +51,71 @@ When the server starts:
 ```
 🌐 SERVER: Received orchestrate request
    Query: [user's query text]
+   Selected documents: ['Italy-111.pdf']  // If manually selected
+   Provider override: openai  // If user selected different provider
+   Model override: gpt-4  // If user selected different model
 ```
 
 - Frontend sends POST request to `/orchestrate` endpoint
+- May include `selected_documents` array if user selected documents via checkboxes
+- May include `provider` and `model` if user selected different LLM provider/model in UI
 - Server receives the query and logs it
-- Query is passed to the Orchestrator
+- If provider override is specified, creates a new LLM service instance for this request
+- Query is passed to the Orchestrator with LLM service override
 
 ---
 
-### Step 1: Query Analysis & Agent Selection
+### Step 1: Document Detection & Query Analysis
 
 **Log Evidence:**
 ```
 🎯 ORCHESTRATOR: Starting to process query
+📚 Available documents: ['Italy-111.pdf', 'japan-111.pdf']
 🔍 STEP 1: Analyzing query and determining which agents to use...
 📡 OLLAMA: Calling llama3:latest API...
    Prompt length: [X] chars
-   System prompt: [Y] chars
+   System prompt: [Y] chars (includes document list)
 ✅ OLLAMA: Received response ([Z] chars)
 ✅ OLLAMA: Successfully parsed JSON response
+📄 Auto-detected documents: ['Italy-111.pdf']  // If LLM matched
+🔍 Fallback matching: 'Italy-111.pdf' matched from query  // If fallback used
 ✅ Query analysis complete!
    Agents needed: ['internal_agent', 'external_agent']
    Generated queries: {
-     'internal_agent': '[optimized query 1]',
-     'external_agent': '[optimized query 2]'
+     'internal_agent': '[optimized query with document context]',
+     'external_agent': '[optimized query]'
    }
+   Final selected documents: ['Italy-111.pdf']
 ```
 
 **What Happens:**
-1. Orchestrator receives the user query
-2. Makes an LLM call to Ollama (using `llama3:latest` model)
-3. LLM analyzes the query and determines:
-   - Which agents are needed (can be 0, 1, or multiple)
-   - Optimized queries for each selected agent
-4. Response is parsed as JSON
-   - If JSON parsing fails, fallback parsing is attempted
-   - Fallback parsing successfully extracts agent names and queries
+1. Orchestrator gets list of all available documents from document storage
+2. Orchestrator receives the user query (and optionally manually selected documents)
+3. Orchestrator uses the LLM service (either default from env or override from request)
+4. Orchestrator sends to LLM:
+   - User query
+   - List of all available documents
+   - Instructions to match documents from query
+5. LLM analyzes and returns:
+   - Which agents are needed
+   - **Matched documents** (if query mentions documents)
+   - Optimized queries for each agent
+6. **Fallback matching** (if LLM doesn't match):
+   - Simple string matching: checks if query contains document name keywords
+   - Example: "italy" in query → matches "Italy-111.pdf"
+6. Documents are combined: manual selection + auto-detected
+7. Response is parsed as JSON
+   - If JSON parsing fails, fallback parsing extracts all fields including `matched_documents`
 
 **Example from Logs:**
-- Query: "can you tell me from my italy-xxx contract what i need to change for it to work in australia"
+- Query: "can you tell me from my italy-111 document what i need to change for it to work in australia"
+- Available documents: `['Italy-111.pdf', 'japan-111.pdf']`
+- Document detection: "italy-111" → `['Italy-111.pdf']` (auto-detected)
 - Analysis Result:
   - Agents needed: `['internal_agent', 'external_agent']`
-  - Internal agent query: "Find Italy-xxx contract terms and required changes for adaptation in Australia"
-  - External agent query: "Retrieve Australian compliance standards and regional requirements for the adapted contract"
+  - Matched documents: `['Italy-111.pdf']`
+  - Internal agent query: "Look at Italy-111 document and provide all important quoted annexes, codes, terms, and requirements that need to be compared for Australia"
+  - External agent query: "Find Australian compliance standards and regional requirements"
 
 ---
 
@@ -77,35 +125,52 @@ When the server starts:
 ```
 🤖 STEP 2: Executing 2 agent(s)...
    → Executing internal_agent...
-      Query: [optimized query for internal agent]
+      📋 Full query for internal_agent: [optimized query]
+      📄 Documents being sent to internal_agent: ['Italy-111.pdf']
       🔵 INTERNAL AGENT: Processing query...
-      📡 OLLAMA: Calling llama3:latest API...
-      ✅ OLLAMA: Received response ([X] chars)
+      📄 Using selected documents: ['Italy-111.pdf']
+      📄 Document context retrieved: 1409 characters
+      📝 Enhanced prompt length: 1652 characters
+      📝 Enhanced prompt (first 500 chars): 
+         User Query: [query]
+         Available Documents:
+         === Document: Italy-111.pdf ===
+         [actual document text...]
+      📡 LLM: Calling [model] API ([provider])...
+      ✅ LLM: Received response ([X] chars)
       ✅ INTERNAL AGENT: Got response ([X] chars)
    ✅ internal_agent completed successfully
 
    → Executing external_agent...
-      Query: [optimized query for external agent]
+      📋 Full query for external_agent: [optimized query]
       🟢 EXTERNAL AGENT: Processing query...
-      📡 OLLAMA: Calling llama3:latest API...
-      ✅ OLLAMA: Received response ([Y] chars)
+      📡 LLM: Calling [model] API ([provider])...
+      ✅ LLM: Received response ([Y] chars)
       ✅ EXTERNAL AGENT: Got response ([Y] chars)
    ✅ external_agent completed successfully
 ```
 
 **What Happens:**
 1. Orchestrator executes agents **sequentially** (one after another)
-2. For each agent:
-   - Agent receives its optimized query
-   - Agent makes its own LLM call to Ollama
-   - Agent processes the response
-   - Agent returns results to orchestrator
-3. All agent results are collected
+2. For **Internal Agent** (if documents selected):
+   - Receives optimized query + list of selected documents
+   - Retrieves document text from document storage
+   - Builds enhanced prompt: query + full document text
+   - Makes LLM call with document context
+   - LLM searches through actual document text to answer
+3. For **External Agent**:
+   - Receives optimized query
+   - Makes LLM call (no document context)
+   - Queries external databases conceptually
+4. All agent results are collected
 
 **Execution Order:**
 - Agents execute in the order they were determined in Step 1
-- Each agent is independent and makes its own Ollama API call
-- Agents can return different response sizes (observed: 1093 chars for internal, 1391 chars for external)
+- Each agent is independent and makes its own LLM API call (using selected provider/model)
+- **Internal agent** includes document text in prompt (observed: 1652 chars prompt with 1409 chars document text)
+- **External agent** uses query only (observed: ~100 chars prompt)
+- Agents can return different response sizes (observed: 1103-1591 chars for internal, 987-1442 chars for external)
+- All agents use the same LLM provider/model selected for the request
 
 **Timing Observations:**
 - Internal agent: ~13 seconds (16:30:55 → 16:31:08)
@@ -128,7 +193,7 @@ When the server starts:
 
 **What Happens:**
 1. Orchestrator combines all agent results into a single prompt
-2. Makes final LLM call to Ollama with:
+2. Makes final LLM call using the same provider/model as used in previous steps:
    - The original user query
    - Results from all executed agents
    - Instructions to compare and synthesize
@@ -160,18 +225,24 @@ INFO: 127.0.0.1:[port] - "POST /orchestrate HTTP/1.1" 200 OK
 
 ## Complete Timeline Example
 
-Based on the logs for query: "can you tell me from my italy-xxx contract what i need to change for it to work in australia"
+Based on the logs for query: "tell me more about the italy document i have" with document "Italy-111.pdf" uploaded
 
 | Time | Step | Duration | Details |
 |------|------|----------|---------|
-| 16:30:46.130 | Request Received | - | Query received by server |
-| 16:30:46.130 | Step 1: Analysis | ~9s | LLM determines agents needed |
-| 16:30:55.264 | Step 2: Agent Exec | ~28s | Both agents execute sequentially |
-| 16:31:08.188 | - Internal Agent | ~13s | Processes internal documents |
-| 16:31:23.843 | - External Agent | ~15s | Processes external compliance |
-| 16:31:23.843 | Step 3: Synthesis | ~38s | LLM synthesizes final answer |
-| 16:32:02.030 | Step 4: Response | - | Response returned to client |
-| **Total** | **~76 seconds** | | End-to-end processing time |
+| 20:11:36.258 | Request Received | - | Query received, documents available |
+| 20:11:36.258 | Step 1: Analysis | ~10s | LLM analyzes query, matches documents |
+| 20:11:46.363 | - Document Detection | - | Auto-detected: ['Italy-111.pdf'] |
+| 20:11:46.363 | Step 2: Agent Exec | ~20s | Internal agent executes with document |
+| 20:11:46.364 | - Document Retrieval | - | Retrieved 1409 chars of document text |
+| 20:11:46.365 | - Internal Agent | ~20s | Processes query + document text (1652 chars prompt) |
+| 20:12:06.909 | Step 3: Synthesis | ~23s | LLM synthesizes final answer |
+| 20:12:29.325 | Step 4: Response | - | Response returned to client |
+| **Total** | **~53 seconds** | | End-to-end processing time |
+
+**Key Difference with Documents:**
+- Internal agent prompt includes actual document text (1652 chars vs ~100 chars without)
+- LLM searches through real document content, not simulated
+- More accurate and specific responses based on actual document content
 
 ---
 
@@ -208,16 +279,26 @@ Based on the logs for query: "can you tell me from my italy-xxx contract what i 
 ## Workflow Summary
 
 ```
-User Query
+[Document Upload]
+    ↓
+User uploads PDF → Text extraction → Storage (filesystem + memory)
+    ↓
+[Query Processing]
+User Query (optionally with selected documents)
     ↓
 [Server Receives Request]
     ↓
-[Step 1: Query Analysis]
+[Step 1: Document Detection & Query Analysis]
+    → Get available documents list
+    → LLM matches documents from query (or use fallback matching)
+    → Combine manual + auto-detected documents
     → LLM determines agents needed
-    → Generates optimized queries
+    → Generates optimized queries (with document context)
     ↓
 [Step 2: Agent Execution]
     → Execute agents sequentially
+    → Internal Agent: Retrieves document text, includes in prompt
+    → External Agent: Uses query only
     → Each agent calls LLM independently
     → Collect all results
     ↓
@@ -232,19 +313,60 @@ User Query
 
 ---
 
+## Document Management Features
+
+### Two Ways to Select Documents
+
+1. **Manual Selection**:
+   - User uploads PDF via sidebar
+   - User clicks checkbox next to document
+   - Selected documents sent with query
+   - Log shows: `📄 Manually selected documents: ['Italy-111.pdf']`
+
+2. **Automatic Detection**:
+   - User mentions document in query (e.g., "italy document", "japan-111")
+   - Orchestrator sees all available documents
+   - LLM matches query text to document names
+   - Fallback matching if LLM doesn't match
+   - Log shows: `📄 Auto-detected documents: ['Italy-111.pdf']`
+
+3. **Both Together**:
+   - User can manually select some documents
+   - And mention others in query
+   - System combines both: `Final selected documents: ['france-456.pdf', 'Italy-111.pdf']`
+
+### Document Text Usage
+
+When documents are selected:
+- Internal agent retrieves full document text from storage
+- Text is included in LLM prompt: `Enhanced prompt length: 1652 characters`
+- LLM searches through actual document content
+- Responses are based on real document text, not simulated
+
+Without documents:
+- Internal agent uses query only: `Prompt length: 80-103 chars`
+- Responses are generic/simulated
+
+---
+
 ## Verification Status
 
 ✅ **System is Working Correctly**
 
 Evidence from logs:
 - ✅ Server starts and discovers agents successfully
+- ✅ PDF uploads work: documents saved and text extracted
+- ✅ Document storage loads existing documents on startup
 - ✅ Queries are received and processed
+- ✅ Document detection works: LLM and fallback matching both functional
+- ✅ Documents are passed to internal agent correctly
+- ✅ Document text is included in prompts (1652 chars vs 80 chars without)
 - ✅ LLM calls are made successfully
-- ✅ Agents execute and return results
+- ✅ Agents execute and return results based on actual document content
 - ✅ Results are synthesized into final answers
 - ✅ Responses are returned to clients
-- ✅ Error handling works (JSON parsing fallback)
+- ✅ Error handling works (JSON parsing fallback, including matched_documents)
 - ✅ All steps complete successfully
 
-The workflow is functioning as designed, processing queries through analysis, agent execution, and synthesis to produce comprehensive responses.
+The workflow is functioning as designed, processing queries through document detection, analysis, agent execution with real document text, and synthesis to produce comprehensive responses based on actual uploaded documents.
 

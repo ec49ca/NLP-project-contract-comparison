@@ -5,7 +5,7 @@ from uuid import UUID
 from typing import Dict, Any, List, Optional
 import logging
 from ..interfaces.agent import AgentInterface
-from ..services.ollama_service import OllamaService
+from ..services.llm_service import LLMService
 from ..services.document_storage import DocumentStorage
 
 logger = logging.getLogger(__name__)
@@ -16,7 +16,7 @@ class InternalAgent(AgentInterface):
 	
 	def __init__(self):
 		self._uuid: UUID = None
-		self._ollama: OllamaService = None
+		self._ollama: LLMService = None  # Keep variable name for backward compatibility
 		self._document_storage: Optional[DocumentStorage] = None
 		self._system_prompt = """You are an internal document retrieval agent that searches through an internal document database.
 
@@ -64,10 +64,19 @@ Be factual, concise, and reference document sources in your responses."""
 	
 	async def initialize(self, config: Dict[str, Any]) -> None:
 		"""Initialize the agent."""
-		self._ollama = OllamaService(
-			base_url=config.get("ollama_base_url"),
-			default_model=config.get("ollama_model")
-		)
+		# Accept either llm_service instance or create from config
+		if "llm_service" in config:
+			self._ollama = config["llm_service"]
+		else:
+			# Fallback: create from config (backward compatibility)
+			from ..services.llm_factory import create_llm_service
+			self._ollama = create_llm_service()
+	
+	def _get_llm_service(self, request: Dict[str, Any]) -> LLMService:
+		"""Get LLM service from request override or use default."""
+		if "llm_service" in request:
+			return request["llm_service"]
+		return self._ollama
 		# Document storage is passed separately if available
 		if "document_storage" in config:
 			self._document_storage = config["document_storage"]
@@ -94,6 +103,10 @@ Be factual, concise, and reference document sources in your responses."""
 				print(f"      📄 Using selected documents: {selected_documents}")
 			
 			try:
+				# Get model override and LLM service from request if provided
+				model_override = request.get("model")
+				llm_service_to_use = self._get_llm_service(request)
+				
 				# Get document context if documents are selected
 				document_context = ""
 				if selected_documents and self._document_storage:
@@ -120,10 +133,11 @@ Please answer the query based on the information in the provided documents. Refe
 					print(f"      ℹ️  No documents selected, using original query only")
 				
 				# Limit agent responses to 400 tokens (approximately 300 words)
-				response = await self._ollama.generate(
+				response = await llm_service_to_use.generate(
 					prompt=enhanced_prompt,
 					system=self._system_prompt,
-					max_tokens=400
+					max_tokens=400,
+					model=model_override
 				)
 				
 				logger.info(f"      ✅ INTERNAL AGENT: Got response ({len(response)} chars)")

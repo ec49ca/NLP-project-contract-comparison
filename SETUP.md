@@ -64,13 +64,21 @@ This project consists of:
    - Runs on port 3000
 
 3. **Agents**
-   - **Internal Agent**: Simulates internal document retrieval
-   - **External Agent**: Simulates external database queries (e.g., WIPO)
+   - **Internal Agent**: Searches through uploaded PDF documents using extracted text
+   - **External Agent**: Queries external databases (e.g., WIPO for compliance information)
 
 4. **Orchestrator**
-   - Analyzes user queries
+   - Analyzes user queries using LLM
+   - Automatically detects and matches documents from query text
    - Splits queries into agent-specific tasks
    - Synthesizes results from multiple agents
+   - Has access to all uploaded documents for intelligent routing
+
+5. **Document Management**
+   - PDF upload with automatic text extraction (pdfplumber)
+   - Document storage (filesystem + in-memory cache)
+   - Manual document selection via UI
+   - Automatic document detection from queries
 
 ---
 
@@ -108,8 +116,10 @@ pip install -r requirements.txt
 #### 2.3 Verify Installation
 
 ```bash
-python3 -c "import fastapi, uvicorn, httpx; print('✅ All dependencies installed')"
+python3 -c "import fastapi, uvicorn, httpx, pdfplumber; print('✅ All dependencies installed')"
 ```
+
+This verifies that all required packages including `pdfplumber` are installed correctly.
 
 ### Step 3: Set Up Frontend
 
@@ -142,8 +152,9 @@ cd ..  # Back to root directory
 cp env.example .env
 ```
 
-Edit `.env` with your settings:
+Edit `.env` with your settings. **Choose ONE provider to start with:**
 
+**For Ollama (Local, Free):**
 ```env
 # Server Configuration
 PORT=8000
@@ -153,10 +164,37 @@ ENV=development
 # CORS Configuration
 ALLOWED_ORIGINS=*
 
-# Ollama Configuration (for local LLM)
+# LLM Provider Configuration
+LLM_PROVIDER=ollama
+
+# Ollama Configuration
 OLLAMA_BASE_URL=http://localhost:11434
 OLLAMA_MODEL=llama3:latest
+# Optional: Add more models for dropdown
+# OLLAMA_MODELS=llama3:latest,llama3.1:latest,mistral:latest
 ```
+
+**For OpenAI (Cloud, Paid):**
+```env
+# Server Configuration
+PORT=8000
+LOG_LEVEL=INFO
+ENV=development
+
+# CORS Configuration
+ALLOWED_ORIGINS=*
+
+# LLM Provider Configuration
+LLM_PROVIDER=openai
+
+# OpenAI Configuration
+OPENAI_API_KEY=sk-your-api-key-here
+OPENAI_MODEL=gpt-4
+# Optional: Add more models for dropdown
+# OPENAI_MODELS=gpt-4,gpt-4-turbo,gpt-3.5-turbo
+```
+
+**Note**: You can configure multiple providers in `.env`. The UI will show all configured providers, and you can switch between them. See `env.example` for all options.
 
 #### 4.2 Frontend Configuration
 
@@ -168,10 +206,11 @@ frontend/app/api/chat/route.ts
 
 Look for the `MCP_SERVER_URL` constant.
 
-### Step 5: Verify Ollama is Running
+### Step 5: Verify Your LLM Provider is Ready
 
-Before starting the servers, ensure Ollama is running:
+Before starting the servers, ensure your selected LLM provider is configured:
 
+**If using Ollama:**
 ```bash
 # Check if Ollama is running
 curl http://localhost:11434/api/tags
@@ -182,6 +221,10 @@ curl http://localhost:11434/api/tags
 # On Windows: ollama.exe serve
 ```
 
+**If using OpenAI/Anthropic/Google:**
+- Ensure your API key is set in `.env`
+- No additional setup needed - the system will connect to their APIs
+
 ---
 
 ## Configuration
@@ -190,10 +233,37 @@ curl http://localhost:11434/api/tags
 
 The backend uses environment variables from `.env`:
 
+**Server Settings:**
 - `PORT`: Server port (default: 8000)
 - `LOG_LEVEL`: Logging level (default: INFO)
+- `ENV`: Environment (development, production)
+- `ALLOWED_ORIGINS`: CORS allowed origins (default: *)
+
+**LLM Provider Settings:**
+- `LLM_PROVIDER`: Default provider - `ollama`, `openai`, `anthropic`, or `google` (default: ollama)
+
+**Ollama Settings (when LLM_PROVIDER=ollama):**
 - `OLLAMA_BASE_URL`: Ollama API URL (default: http://localhost:11434)
-- `OLLAMA_MODEL`: Model to use (default: llama3:latest)
+- `OLLAMA_MODEL`: Default model (default: llama3:latest)
+- `OLLAMA_MODELS`: Comma-separated list of models for dropdown (optional)
+
+**OpenAI Settings (when LLM_PROVIDER=openai):**
+- `OPENAI_API_KEY`: Your OpenAI API key (required)
+- `OPENAI_MODEL`: Default model (default: gpt-4)
+- `OPENAI_MODELS`: Comma-separated list of models for dropdown (optional)
+- `OPENAI_BASE_URL`: API base URL (optional, defaults to OpenAI)
+
+**Anthropic Settings (when LLM_PROVIDER=anthropic):**
+- `ANTHROPIC_API_KEY`: Your Anthropic API key (required)
+- `ANTHROPIC_MODEL`: Default model (default: claude-3-5-sonnet-20241022)
+- `ANTHROPIC_MODELS`: Comma-separated list of models for dropdown (optional)
+
+**Google Settings (when LLM_PROVIDER=google):**
+- `GOOGLE_API_KEY`: Your Google API key (required)
+- `GOOGLE_MODEL`: Default model (default: gemini-pro)
+- `GOOGLE_MODELS`: Comma-separated list of models for dropdown (optional)
+
+**Important**: You can configure multiple providers in `.env`. The UI will show all configured providers in the dropdown, allowing you to switch between them per-request. The `LLM_PROVIDER` variable only sets the default.
 
 ### Frontend Configuration
 
@@ -232,6 +302,14 @@ npm run dev
 ```
 
 The frontend will start on `http://localhost:3000`
+
+**Frontend Features:**
+- **Provider & Model Selection**: Dropdowns at top of chat to select LLM provider and model
+- **Document Sidebar**: Left side shows uploaded documents with checkboxes
+- **Upload Button**: Click "Upload PDF" to upload new documents
+- **Document Selection**: Check boxes to manually select documents for queries
+- **Chat Interface**: Right side for asking questions
+- **Auto-detection**: You can also just mention documents in your query (e.g., "tell me about my italy document")
 
 ### Option 2: Using Helper Scripts
 
@@ -274,14 +352,17 @@ tail -f /tmp/mcp_server.log
 mcp-server-orchestration/        # Project root
 ├── backend/                      # Backend MCP Server (Python/FastAPI)
 │   ├── server/
-│   │   └── mcp_server.py          # FastAPI server and endpoints
+│   │   └── mcp_server.py          # FastAPI server with upload/document endpoints
 │   ├── agents/
-│   │   ├── internal_agent.py      # Internal document agent
+│   │   ├── internal_agent.py      # Internal document agent (uses uploaded PDFs)
 │   │   └── external_agent.py      # External database agent
 │   ├── orchestrator/
-│   │   └── orchestrator.py        # Query orchestration logic
+│   │   └── orchestrator.py        # Query orchestration with document matching
 │   ├── services/
-│   │   └── ollama_service.py      # Ollama API wrapper
+│   │   ├── ollama_service.py      # Ollama API wrapper
+│   │   └── document_storage.py    # PDF storage and text extraction service
+│   ├── uploads/                   # Uploaded PDF files (created on first upload)
+│   │   └── .gitkeep               # Keeps directory in git
 │   ├── interfaces/
 │   │   └── agent.py               # Agent interface definition
 │   ├── registry/
@@ -292,10 +373,11 @@ mcp-server-orchestration/        # Project root
 │   ├── app/
 │   │   ├── api/
 │   │   │   └── chat/
-│   │   │       └── route.ts       # Chat API endpoint
+│   │   │       └── route.ts       # Chat API endpoint (forwards to MCP server)
 │   │   ├── components/
-│   │   │   └── chat.tsx           # Chat UI component
-│   │   └── page.tsx               # Main page
+│   │   │   ├── chat.tsx           # Chat UI component
+│   │   │   └── document-sidebar.tsx  # Document upload and selection sidebar
+│   │   └── page.tsx               # Main page with sidebar layout
 │   └── package.json
 ├── requirements.txt               # Python dependencies
 ├── env.example                    # Environment variables template
@@ -319,9 +401,9 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### Issue: Ollama connection errors
+### Issue: LLM provider connection errors
 
-**Solution:**
+**For Ollama:**
 ```bash
 # Check if Ollama is running
 curl http://localhost:11434/api/tags
@@ -330,6 +412,12 @@ curl http://localhost:11434/api/tags
 # macOS: Open Ollama.app
 # Linux: ollama serve
 ```
+
+**For OpenAI/Anthropic/Google:**
+- Verify API key is correct in `.env`
+- Check API key has proper permissions
+- Verify you have credits/quota available
+- Check network connectivity
 
 ### Issue: Port already in use
 
@@ -363,9 +451,26 @@ kill -9 $(lsof -ti:3000)
 ### Issue: Slow responses
 
 **Solution:**
-- This is normal with local Ollama - responses take 10-60 seconds
-- Consider using a faster model or GPU acceleration
-- Check Ollama logs for performance issues
+- **Ollama**: Normal with local CPU inference - responses take 10-60 seconds. Consider GPU acceleration or faster models
+- **OpenAI/Anthropic/Google**: Usually faster (3-15 seconds). If slow, check network or API status
+- You can switch providers in the UI to compare performance
+
+### Issue: PDF upload fails
+
+**Solution:**
+1. Ensure file is a valid PDF (text-based, not scanned images)
+2. Check `backend/uploads/` directory exists and is writable
+3. Verify pdfplumber is installed: `pip install pdfplumber`
+4. Check server logs for extraction errors
+
+### Issue: Documents not being auto-detected
+
+**Solution:**
+1. Check logs for `📚 Available documents:` - should show your uploaded files
+2. Try mentioning the exact filename in query (e.g., "italy-111" for "Italy-111.pdf")
+3. Fallback matching should catch simple cases (e.g., "italy" → "Italy-111.pdf")
+4. Check logs for `📄 Auto-detected documents:` or `🔍 Fallback matching:`
+5. You can always manually select documents via checkboxes
 
 ### Issue: JSON parsing errors
 
@@ -410,37 +515,63 @@ tail -f /tmp/mcp_server.log
 
 ## Workflow Explanation
 
+### Document Upload Flow
+
+1. **User uploads PDF**: Via "Upload PDF" button in sidebar
+2. **Backend receives file**: `/api/upload` endpoint
+3. **Text extraction**: pdfplumber extracts text from all pages
+4. **Storage**: 
+   - PDF saved to `backend/uploads/` directory
+   - Extracted text cached in memory for fast access
+5. **Document appears**: In sidebar with checkbox for selection
+
+### Query Processing Flow
+
 When a user submits a query:
 
-1. **Query Reception**: Frontend sends query to `/orchestrate` endpoint
-2. **Query Analysis**: Orchestrator uses Ollama to:
+1. **Query Reception**: Frontend sends query (and optionally selected documents) to `/orchestrate` endpoint
+2. **Document Detection**: Orchestrator:
+   - Gets list of all available documents
+   - If query mentions documents (e.g., "italy document"), automatically matches them
+   - Combines manually selected + auto-detected documents
+3. **Query Analysis**: Orchestrator uses selected LLM provider/model to:
    - Determine which agents are needed
-   - Generate optimized queries for each agent
-3. **Agent Execution**: 
-   - Agents execute in sequence (can be parallelized)
-   - Each agent uses Ollama to generate responses
-4. **Result Synthesis**: Orchestrator:
+   - Generate optimized queries for each agent (with document context)
+4. **Agent Execution**: 
+   - **Internal Agent**: If documents selected, retrieves document text and includes it in LLM prompt
+   - **External Agent**: Queries external databases
+   - Agents execute in sequence
+   - Each agent uses the selected LLM provider/model to generate responses
+5. **Result Synthesis**: Orchestrator:
+   - Uses the same LLM provider/model as previous steps
    - Compares results from all agents
    - Synthesizes a comprehensive answer
-5. **Response**: Final answer returned to frontend
+6. **Response**: Final answer returned to frontend
 
 ### Example Query Flow
 
-**User Query**: "can you tell me from my italy-xxx contract what i need to change for it to work in australia"
+**User Query**: "can you tell me from my italy-111 document what i need to change for it to work in australia"
+
+**Step 0 - Document Detection**:
+- Orchestrator sees available documents: `['Italy-111.pdf', 'japan-111.pdf']`
+- LLM matches "italy-111" → `['Italy-111.pdf']`
+- Document auto-detected and selected
 
 **Step 1 - Analysis**:
 - Determines: Both `internal_agent` and `external_agent` needed
 - Generates queries:
-  - Internal: "Find italy-xxx contract terms and setup procedures"
+  - Internal: "Look at Italy-111 document and provide all important quoted annexes, codes, terms, and requirements that need to be compared for Australia"
   - External: "Find Australian compliance standards and regional requirements"
 
 **Step 2 - Execution**:
-- Internal agent returns contract information (908 chars)
-- External agent returns compliance requirements (1732 chars)
+- Internal agent receives `Italy-111.pdf` document text (1409 chars)
+- Internal agent includes document text in prompt (total: 1652 chars)
+- Internal agent returns contract information based on actual document
+- External agent returns compliance requirements
 
 **Step 3 - Synthesis**:
 - Orchestrator compares both results
-- Generates comprehensive answer (2421 chars)
+- Generates comprehensive answer
 - Returns to user
 
 ---
@@ -455,8 +586,19 @@ When a user submits a query:
 | `LOG_LEVEL` | `INFO` | Logging level (DEBUG, INFO, WARNING, ERROR) |
 | `ENV` | `development` | Environment (development, production) |
 | `ALLOWED_ORIGINS` | `*` | CORS allowed origins |
+| `LLM_PROVIDER` | `ollama` | Default LLM provider (ollama, openai, anthropic, google) |
 | `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama API URL |
 | `OLLAMA_MODEL` | `llama3:latest` | Default Ollama model |
+| `OLLAMA_MODELS` | (same as OLLAMA_MODEL) | Comma-separated models for dropdown |
+| `OPENAI_API_KEY` | (required) | OpenAI API key |
+| `OPENAI_MODEL` | `gpt-4` | Default OpenAI model |
+| `OPENAI_MODELS` | (same as OPENAI_MODEL) | Comma-separated models for dropdown |
+| `ANTHROPIC_API_KEY` | (required) | Anthropic API key |
+| `ANTHROPIC_MODEL` | `claude-3-5-sonnet-20241022` | Default Anthropic model |
+| `ANTHROPIC_MODELS` | (same as ANTHROPIC_MODEL) | Comma-separated models for dropdown |
+| `GOOGLE_API_KEY` | (required) | Google API key |
+| `GOOGLE_MODEL` | `gemini-pro` | Default Google model |
+| `GOOGLE_MODELS` | (same as GOOGLE_MODEL) | Comma-separated models for dropdown |
 
 ---
 
@@ -465,12 +607,24 @@ When a user submits a query:
 ### MCP Server (Port 8000)
 
 - `GET /health` - Health check
+- `GET /api/providers` - Get list of configured LLM providers
+- `GET /api/models?provider=ollama` - Get available models for a provider
 - `POST /orchestrate` - Process user query
   ```json
   {
-    "query": "your query here"
+    "query": "your query here",
+    "selected_documents": ["document1.pdf"],  // Optional: manually selected documents
+    "provider": "openai",  // Optional: override default provider
+    "model": "gpt-4"  // Optional: override default model
   }
   ```
+- `POST /api/upload` - Upload a PDF document
+  - Content-Type: `multipart/form-data`
+  - Body: `file` (PDF file)
+  - Returns: Document info (filename, upload date, text length)
+- `GET /api/documents` - List all uploaded documents
+  - Returns: Array of document objects with filename, upload date, text length
+- `DELETE /api/documents/{filename}` - Delete a document
 - `GET /mcp/agents` - List available agents
 - `POST /discover` - Discover agents
 
@@ -507,6 +661,20 @@ For issues or questions:
 ## License
 
 [Add your license information here]
+
+---
+
+## Using Cursor AI to Set Up
+
+This guide is designed to work with Cursor AI. After cloning the repository:
+
+1. **Open the project in Cursor**
+2. **Ask Cursor**: "Read SETUP.md and help me set up this project step by step"
+3. **Cursor will guide you** through each step, checking prerequisites and helping with configuration
+4. **Ask Cursor**: "Read WORKFLOW.md and explain how the system works"
+5. **Cursor can help** with troubleshooting if you encounter issues
+
+All documentation includes clear examples and step-by-step instructions that Cursor can follow and explain.
 
 ---
 

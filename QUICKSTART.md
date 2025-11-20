@@ -1,82 +1,107 @@
 # Quick Start Guide
 
-## Prerequisites
+Get up and running in 5 minutes!
 
-1. **Ollama is running** (should already be running on your system)
-   ```bash
-   # Check if Ollama is running
-   curl http://localhost:11434/api/tags
-   
-   # If not running, start it:
-   ollama serve
-   ```
-
-2. **Python 3.11+** with virtual environment
-3. **Node.js** for the frontend
-
-## Setup Steps
-
-### 1. Backend (MCP Server)
+## Prerequisites Check
 
 ```bash
-# Navigate to project root
-cd /path/to/mcp-server-orchestration  # Update with your actual path
+# Check Python
+python3 --version  # Should be 3.11+
 
-# Activate virtual environment (already created)
-source venv/bin/activate
+# Check Node.js
+node --version  # Should be 18+
 
-# Install dependencies (already done, but if needed):
-pip install -r requirements.txt
-
-# Start the MCP server
-python3 -m uvicorn backend.server.mcp_server:app --reload --host 0.0.0.0 --port 8000
-
-# Or use the startup script:
-./start_server.sh
+# Check Ollama (if using local LLM)
+curl http://localhost:11434/api/tags  # Should return JSON
 ```
 
-The server will start on `http://localhost:8000`
-
-### 2. Frontend (Next.js UI)
+## Installation
 
 ```bash
-# In a new terminal, navigate to frontend
-cd /path/to/mcp-server-orchestration  # Update with your actual path/frontend
+# 1. Clone repository
+git clone <repository-url>
+cd agentforge  # or your repo name
 
-# Install dependencies (already done, but if needed):
+# 2. Set up Python backend
+python3 -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+
+# 3. Set up frontend
+cd frontend
 npm install
+cd ..
 
-# Start the frontend
+# 4. Configure environment
+cp env.example .env
+# Edit .env - at minimum set LLM_PROVIDER and your API key if using cloud provider
+```
+
+## Configuration (Choose One)
+
+### Option A: Ollama (Local, Free)
+
+```env
+LLM_PROVIDER=ollama
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=llama3:latest
+```
+
+Make sure Ollama is running:
+```bash
+# macOS: Open Ollama.app
+# Linux: ollama serve
+```
+
+### Option B: OpenAI (Cloud, Paid)
+
+```env
+LLM_PROVIDER=openai
+OPENAI_API_KEY=sk-your-api-key-here
+OPENAI_MODEL=gpt-4
+```
+
+## Running
+
+**Terminal 1 - Backend:**
+```bash
+source venv/bin/activate
+python3 -m uvicorn backend.server.mcp_server:app --host 0.0.0.0 --port 8000
+```
+
+**Terminal 2 - Frontend:**
+```bash
+cd frontend
 npm run dev
 ```
 
-The frontend will start on `http://localhost:3000`
+## Using the System
 
-## Testing
+1. Open `http://localhost:3000`
+2. **Select Provider/Model**: Use dropdowns at top of chat
+3. **Upload PDFs**: Click "Upload PDF" in sidebar
+4. **Select Documents**: Check boxes or mention in query
+5. **Ask Questions**: Type in chat
 
-1. Open `http://localhost:3000` in your browser
-2. Type a query like: "What are the contract terms in Italy?"
-3. The query will go: Frontend → MCP Server Orchestrator → Agents → Response
+## Example Queries
 
-## Verify Everything is Working
-
-### Test MCP Server directly:
-```bash
-curl http://localhost:8000/health
-curl http://localhost:8000/mcp/agents
-```
-
-### Test Orchestrator:
-```bash
-curl -X POST http://localhost:8000/orchestrate \
-  -H "Content-Type: application/json" \
-  -d '{"query": "What are the contract terms in Italy?"}'
-```
+- "What does my italy document say?"
+- "Compare my italy and japan documents"
+- "What do I need to change in my italy contract for australia?"
 
 ## Troubleshooting
 
-- **Ollama not responding**: Make sure `ollama serve` is running
-- **Port 8000 in use**: Change PORT in `.env` file
-- **Port 3000 in use**: Next.js will automatically use the next available port
-- **Import errors**: Make sure virtual environment is activated and dependencies are installed
+- **Backend not starting**: Check Python version, activate venv, install dependencies
+- **Frontend not starting**: Check Node version, run `npm install`
+- **Ollama errors**: Ensure Ollama is running: `curl http://localhost:11434/api/tags`
+- **OpenAI errors**: Check API key in `.env`
+- **No providers showing**: Ensure at least one provider is configured in `.env`
 
+## Using Cursor AI
+
+After cloning, open in Cursor and ask:
+- "Read QUICKSTART.md and help me set up this project"
+- "What do I need to configure in the .env file?"
+- "How do I start the servers?"
+
+For detailed help, see [SETUP.md](./SETUP.md) or [README.md](./README.md).

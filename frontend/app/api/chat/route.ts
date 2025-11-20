@@ -5,7 +5,7 @@ const MCP_SERVER_URL = process.env.MCP_SERVER_URL || 'http://localhost:8000';
 
 export async function POST(request: Request) {
 	try {
-		const { message, selectedDocuments } = await request.json();
+		const { message, selectedDocuments, provider, model } = await request.json();
 
 		if (!message) {
 			return NextResponse.json(
@@ -18,6 +18,12 @@ export async function POST(request: Request) {
 		const requestBody: any = { query: message };
 		if (selectedDocuments && selectedDocuments.length > 0) {
 			requestBody.selected_documents = selectedDocuments;
+		}
+		if (provider) {
+			requestBody.provider = provider;
+		}
+		if (model) {
+			requestBody.model = model;
 		}
 
 		const response = await fetch(`${MCP_SERVER_URL}/orchestrate`, {

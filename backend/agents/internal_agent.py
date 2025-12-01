@@ -71,15 +71,16 @@ Be factual, concise, and reference document sources in your responses."""
 			# Fallback: create from config (backward compatibility)
 			from ..services.llm_factory import create_llm_service
 			self._ollama = create_llm_service()
+		
+		# Document storage is passed separately if available
+		if "document_storage" in config:
+			self._document_storage = config["document_storage"]
 	
 	def _get_llm_service(self, request: Dict[str, Any]) -> LLMService:
 		"""Get LLM service from request override or use default."""
 		if "llm_service" in request:
 			return request["llm_service"]
 		return self._ollama
-		# Document storage is passed separately if available
-		if "document_storage" in config:
-			self._document_storage = config["document_storage"]
 	
 	async def process_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
 		"""Process a query request."""

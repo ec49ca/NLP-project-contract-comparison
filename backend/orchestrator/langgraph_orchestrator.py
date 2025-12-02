@@ -897,18 +897,47 @@ Respond with ONLY the query text, no JSON, no explanation."""
 				# Get the synthesis prompt
 				user_query = initial_state["user_query"]
 				agent_results_dict = initial_state.get("agent_results", {})
+				agent_call_plan = initial_state.get("agent_call_plan", [])
 				agents_used = initial_state.get("agents_used", [])
 				internal_results_list = initial_state.get("internal_results", [])
 				external_results = initial_state.get("external_results")
-				structured_quotes = initial_state.get("structured_quotes", [])
+				structured_quotes = []  # Collect structured quotes from agent results
 
-				# Format agent results for synthesis
+				# Format agent results for synthesis and collect structured quotes
 				formatted_results = []
-				for task_id, result_data in agent_results_dict.items():
+				internal_agent_counter = 0
+				for task in agent_calls:
+					task_id = task["task_id"]
+					agent_type = task["agent_type"]
+					result_data = agent_results_dict.get(task_id, {})
+					
 					if result_data.get("success"):
+						data = result_data.get("data", {})
+						response = data.get("response", "")
 						agent_name = result_data.get("agent_name", task_id)
-						response = result_data.get("data", {}).get("response", "")
 						formatted_results.append(f"=== {agent_name} ({task_id}) ===\n{response}")
+						
+						# Collect structured quotes from internal agents
+						if agent_type == "internal_agent":
+							internal_results_list.append(result_data)
+							agent_quotes = data.get("structured_quotes", [])
+							if agent_quotes:
+								internal_agent_counter += 1
+								agent_id = f"internal_{internal_agent_counter}"
+								# Add agent_id and document to each quote
+								for quote in agent_quotes:
+									quote["agent_id"] = agent_id
+									if "document" not in quote:
+										quote["document"] = task.get("document", "unknown")
+								structured_quotes.extend(agent_quotes)
+								logger.info(f"      📋 Collected {len(agent_quotes)} structured quotes from {agent_type} (agent_id: {agent_id})")
+								print(f"      📋 Collected {len(agent_quotes)} structured quotes from {agent_type} (agent_id: {agent_id})")
+						elif agent_type == "external_agent":
+							if not external_results:
+								external_results = result_data
+						
+						if agent_type not in agents_used:
+							agents_used.append(agent_type)
 
 				results_text = "\n\n".join(formatted_results)
 				synthesis_prompt = self._synthesis_prompt.format(

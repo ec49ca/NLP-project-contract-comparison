@@ -75,28 +75,72 @@ Examples:
   - matched_documents: []
 - If no documents match, return empty array for matched_documents"""
 		
-		self._compare_prompt = """You are an intelligent result analyzer for contract and compliance queries. You receive results from internal document searches and external compliance databases, and need to synthesize them into a comprehensive but CONCISE answer.
+		self._compare_prompt = """You are a paralegal analyst reviewing contract documents and compliance requirements. Your job is to provide a comprehensive, detailed analysis report - NOT a summary.
 
-CRITICAL: Keep your response under 500 words. Be clear, structured, and actionable.
+You receive structured contract analysis data from internal agents (with actual quoted clauses organized by topic) and external compliance information. Your task is to analyze, interpret, and report on these findings like a paralegal would.
 
-Given the user's original query and results from agents, provide:
-1. Brief summary of information from internal documents (contract terms, procedures, requirements)
-2. Brief summary of information from external databases (regional compliance, international standards)
-3. A concise comparison showing how internal requirements relate to external/regional requirements
-4. Specific guidance on adapting or setting up (2-3 key steps)
-5. Key differences or additional requirements (bullet points)
-6. Actionable recommendations (2-3 items)
+CRITICAL: This is an ANALYSIS REPORT, not a summary. Be thorough, detailed, and include actual quotes.
+
+Given the user's original query and structured results from agents, provide:
+
+1. EXECUTIVE SUMMARY (2-3 paragraphs)
+   - Overview of what documents were analyzed
+   - Key findings at a high level
+   - Main areas of difference or concern
+
+2. DETAILED TOPIC-BY-TOPIC ANALYSIS
+   For each topic found in the contracts (Territory, Governing Law, Jurisdiction, Currency, Taxes, IP, Exclusivity, Regulatory, Term & Termination):
+   - Compare what each contract says (include actual quoted text)
+   - Identify differences, similarities, and variations
+   - Explain the implications of each difference
+   - Note any country-specific elements that require attention
+   - Provide examples of how these differences might impact operations
+
+3. COUNTRY-SPECIFIC ELEMENTS ANALYSIS
+   - List all country-specific references found in each contract
+   - Explain why each is country-specific
+   - Identify which elements would need to change for adaptation
+   - Provide specific examples of what would need to be modified
+
+4. COMPREHENSIVE COMPARISON
+   - Side-by-side comparison of key terms
+   - Highlight conflicts or incompatibilities
+   - Identify gaps or missing elements
+   - Note any regulatory or compliance differences
+
+5. DETAILED RECOMMENDATIONS
+   - Specific, actionable steps for adaptation (if applicable)
+   - Risk areas that need attention
+   - Compliance considerations
+   - Best practices based on the analysis
 
 Format your response as:
-- Clear, structured answer that directly addresses the user's question
-- Reference both internal document information and external compliance requirements
-- Provide specific, actionable guidance
-- Highlight any conflicts, gaps, or additional steps needed
-- Be practical and focused on implementation
-- Keep total response under 500 words
+- A professional paralegal report with clear sections
+- Include actual quoted text from documents (with section references)
+- Provide detailed analysis, not brief summaries
+- Use examples to illustrate points
+- Be comprehensive and thorough
+- Structure it like a legal analysis document
 
-Example structure (keep it concise):
-"Based on the internal Italy-XXX document, it specifies [brief requirements]. According to external compliance databases for Africa, the regional requirements include [brief requirements]. To properly set this up in Africa: [2-3 key steps]. Key differences: [brief comparison]. Additional requirements: [brief list]." """
+Example structure:
+"EXECUTIVE SUMMARY
+[Detailed overview with actual findings]
+
+TERRITORY ANALYSIS
+Contract A (Italy-111.pdf) specifies: '[actual quote]' (Section X.X)
+Contract B (japan-111.pdf) specifies: '[actual quote]' (Section Y.Y)
+Analysis: [Detailed comparison and implications]...
+
+GOVERNING LAW ANALYSIS
+[Similar detailed analysis with quotes]...
+
+[Continue for all topics found]
+
+COUNTRY-SPECIFIC ELEMENTS
+[Detailed analysis of each country-specific reference]...
+
+RECOMMENDATIONS
+[Comprehensive, actionable recommendations with examples]..." """
 	
 	async def process_query(self, user_query: str, selected_documents: Optional[List[str]] = None, model_override: Optional[str] = None, llm_service_override: Optional[LLMService] = None) -> Dict[str, Any]:
 		"""
@@ -312,16 +356,25 @@ Example structure (keep it concise):
 		try:
 			comparison_prompt = f"""Original user query: {user_query}
 
-Results from agents:
+Structured contract analysis results from agents:
 {self._format_results_for_comparison(results)}
 
-Please provide a comprehensive answer that compares the information and addresses the user's query."""
+Analyze these results as a paralegal would. The internal agent has provided structured contract analysis with actual quoted clauses organized by topic (Territory, Governing Law, Jurisdiction, Currency, Taxes, IP, Exclusivity, Regulatory, Term & Termination) and country-specific references.
+
+Provide a comprehensive paralegal analysis report that:
+- Analyzes each topic in detail with actual quotes
+- Compares contracts side-by-side
+- Identifies differences and their implications
+- Explains country-specific elements
+- Provides detailed recommendations with examples
+
+Include actual quoted text from the documents in your analysis."""
 			
-			# Limit orchestrator comparison to 600 tokens (approximately 500 words)
+			# Increase token limit for comprehensive analysis (up to 3000 tokens for detailed paralegal report)
 			interpreted_response = await llm_service_to_use.generate(
 				prompt=comparison_prompt,
 				system=self._compare_prompt,
-				max_tokens=600,
+				max_tokens=3000,
 				model=model_name
 			)
 			

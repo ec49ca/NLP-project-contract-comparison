@@ -18,29 +18,57 @@ class InternalAgent(AgentInterface):
 		self._uuid: UUID = None
 		self._ollama: LLMService = None  # Keep variable name for backward compatibility
 		self._document_storage: Optional[DocumentStorage] = None
-		self._system_prompt = """You are an internal document retrieval agent that searches through an internal document database.
+		self._system_prompt = """You are a contract analysis agent that extracts structured information from contract documents.
 
-Your database contains:
-- Contract documents from various countries (Italy, France, Germany, etc.)
-- Legal agreements and terms
-- Policy documents
-- Compliance documentation
-- Setup and implementation guides
+Your job is to:
+1. Read the ENTIRE contract document provided
+2. Extract actual quoted text (not summaries) for 9 key topics
+3. Identify country-specific references
+4. Return structured, factual information
 
-CRITICAL: Keep responses under 300 words. Be concise but informative.
+CRITICAL: Extract ACTUAL WORDS from the document. Quote the exact clause text. Do NOT summarize, abbreviate, or interpret.
 
-When given a query:
-1. Act as if you are searching through actual internal documents
-2. Reference specific document names, sections, or clauses when relevant
-3. Extract and present information as if you found it in a real document
-4. Be specific about contract terms, requirements, and procedures
-5. If asked about a specific document (e.g., "italy-xxx document"), reference it by name and extract relevant information
-6. Keep responses concise - focus on key information only
+Extract information for these 9 topics (if present in the document):
+1. Territory - actual text about geographic scope
+2. Governing Law - actual text about which laws apply
+3. Jurisdiction/Dispute Resolution - actual text about courts/arbitration
+4. Currency & Payment - actual text about payment terms and currency
+5. Taxes/VAT - actual text about tax obligations
+6. Intellectual Property & Licensing - actual text about IP rights
+7. Exclusivity - actual text about exclusive rights/territories
+8. Regulatory/Compliance - actual text about regulatory obligations
+9. Term & Termination - actual text about contract duration and termination
 
-Example response style (keep it brief):
-"According to the Italy-Contract-2024 document, Section 3.2 specifies that... Key requirements: 1) ... 2) ..."
+For each topic found:
+- Quote the EXACT clause text from the document
+- Include the section reference (e.g., "Section 2.1", "Article 5", "Clause 3.2")
+- Do NOT summarize or abbreviate
 
-Be factual, concise, and reference document sources in your responses."""
+Also identify country-specific references:
+- References to specific countries (e.g., "Italian law", "French courts", "German VAT")
+- References to regional entities (e.g., "EU regulations", "European Union")
+- Currency references (e.g., "Euro", "EUR", "USD")
+- Geographic references (e.g., "Italy", "Rome", "Milan")
+
+Output format:
+CONTRACT: [filename]
+SOURCE COUNTRY: [extracted from filename or document]
+
+KEY TERMS BY TOPIC:
+- [Topic Name]: "[EXACT QUOTED TEXT FROM DOCUMENT]" ([Section Reference])
+- [Topic Name]: "[EXACT QUOTED TEXT FROM DOCUMENT]" ([Section Reference])
+...
+
+COUNTRY-SPECIFIC REFERENCES FOUND:
+- "[exact quote mentioning country/region]" ([Section Reference])
+- "[exact quote mentioning country/region]" ([Section Reference])
+...
+
+IMPORTANT:
+- Use actual quotes from the document, not your interpretation
+- Include section references when available
+- If a topic is not in the document, omit it
+- Be thorough - extract all relevant clauses for each topic"""
 	
 	@property
 	def name(self) -> str:
@@ -113,17 +141,27 @@ Be factual, concise, and reference document sources in your responses."""
 				if selected_documents and self._document_storage:
 					document_context = self._document_storage.get_selected_documents_text(selected_documents)
 					if document_context:
-						# Update prompt to include document context
-						enhanced_prompt = f"""User Query: {query}
+						# Extract contract ID and source country from filename
+						contract_id = selected_documents[0].replace(".pdf", "") if selected_documents else "unknown"
+						source_country = self._extract_country_from_filename(selected_documents[0]) if selected_documents else "unknown"
+						
+						# Build prompt for structured extraction
+						enhanced_prompt = f"""Analyze the following contract document(s) and extract structured information.
 
-Available Documents:
+Document(s) to analyze:
 {document_context}
 
-Please answer the query based on the information in the provided documents. Reference specific documents and sections when relevant."""
+Extract:
+1. All key terms organized by the 9 topics (Territory, Governing Law, Jurisdiction, Currency, Taxes, IP, Exclusivity, Regulatory, Term & Termination)
+2. All country-specific references (Italian law, EU regulations, specific countries, currencies, etc.)
+
+For each topic, quote the EXACT text from the document with section references.
+Do NOT summarize or interpret - use the actual words from the document."""
+						
 						logger.info(f"      📄 Document context retrieved: {len(document_context)} characters")
 						logger.info(f"      📝 Enhanced prompt length: {len(enhanced_prompt)} characters")
 						print(f"      📄 Document context retrieved: {len(document_context)} characters")
-						print(f"      📝 Enhanced prompt (first 500 chars): {enhanced_prompt[:500]}...")
+						print(f"      📝 Analyzing contract: {contract_id}")
 					else:
 						enhanced_prompt = query
 						logger.info(f"      ⚠️  No document context found for selected documents")
@@ -133,16 +171,25 @@ Please answer the query based on the information in the provided documents. Refe
 					logger.info(f"      ℹ️  No documents selected, using original query only")
 					print(f"      ℹ️  No documents selected, using original query only")
 				
-				# Limit agent responses to 400 tokens (approximately 300 words)
+				# Increase token limit for thorough extraction (up to 2000 tokens for detailed extraction)
 				response = await llm_service_to_use.generate(
 					prompt=enhanced_prompt,
 					system=self._system_prompt,
-					max_tokens=400,
+					max_tokens=2000,
 					model=model_override
 				)
 				
 				logger.info(f"      ✅ INTERNAL AGENT: Got response ({len(response)} chars)")
 				print(f"      ✅ INTERNAL AGENT: Got response ({len(response)} chars)")
+				
+				# Log the actual response content (first 2000 chars for visibility)
+				response_preview = response[:2000] if len(response) > 2000 else response
+				logger.info(f"      📄 Response content:\n{response_preview}")
+				print(f"      📄 Response content:\n{response_preview}")
+				if len(response) > 2000:
+					logger.info(f"      ... (truncated, total {len(response)} chars)")
+					print(f"      ... (truncated, total {len(response)} chars)")
+				
 				return {
 					"success": True,
 					"data": {
@@ -183,6 +230,28 @@ Please answer the query based on the information in the provided documents. Refe
 				}
 			}
 		]
+	
+	def _extract_country_from_filename(self, filename: str) -> str:
+		"""Extract source country from filename (e.g., 'Italy-111.pdf' -> 'Italy')."""
+		# Remove .pdf extension
+		name = filename.replace(".pdf", "").replace(".PDF", "")
+		
+		# Common country patterns
+		countries = ["Italy", "Italy", "Japan", "Japan", "France", "Germany", "Spain", 
+		            "Australia", "United States", "UK", "United Kingdom", "Canada",
+		            "Brazil", "China", "India", "South Korea", "Netherlands", "Belgium",
+		            "Switzerland", "Austria", "Sweden", "Norway", "Denmark", "Finland"]
+		
+		for country in countries:
+			if country.lower() in name.lower():
+				return country
+		
+		# If no match, try to extract first word before dash/underscore
+		parts = name.replace("_", "-").split("-")
+		if parts:
+			return parts[0].title()
+		
+		return "unknown"
 	
 	def get_status(self) -> Dict[str, Any]:
 		"""Return agent status."""

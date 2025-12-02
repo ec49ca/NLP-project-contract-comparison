@@ -46,6 +46,7 @@ export async function POST(request: Request) {
 			agents_used: result.agents_used || [],
 			internal_results: result.internal_results,
 			external_results: result.external_results,
+			structured_quotes: result.structured_quotes || [], // Structured quotes for UI
 		});
 
 	} catch (error: any) {

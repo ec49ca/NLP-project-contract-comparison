@@ -5,7 +5,7 @@ import os
 import httpx
 import logging
 import json
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, AsyncIterator
 from .llm_service import LLMService
 
 logger = logging.getLogger(__name__)
@@ -87,6 +87,83 @@ class OllamaService(LLMService):
 			logger.error(error_msg)
 			print(error_msg)
 			raise Exception(f"Failed to generate response from Ollama: HTTP {e.response.status_code}")
+	
+	async def generate_stream(self, prompt: str, model: Optional[str] = None, system: Optional[str] = None, max_tokens: Optional[int] = None) -> AsyncIterator[str]:
+		"""
+		Generate text using Ollama with streaming.
+		
+		Args:
+			prompt: User prompt
+			model: Model to use (defaults to default_model)
+			system: System prompt (optional)
+			max_tokens: Maximum tokens to generate (defaults to 2000)
+			
+		Yields:
+			Text chunks as they are generated
+		"""
+		model = model or self.default_model
+		max_tokens = max_tokens or 2000
+		
+		messages = []
+		if system:
+			messages.append({"role": "system", "content": system})
+		messages.append({"role": "user", "content": prompt})
+		
+		payload = {
+			"model": model,
+			"messages": messages,
+			"stream": True,
+			"options": {
+				"num_predict": max_tokens
+			}
+		}
+		
+		try:
+			async with httpx.AsyncClient(timeout=120.0) as client:
+				async with client.stream(
+					"POST",
+					f"{self.base_url}/api/chat",
+					json=payload
+				) as response:
+					response.raise_for_status()
+					
+					logger.info(f"   📡 LLM: Streaming {model} API (Ollama)...")
+					print(f"   📡 LLM: Streaming {model} API (Ollama)...")
+					
+					async for line in response.aiter_lines():
+						if not line.strip():
+							continue
+						
+						try:
+							data = json.loads(line)
+							
+							# Ollama streaming format: each chunk has message.content (can be empty or partial)
+							# The content field accumulates, so we need to track what we've already sent
+							message = data.get("message", {})
+							content = message.get("content", "")
+							
+							# Yield content if present (even if it's a partial chunk)
+							if content:
+								yield content
+							
+							# Check if this is the final message
+							if data.get("done", False):
+								logger.info(f"   ✅ LLM: Streaming complete")
+								print(f"   ✅ LLM: Streaming complete")
+								break
+						except json.JSONDecodeError as e:
+							logger.warning(f"   ⚠️  Failed to parse Ollama stream line: {line[:100]}")
+							continue
+		except httpx.RequestError as e:
+			error_msg = f"   ❌ LLM STREAM ERROR (Ollama): {str(e)}\n"
+			logger.error(error_msg)
+			print(error_msg)
+			raise Exception(f"Failed to stream response from Ollama: {str(e)}")
+		except httpx.HTTPStatusError as e:
+			error_msg = f"   ❌ LLM STREAM HTTP ERROR (Ollama): {e.response.status_code} - {str(e)}\n"
+			logger.error(error_msg)
+			print(error_msg)
+			raise Exception(f"Failed to stream response from Ollama: HTTP {e.response.status_code}")
 	
 	async def generate_json(self, prompt: str, model: Optional[str] = None, system: Optional[str] = None) -> Dict[str, Any]:
 		"""

@@ -1,9 +1,12 @@
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 import os
-from typing import Dict, Any, Set, Type, List, Optional
+from typing import Dict, Any, Set, Type, List, Optional, Callable, AsyncIterator
 from uuid import UUID
 import logging
+import json
+import asyncio
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 
@@ -14,6 +17,7 @@ from ..interfaces.agent import AgentInterface
 from ..registry.registry import AgentRegistrySystem
 from ..discovery.agent_discovery import AgentDiscovery
 from ..orchestrator.orchestrator import Orchestrator
+from ..orchestrator.langgraph_orchestrator import LangGraphOrchestrator, LANGGRAPH_IMPORTED
 from ..services.llm_factory import create_llm_service
 from ..services.document_storage import DocumentStorage
 
@@ -41,7 +45,15 @@ llm_service = create_llm_service()
 # Initialize document storage
 document_storage = DocumentStorage(upload_dir="backend/uploads")
 
-orchestrator = Orchestrator(registry, llm_service, document_storage)
+# Use LangGraph orchestrator if available, otherwise fall back to sequential orchestrator
+if LANGGRAPH_IMPORTED:
+	logger.info("✅ Using LangGraph orchestrator for parallel agent execution")
+	print("✅ Using LangGraph orchestrator for parallel agent execution")
+	orchestrator = LangGraphOrchestrator(registry, llm_service, document_storage)
+else:
+	logger.warning("⚠️  LangGraph not available, using sequential orchestrator. Install with: pip install langgraph langchain-core")
+	print("⚠️  LangGraph not available, using sequential orchestrator. Install with: pip install langgraph langchain-core")
+	orchestrator = Orchestrator(registry, llm_service, document_storage)
 
 # Keep track of registered agent classes to avoid duplicates
 registered_agents: Set[Type[AgentInterface]] = set()
@@ -266,6 +278,95 @@ async def get_available_models(provider: Optional[str] = None):
 			"available_models": []
 		}
 
+
+def _send_sse_event(data: Dict[str, Any]) -> str:
+	"""Format data as SSE event."""
+	return f"data: {json.dumps(data)}\n\n"
+
+@app.post("/orchestrate/stream")
+async def orchestrate_query_stream(request: Dict[str, Any]):
+	"""
+	Orchestrate a user query with streaming progress updates via Server-Sent Events (SSE).
+	
+	Args:
+		request: Dict with "query" key containing the user's query, optional "selected_documents" list, and optional "model" override
+		
+	Returns:
+		StreamingResponse with SSE events for progress and final response
+	"""
+	async def event_generator():
+		try:
+			query = request.get("query")
+			if not query:
+				yield _send_sse_event({"type": "error", "message": "Query is required"})
+				return
+			
+			selected_documents = request.get("selected_documents", [])
+			provider_override = request.get("provider")
+			model_override = request.get("model")
+			
+			# If provider is overridden, create a new LLM service for this request
+			llm_service_override = None
+			if provider_override:
+				from ..services.llm_factory import create_llm_service
+				try:
+					llm_service_override = create_llm_service(provider=provider_override)
+				except ValueError as e:
+					yield _send_sse_event({"type": "error", "message": f"Provider override failed: {e}"})
+					return
+			
+			# Send initial status
+			yield _send_sse_event({
+				"type": "status",
+				"step": "starting",
+				"message": "Starting query processing..."
+			})
+			
+			# Process query with streaming
+			if hasattr(orchestrator, 'process_query_stream'):
+				# Use streaming version if available
+				async for chunk in orchestrator.process_query_stream(
+					query,
+					selected_documents=selected_documents,
+					model_override=model_override,
+					llm_service_override=llm_service_override
+				):
+					yield _send_sse_event(chunk)
+			else:
+				# Fallback to non-streaming version with progress updates
+				yield _send_sse_event({
+					"type": "status",
+					"step": "analyzing",
+					"message": "Analyzing query..."
+				})
+				
+				result = await orchestrator.process_query(
+					query,
+					selected_documents=selected_documents,
+					model_override=model_override,
+					llm_service_override=llm_service_override
+				)
+				
+				# Send final result
+				yield _send_sse_event({
+					"type": "complete",
+					"data": result
+				})
+		
+		except Exception as e:
+			error_msg = f"Error processing query: {str(e)}"
+			logger.error(error_msg)
+			yield _send_sse_event({"type": "error", "message": error_msg})
+	
+	return StreamingResponse(
+		event_generator(),
+		media_type="text/event-stream",
+		headers={
+			"Cache-Control": "no-cache",
+			"Connection": "keep-alive",
+			"X-Accel-Buffering": "no"  # Disable nginx buffering
+		}
+	)
 
 @app.post("/orchestrate")
 async def orchestrate_query(request: Dict[str, Any]):

@@ -34,9 +34,9 @@ A Model Context Protocol (MCP) server with multi-agent orchestration capabilitie
 
 ### Quick Installation
 
-```bash
+   ```bash
 # 1. Clone repository
-git clone <repository-url>
+   git clone <repository-url>
 cd mcp-server-orchestration  # or whatever you name the repository
 
 # 2. Set up Python backend
@@ -50,7 +50,7 @@ npm install
 cd ..
 
 # 4. Configure environment
-cp env.example .env
+   cp env.example .env
 # Edit .env with your LLM provider settings (see Configuration section below)
 
 # 5. Start your LLM provider (if using Ollama)

@@ -4,6 +4,7 @@ Faux Internal Agent - Simulates internal document processing.
 from uuid import UUID
 from typing import Dict, Any, List, Optional
 import logging
+import re
 from ..interfaces.agent import AgentInterface
 from ..services.llm_service import LLMService
 from ..services.document_storage import DocumentStorage
@@ -50,21 +51,30 @@ Also identify country-specific references:
 - Currency references (e.g., "Euro", "EUR", "USD")
 - Geographic references (e.g., "Italy", "Rome", "Milan")
 
-Output format:
+Output format (CRITICAL - use this exact format for parsing):
 CONTRACT: [filename]
 SOURCE COUNTRY: [extracted from filename or document]
 
 KEY TERMS BY TOPIC:
-- [Topic Name]: "[EXACT QUOTED TEXT FROM DOCUMENT]" ([Section Reference])
-- [Topic Name]: "[EXACT QUOTED TEXT FROM DOCUMENT]" ([Section Reference])
-...
+[Territory|Section 2.1] "EXACT QUOTED TEXT FROM DOCUMENT"
+[Governing Law|Section 5.2] "EXACT QUOTED TEXT FROM DOCUMENT"
+[Jurisdiction/Dispute Resolution|Section 3.1] "EXACT QUOTED TEXT FROM DOCUMENT"
+[Currency & Payment|Section 4.3] "EXACT QUOTED TEXT FROM DOCUMENT"
+[Taxes/VAT|Section 6.1] "EXACT QUOTED TEXT FROM DOCUMENT"
+[Intellectual Property & Licensing|Section 7.2] "EXACT QUOTED TEXT FROM DOCUMENT"
+[Exclusivity|Section 8.1] "EXACT QUOTED TEXT FROM DOCUMENT"
+[Regulatory/Compliance|Section 9.2] "EXACT QUOTED TEXT FROM DOCUMENT"
+[Term & Termination|Section 10.1] "EXACT QUOTED TEXT FROM DOCUMENT"
 
 COUNTRY-SPECIFIC REFERENCES FOUND:
-- "[exact quote mentioning country/region]" ([Section Reference])
-- "[exact quote mentioning country/region]" ([Section Reference])
-...
+[Section 3.4] "exact quote mentioning country/region"
+[Section 4.1] "exact quote mentioning country/region"
+
+[Continue with any additional analysis or context here...]
 
 IMPORTANT:
+- Use the EXACT format: [Topic|Section X.X] "quote" for KEY TERMS BY TOPIC
+- Use the EXACT format: [Section X.X] "quote" for COUNTRY-SPECIFIC REFERENCES
 - Use actual quotes from the document, not your interpretation
 - Include section references when available
 - If a topic is not in the document, omit it
@@ -190,12 +200,20 @@ Do NOT summarize or interpret - use the actual words from the document."""
 					logger.info(f"      ... (truncated, total {len(response)} chars)")
 					print(f"      ... (truncated, total {len(response)} chars)")
 				
+				# Parse structured quotes from the response
+				document_name = selected_documents[0] if selected_documents else None
+				structured_quotes = self._parse_structured_quotes(response, document_name)
+				
+				logger.info(f"      📋 Parsed {len(structured_quotes)} structured quotes")
+				print(f"      📋 Parsed {len(structured_quotes)} structured quotes")
+				
 				return {
 					"success": True,
 					"data": {
 						"query": query,
-						"response": response,
-						"source": "internal_documents"
+						"response": response,  # Raw text for orchestrator
+						"source": "internal_documents",
+						"structured_quotes": structured_quotes  # Parsed JSON for UI
 					}
 				}
 			except Exception as e:
@@ -252,6 +270,99 @@ Do NOT summarize or interpret - use the actual words from the document."""
 			return parts[0].title()
 		
 		return "unknown"
+	
+	def _parse_structured_quotes(self, agent_text: str, document: Optional[str] = None) -> List[Dict[str, Any]]:
+		"""
+		Parse structured quotes from internal agent text output.
+		
+		Supports both formats:
+		- NEW: [Topic|Section X.X] "quote" (for KEY TERMS BY TOPIC)
+		- OLD: - Topic: "quote" (Section X.X) (for backward compatibility)
+		- NEW: [Section X.X] "quote" (for COUNTRY-SPECIFIC REFERENCES)
+		- OLD: - "quote" (Section X.X) (for backward compatibility)
+		
+		Args:
+			agent_text: The text output from internal agent
+			document: Document filename (optional, will try to extract from text)
+		
+		Returns:
+			List of structured quote dictionaries
+		"""
+		quotes = []
+		
+		if not agent_text:
+			return quotes
+		
+		# Extract document name if not provided
+		if not document:
+			doc_match = re.search(r'CONTRACT:\s*(.+)', agent_text)
+			if doc_match:
+				document = doc_match.group(1).strip()
+		
+		# NEW format patterns
+		topic_pattern_new = r'\[([^\|]+)\|([^\]]+)\]\s*"([^"]+)"'
+		country_pattern_new = r'\[([^\]]+)\]\s*"([^"]+)"'
+		
+		# OLD format patterns (backward compatibility)
+		topic_pattern_old = r'-\s*([^:]+):\s*"([^"]+)"\s*\(([^)]+)\)'
+		country_pattern_old = r'-\s*"([^"]+)"\s*\(([^)]+)\)'
+		
+		# Extract KEY TERMS BY TOPIC section
+		key_terms_match = re.search(r'KEY TERMS BY TOPIC:(.*?)(?:COUNTRY-SPECIFIC|$)', agent_text, re.DOTALL)
+		if key_terms_match:
+			key_terms_section = key_terms_match.group(1)
+			
+			# Try NEW format first
+			for match in re.finditer(topic_pattern_new, key_terms_section):
+				topic, section, quote = match.groups()
+				quotes.append({
+					"document": document or "unknown",
+					"topic": topic.strip(),
+					"section": section.strip(),
+					"quote": quote.strip(),
+					"type": "key_term"
+				})
+			
+			# Fall back to OLD format if no matches
+			if not quotes or all(q.get("type") != "key_term" for q in quotes):
+				for match in re.finditer(topic_pattern_old, key_terms_section):
+					topic, quote, section = match.groups()
+					quotes.append({
+						"document": document or "unknown",
+						"topic": topic.strip(),
+						"section": section.strip(),
+						"quote": quote.strip(),
+						"type": "key_term"
+					})
+		
+		# Extract COUNTRY-SPECIFIC REFERENCES section
+		country_refs_match = re.search(r'COUNTRY-SPECIFIC REFERENCES FOUND:(.*?)(?:\[|NOTE|IMPORTANT|$)', agent_text, re.DOTALL)
+		if country_refs_match:
+			country_refs_section = country_refs_match.group(1)
+			
+			# Try NEW format first
+			for match in re.finditer(country_pattern_new, country_refs_section):
+				section, quote = match.groups()
+				quotes.append({
+					"document": document or "unknown",
+					"topic": "Country-Specific Reference",
+					"section": section.strip(),
+					"quote": quote.strip(),
+					"type": "country_specific"
+				})
+			
+			# Fall back to OLD format
+			for match in re.finditer(country_pattern_old, country_refs_section):
+				quote, section = match.groups()
+				quotes.append({
+					"document": document or "unknown",
+					"topic": "Country-Specific Reference",
+					"section": section.strip(),
+					"quote": quote.strip(),
+					"type": "country_specific"
+				})
+		
+		return quotes
 	
 	def get_status(self) -> Dict[str, Any]:
 		"""Return agent status."""

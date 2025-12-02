@@ -75,72 +75,87 @@ Examples:
   - matched_documents: []
 - If no documents match, return empty array for matched_documents"""
 		
-		self._compare_prompt = """You are a paralegal analyst reviewing contract documents and compliance requirements. Your job is to provide a comprehensive, detailed analysis report - NOT a summary.
+		self._compare_prompt = """You are a paralegal analyst reviewing contract documents and compliance requirements. Your job is to provide a comprehensive, detailed analysis report formatted for easy scanning and readability.
 
 You receive structured contract analysis data from internal agents (with actual quoted clauses organized by topic) and external compliance information. Your task is to analyze, interpret, and report on these findings like a paralegal would.
 
-CRITICAL: This is an ANALYSIS REPORT, not a summary. Be thorough, detailed, and include actual quotes.
+CRITICAL FORMATTING REQUIREMENTS:
+- Use Markdown formatting throughout
+- Use **bold** for emphasis on key terms, document names, and important findings
+- Use bullet points (•) instead of long paragraphs wherever possible
+- Use ## for main section headers, ### for subsections
+- Keep paragraphs short (2-3 sentences max)
+- Use > blockquotes for actual quoted text from documents
+- Use tables for side-by-side comparisons when helpful
 
 Given the user's original query and structured results from agents, provide:
 
-1. EXECUTIVE SUMMARY (2-3 paragraphs)
-   - Overview of what documents were analyzed
-   - Key findings at a high level
-   - Main areas of difference or concern
+## Executive Summary
 
-2. DETAILED TOPIC-BY-TOPIC ANALYSIS
-   For each topic found in the contracts (Territory, Governing Law, Jurisdiction, Currency, Taxes, IP, Exclusivity, Regulatory, Term & Termination):
-   - Compare what each contract says (include actual quoted text)
-   - Identify differences, similarities, and variations
-   - Explain the implications of each difference
-   - Note any country-specific elements that require attention
-   - Provide examples of how these differences might impact operations
+**Documents Analyzed:** [List documents]
 
-3. COUNTRY-SPECIFIC ELEMENTS ANALYSIS
-   - List all country-specific references found in each contract
-   - Explain why each is country-specific
-   - Identify which elements would need to change for adaptation
-   - Provide specific examples of what would need to be modified
+**Key Findings:**
+- [Bullet point 1]
+- [Bullet point 2]
+- [Bullet point 3]
 
-4. COMPREHENSIVE COMPARISON
-   - Side-by-side comparison of key terms
-   - Highlight conflicts or incompatibilities
-   - Identify gaps or missing elements
-   - Note any regulatory or compliance differences
+**Main Areas of Concern:**
+- [Bullet point 1]
+- [Bullet point 2]
 
-5. DETAILED RECOMMENDATIONS
-   - Specific, actionable steps for adaptation (if applicable)
-   - Risk areas that need attention
-   - Compliance considerations
-   - Best practices based on the analysis
+## Topic-by-Topic Analysis
 
-Format your response as:
-- A professional paralegal report with clear sections
-- Include actual quoted text from documents (with section references)
-- Provide detailed analysis, not brief summaries
-- Use examples to illustrate points
-- Be comprehensive and thorough
-- Structure it like a legal analysis document
+For each topic found (Territory, Governing Law, Jurisdiction, Currency, Taxes, IP, Exclusivity, Regulatory, Term & Termination):
 
-Example structure:
-"EXECUTIVE SUMMARY
-[Detailed overview with actual findings]
+### [Topic Name]
 
-TERRITORY ANALYSIS
-Contract A (Italy-111.pdf) specifies: '[actual quote]' (Section X.X)
-Contract B (japan-111.pdf) specifies: '[actual quote]' (Section Y.Y)
-Analysis: [Detailed comparison and implications]...
+**Contract A ([document name]):**
+> "[actual quoted text]" (Section X.X)
 
-GOVERNING LAW ANALYSIS
-[Similar detailed analysis with quotes]...
+**Contract B ([document name]):**
+> "[actual quoted text]" (Section Y.Y)
 
-[Continue for all topics found]
+**Key Differences:**
+- [Difference 1 with implications]
+- [Difference 2 with implications]
 
-COUNTRY-SPECIFIC ELEMENTS
-[Detailed analysis of each country-specific reference]...
+**Impact:**
+- [How this affects operations]
+- [What needs attention]
 
-RECOMMENDATIONS
-[Comprehensive, actionable recommendations with examples]..." """
+## Country-Specific Elements
+
+### [Document Name]
+
+**Country-Specific References:**
+- **Element 1:** "[quote]" (Section X.X) - [Why it's country-specific]
+- **Element 2:** "[quote]" (Section Y.Y) - [Why it's country-specific]
+
+**Adaptation Requirements:**
+- [What needs to change]
+- [Specific modifications needed]
+
+## Recommendations
+
+**Action Items:**
+- **Priority 1:** [Specific action] - [Why it matters]
+- **Priority 2:** [Specific action] - [Why it matters]
+
+**Risk Areas:**
+- [Risk 1] - [Mitigation]
+- [Risk 2] - [Mitigation]
+
+**Compliance Considerations:**
+- [Consideration 1]
+- [Consideration 2]
+
+CRITICAL FORMATTING: 
+- Use markdown list syntax with `-` (dash) for ALL bullet points, NOT the bullet character (•)
+- Keep paragraphs SHORT (2-3 sentences max)
+- Use **bold** for emphasis on key terms, document names, and priorities
+- Use > blockquotes for all quoted text from documents
+- Use proper markdown: `-` for lists, `**text**` for bold, `##` for headers
+- Be specific and actionable"""
 	
 	async def process_query(self, user_query: str, selected_documents: Optional[List[str]] = None, model_override: Optional[str] = None, llm_service_override: Optional[LLMService] = None) -> Dict[str, Any]:
 		"""
@@ -287,6 +302,8 @@ RECOMMENDATIONS
 		results = {}
 		internal_results = None
 		external_results = None
+		structured_quotes = []  # Collect structured quotes from all internal agents
+		internal_agent_counter = 0  # Track which internal agent call this is
 		
 		for agent_name in agents_needed:
 			try:
@@ -330,6 +347,19 @@ RECOMMENDATIONS
 				
 				if agent_name == "internal_agent":
 					internal_results = agent_result
+					# Extract structured_quotes from internal agent response
+					if agent_result.get("success") and agent_result.get("data"):
+						agent_quotes = agent_result.get("data", {}).get("structured_quotes", [])
+						if agent_quotes:
+							# Increment counter for each internal agent call
+							internal_agent_counter += 1
+							agent_id = f"internal_{internal_agent_counter}"
+							# Add agent_id to each quote for UI grouping
+							for quote in agent_quotes:
+								quote["agent_id"] = agent_id
+							structured_quotes.extend(agent_quotes)
+							logger.info(f"      📋 Collected {len(agent_quotes)} structured quotes from {agent_name} (agent_id: {agent_id})")
+							print(f"      📋 Collected {len(agent_quotes)} structured quotes from {agent_name} (agent_id: {agent_id})")
 				elif agent_name == "external_agent":
 					external_results = agent_result
 				
@@ -400,7 +430,8 @@ Include actual quoted text from the documents in your analysis."""
 			"internal_results": internal_results,
 			"external_results": external_results,
 			"comparison": interpreted_response,
-			"interpreted_response": interpreted_response
+			"interpreted_response": interpreted_response,
+			"structured_quotes": structured_quotes  # Pass through structured quotes for UI
 		}
 	
 	async def _find_agent_by_name(self, agent_name: str):

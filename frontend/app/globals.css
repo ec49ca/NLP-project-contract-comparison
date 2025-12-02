@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --background: 0 0% 100%;
+  --background: 0 0% 98%;
   --foreground: 222.2 84% 4.9%;
 
   --card: 0 0% 100%;
@@ -10,26 +10,33 @@
   --popover: 0 0% 100%;
   --popover-foreground: 222.2 84% 4.9%;
 
-  --primary: 222.2 47.4% 11.2%;
-  --primary-foreground: 210 40% 98%;
+  --primary: 221 83% 53%;
+  --primary-foreground: 0 0% 100%;
 
   --secondary: 210 40% 96.1%;
   --secondary-foreground: 222.2 47.4% 11.2%;
 
-  --muted: 210 40% 96.1%;
+  --muted: 220 14% 96%;
   --muted-foreground: 215.4 16.3% 46.9%;
 
-  --accent: 210 40% 96.1%;
-  --accent-foreground: 222.2 47.4% 11.2%;
+  --accent: 221 83% 53%;
+  --accent-foreground: 0 0% 100%;
 
   --destructive: 0 84.2% 60.2%;
   --destructive-foreground: 210 40% 98%;
 
   --border: 214.3 31.8% 91.4%;
   --input: 214.3 31.8% 91.4%;
-  --ring: 222.2 84% 4.9%;
+  --ring: 221 83% 53%;
 
-  --radius: 0.5rem;
+  --radius: 0.75rem;
+  
+  /* Custom gradient colors - vibrant accent colors */
+  --gradient-from: 221 83% 53%;
+  --gradient-to: 280 70% 60%;
+  --accent-teal: 180 70% 50%;
+  --accent-emerald: 160 70% 50%;
+  --accent-cyan: 190 80% 55%;
 }
 
 .dark {
@@ -73,23 +80,46 @@ body {
 
 /* Smooth transitions for theme changes */
 * {
-  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
 /* Enhanced scrollbar styling */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: hsl(var(--muted));
+  background: hsl(220 14% 96%);
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: hsl(var(--border));
-  border-radius: 3px;
+  background: linear-gradient(to bottom, hsl(221 83% 53%), hsl(221 83% 45%));
+  border-radius: 4px;
+  border: 2px solid hsl(220 14% 96%);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--muted-foreground));
+  background: linear-gradient(to bottom, hsl(221 83% 60%), hsl(221 83% 50%));
+}
+
+/* Custom animations */
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s infinite;
+  background: linear-gradient(
+    to right,
+    transparent 0%,
+    rgba(255, 255, 255, 0.4) 50%,
+    transparent 100%
+  );
+  background-size: 1000px 100%;
 }

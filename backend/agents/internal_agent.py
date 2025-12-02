@@ -19,17 +19,17 @@ class InternalAgent(AgentInterface):
 		self._uuid: UUID = None
 		self._ollama: LLMService = None  # Keep variable name for backward compatibility
 		self._document_storage: Optional[DocumentStorage] = None
-		self._system_prompt = """You are a contract analysis agent that extracts structured information from contract documents.
+		self._system_prompt = """You are a contract analysis agent that extracts structured information from contract documents based on specific queries.
 
 Your job is to:
-1. Read the ENTIRE contract document provided
-2. Extract actual quoted text (not summaries) for 9 key topics
-3. Identify country-specific references
-4. Return structured, factual information
+1. Read the query/instruction provided to understand what information is needed
+2. Extract actual quoted text (not summaries) that is relevant to the query
+3. Identify country-specific references when relevant
+4. Return structured, factual information in the required format
 
 CRITICAL: Extract ACTUAL WORDS from the document. Quote the exact clause text. Do NOT summarize, abbreviate, or interpret.
 
-Extract information for these 9 topics (if present in the document):
+Available topics you may extract (only extract those relevant to the query):
 1. Territory - actual text about geographic scope
 2. Governing Law - actual text about which laws apply
 3. Jurisdiction/Dispute Resolution - actual text about courts/arbitration
@@ -40,12 +40,13 @@ Extract information for these 9 topics (if present in the document):
 8. Regulatory/Compliance - actual text about regulatory obligations
 9. Term & Termination - actual text about contract duration and termination
 
-For each topic found:
+For each topic extracted:
 - Quote the EXACT clause text from the document
 - Include the section reference (e.g., "Section 2.1", "Article 5", "Clause 3.2")
 - Do NOT summarize or abbreviate
+- Only extract topics that are relevant to answering the query
 
-Also identify country-specific references:
+Also identify country-specific references (when relevant to the query):
 - References to specific countries (e.g., "Italian law", "French courts", "German VAT")
 - References to regional entities (e.g., "EU regulations", "European Union")
 - Currency references (e.g., "Euro", "EUR", "USD")
@@ -73,12 +74,13 @@ COUNTRY-SPECIFIC REFERENCES FOUND:
 [Continue with any additional analysis or context here...]
 
 IMPORTANT:
+- Focus on extracting information that answers the query/instruction provided
 - Use the EXACT format: [Topic|Section X.X] "quote" for KEY TERMS BY TOPIC
 - Use the EXACT format: [Section X.X] "quote" for COUNTRY-SPECIFIC REFERENCES
 - Use actual quotes from the document, not your interpretation
 - Include section references when available
-- If a topic is not in the document, omit it
-- Be thorough - extract all relevant clauses for each topic"""
+- If a topic is not relevant to the query, omit it
+- Extract all relevant clauses for topics that ARE relevant to the query"""
 	
 	@property
 	def name(self) -> str:
@@ -155,17 +157,16 @@ IMPORTANT:
 						contract_id = selected_documents[0].replace(".pdf", "") if selected_documents else "unknown"
 						source_country = self._extract_country_from_filename(selected_documents[0]) if selected_documents else "unknown"
 						
-						# Build prompt for structured extraction
-						enhanced_prompt = f"""Analyze the following contract document(s) and extract structured information.
+						# Build prompt for structured extraction - the query from orchestrator determines what to extract
+						enhanced_prompt = f"""Query/Instruction: {query}
 
 Document(s) to analyze:
 {document_context}
 
-Extract:
-1. All key terms organized by the 9 topics (Territory, Governing Law, Jurisdiction, Currency, Taxes, IP, Exclusivity, Regulatory, Term & Termination)
-2. All country-specific references (Italian law, EU regulations, specific countries, currencies, etc.)
+Based on the query above, extract the relevant information from the document(s) using the structured format.
 
-For each topic, quote the EXACT text from the document with section references.
+Focus on extracting information that directly answers or relates to the query. For each relevant topic, quote the EXACT text from the document with section references.
+
 Do NOT summarize or interpret - use the actual words from the document."""
 						
 						logger.info(f"      📄 Document context retrieved: {len(document_context)} characters")

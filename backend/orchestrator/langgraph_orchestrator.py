@@ -108,16 +108,40 @@ Examples:
 - "tell me about this document" (with manual selection) → needs_internal_agent: true, matched_documents: [manually selected doc]
 - "what are compliance requirements in Africa?" → needs_external_agent: true"""
 
-			self._query_generation_prompt = """You are a query optimizer for contract analysis. Given a user's original query and a specific document, generate an optimized query for analyzing that single document.
+			self._query_generation_prompt = """You are an intelligent query optimizer for contract analysis. Given a user's original query and a specific document, generate an optimized extraction query for that SINGLE document.
 
 Original User Query: {user_query}
 Document to analyze: {document}
 
-Generate a focused query that:
-1. Extracts structured information from this specific document
-2. Is tailored to the document being analyzed
-3. Requests the document's key terms organized by topic (Territory, Governing Law, Jurisdiction, Currency, Taxes, IP, Exclusivity, Regulatory, Term & Termination)
-4. Identifies country-specific references
+CRITICAL: This agent call will ONLY have access to {document}. It cannot compare to other documents or access other files.
+
+Your task is to intelligently determine what information to extract from {document} based on the user query:
+
+1. **Analyze the user query context:**
+   - Does the query ask for different things from different documents? (e.g., "compliance for Italy and delivery for Japan") → Extract only what applies to {document}
+   - Does the query ask for the same thing from multiple documents? (e.g., "payment terms in both documents", "compare Italy and Japan") → Extract what's needed from {document} for comparison/analysis
+   - Does the query mention {document} specifically? → Use that specific part
+   - Is the query general? → Extract relevant information based on the query intent
+
+2. **Generate an extraction query that:**
+   - Extracts information FROM {document} only (do NOT ask to compare - comparison happens later)
+   - Matches the user's intent for THIS specific document
+   - If the query asks about specific topics, extract those topics
+   - If the query is general or asks to compare, extract all relevant key terms organized by topic (Territory, Governing Law, Jurisdiction, Currency, Taxes, IP, Exclusivity, Regulatory, Term & Termination)
+   - Includes country-specific references if relevant
+
+IMPORTANT: 
+- Be intelligent: If the same query applies to all documents, use it. If different queries are needed, use the appropriate one for {document}
+- Do NOT ask to compare or reference other documents - this agent only sees {document}
+- Extract what's needed from {document} to answer the user's question
+
+Examples:
+- User: "Give me compliance for Italy and delivery for Japan", Document: Italy-111.pdf → "Extract compliance terms from Italy-111.pdf"
+- User: "Give me compliance for Italy and delivery for Japan", Document: japan-111.pdf → "Extract delivery terms from japan-111.pdf"
+- User: "What are the payment terms in both documents?", Document: Italy-111.pdf → "Extract payment and currency terms from Italy-111.pdf"
+- User: "What are the payment terms in both documents?", Document: japan-111.pdf → "Extract payment and currency terms from japan-111.pdf"
+- User: "Compare Italy and Japan", Document: Italy-111.pdf → "Extract all key terms and country-specific references from Italy-111.pdf organized by topic"
+- User: "Compare Italy and Japan", Document: japan-111.pdf → "Extract all key terms and country-specific references from japan-111.pdf organized by topic"
 
 Respond with ONLY the optimized query text, no JSON, no explanation."""
 

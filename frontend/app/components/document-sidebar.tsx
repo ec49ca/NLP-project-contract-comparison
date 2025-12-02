@@ -110,10 +110,10 @@ export function DocumentSidebar({ selectedDocuments, onSelectionChange }: Docume
 	};
 
 	return (
-		<div className="w-80 bg-muted/50 border-r border-border flex flex-col h-full">
+		<div className="w-80 bg-gradient-to-br from-white via-emerald-50/20 to-teal-50/30 border-r border-emerald-200/60 flex flex-col h-full rounded-2xl shadow-xl shadow-slate-900/5 backdrop-blur-sm overflow-hidden">
 			{/* Header */}
-			<div className="p-4 border-b border-border">
-				<h2 className="text-lg font-semibold mb-3">Documents</h2>
+			<div className="p-5 border-b border-emerald-200/60 bg-gradient-to-r from-white via-emerald-50/40 to-teal-50/40">
+				<h2 className="text-xl font-bold mb-4 bg-gradient-to-r from-slate-900 via-teal-700 to-cyan-700 bg-clip-text text-transparent">Documents</h2>
 				<label className="block">
 					<input
 						type="file"
@@ -126,10 +126,10 @@ export function DocumentSidebar({ selectedDocuments, onSelectionChange }: Docume
 					<Button
 						asChild
 						variant="outline"
-						className="w-full"
+						className="w-full rounded-xl border-emerald-200/60 bg-gradient-to-br from-white to-emerald-50/50 hover:from-emerald-50 hover:to-teal-50 hover:border-emerald-300/60 shadow-sm hover:shadow-md transition-all duration-200 font-semibold text-slate-900"
 						disabled={isUploading}
 					>
-						<label htmlFor="file-upload" className="cursor-pointer flex items-center justify-center gap-2">
+						<label htmlFor="file-upload" className="cursor-pointer flex items-center justify-center gap-2 py-2.5">
 							<UploadIcon className="w-4 h-4" />
 							{isUploading ? 'Uploading...' : 'Upload PDF'}
 						</label>
@@ -138,16 +138,18 @@ export function DocumentSidebar({ selectedDocuments, onSelectionChange }: Docume
 			</div>
 
 			{/* Document List */}
-			<div className="flex-1 overflow-y-auto p-4 space-y-2">
+			<div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gradient-to-b from-transparent to-slate-50/30">
 				{isLoading ? (
-					<div className="text-sm text-muted-foreground text-center py-4">
+					<div className="text-sm text-slate-500 text-center py-8 font-medium">
 						Loading documents...
 					</div>
 				) : documents.length === 0 ? (
-					<div className="text-sm text-muted-foreground text-center py-8">
-						No documents uploaded yet.
-						<br />
-						Upload a PDF to get started.
+					<div className="text-sm text-slate-500 text-center py-12 px-4">
+						<div className="bg-slate-100/80 rounded-xl p-6 border border-slate-200/60">
+							<FileIcon className="w-12 h-12 mx-auto mb-3 text-slate-400" />
+							<p className="font-semibold text-slate-600 mb-1">No documents uploaded yet.</p>
+							<p className="text-slate-500">Upload a PDF to get started.</p>
+						</div>
 					</div>
 				) : (
 					documents.map((doc) => {
@@ -155,28 +157,28 @@ export function DocumentSidebar({ selectedDocuments, onSelectionChange }: Docume
 						return (
 							<div
 								key={doc.filename}
-								className={`p-3 rounded-lg border cursor-pointer transition-colors ${
+								className={`p-4 rounded-xl border cursor-pointer transition-all duration-200 shadow-sm hover:shadow-md ${
 									isSelected
-										? 'bg-primary/10 border-primary'
-										: 'bg-background border-border hover:bg-muted/50'
+										? 'bg-gradient-to-br from-emerald-100/80 via-teal-100/60 to-cyan-100/80 border-emerald-300/60 shadow-emerald-500/20 ring-2 ring-emerald-400/30'
+										: 'bg-white/95 border-emerald-200/40 hover:bg-gradient-to-br hover:from-emerald-50/50 hover:to-teal-50/50 hover:border-emerald-300/60'
 								}`}
 								onClick={() => toggleSelection(doc.filename)}
 							>
-								<div className="flex items-start justify-between gap-2">
-									<div className="flex items-start gap-2 flex-1 min-w-0">
-										<div className={`mt-0.5 flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center ${
+								<div className="flex items-start justify-between gap-3">
+									<div className="flex items-start gap-3 flex-1 min-w-0">
+										<div className={`mt-0.5 flex-shrink-0 w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
 											isSelected
-												? 'bg-primary border-primary'
-												: 'border-border'
+												? 'bg-gradient-to-br from-emerald-500 to-teal-600 border-emerald-600 shadow-sm shadow-emerald-500/40'
+												: 'border-slate-300 bg-white'
 										}`}>
-											{isSelected && <CheckIcon className="w-3 h-3 text-primary-foreground" />}
+											{isSelected && <CheckIcon className="w-3 h-3 text-white" />}
 										</div>
 										<div className="flex-1 min-w-0">
-											<div className="flex items-center gap-2 mb-1">
-												<FileIcon className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-												<p className="text-sm font-medium truncate">{doc.filename}</p>
+											<div className="flex items-center gap-2 mb-1.5">
+												<FileIcon className={`w-4 h-4 flex-shrink-0 ${isSelected ? 'text-emerald-600' : 'text-slate-500'}`} />
+												<p className={`text-sm font-semibold truncate ${isSelected ? 'text-slate-900' : 'text-black'}`}>{doc.filename}</p>
 											</div>
-											<p className="text-xs text-muted-foreground">
+											<p className="text-xs text-slate-600 font-medium">
 												{new Date(doc.uploaded_at).toLocaleDateString()} • {doc.text_length.toLocaleString()} chars
 											</p>
 										</div>
@@ -186,10 +188,10 @@ export function DocumentSidebar({ selectedDocuments, onSelectionChange }: Docume
 											e.stopPropagation();
 											handleDelete(doc.filename);
 										}}
-										className="flex-shrink-0 p-1 hover:bg-destructive/10 rounded transition-colors"
+										className="flex-shrink-0 p-1.5 hover:bg-red-50 rounded-lg transition-all duration-200"
 										title="Delete document"
 									>
-										<XIcon className="w-4 h-4 text-muted-foreground hover:text-destructive" />
+										<XIcon className="w-4 h-4 text-slate-400 hover:text-red-600" />
 									</button>
 								</div>
 							</div>
@@ -200,8 +202,8 @@ export function DocumentSidebar({ selectedDocuments, onSelectionChange }: Docume
 
 			{/* Footer */}
 			{selectedDocuments.length > 0 && (
-				<div className="p-4 border-t border-border bg-primary/5">
-					<p className="text-sm text-muted-foreground">
+				<div className="p-4 border-t border-emerald-200/60 bg-gradient-to-r from-emerald-100/60 via-teal-100/60 to-cyan-100/60">
+					<p className="text-sm font-semibold text-slate-900">
 						{selectedDocuments.length} document{selectedDocuments.length !== 1 ? 's' : ''} selected
 					</p>
 				</div>

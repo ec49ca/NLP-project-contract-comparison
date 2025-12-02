@@ -86,44 +86,50 @@ function QuoteReferences({ quotes }: { quotes: StructuredQuote[] }) {
 	};
 	
 	return (
-		<div className="mt-3 space-y-2">
-			<div className="text-xs font-semibold text-muted-foreground mb-2">References:</div>
+		<div className="mt-4 space-y-3">
+			<div className="text-xs font-bold text-slate-800 uppercase tracking-wide mb-3 flex items-center gap-2">
+				<span className="w-1 h-4 bg-gradient-to-b from-cyan-500 via-teal-500 to-emerald-500 rounded-full"></span>
+				References
+			</div>
 			{Object.entries(groupedQuotes).map(([key, group]) => {
 				const isExpanded = expandedRefs.has(key);
 				const sectionGroups = groupQuotesBySection(group.quotes);
 				const agentNum = group.agent_id.replace('internal_', '');
 				
 				return (
-					<div key={key} className="border border-border rounded-md overflow-hidden">
+					<div key={key} className="border border-teal-200/60 rounded-xl overflow-hidden bg-gradient-to-br from-white via-cyan-50/30 to-teal-50/30 shadow-md hover:shadow-lg transition-all duration-200">
 						<button
 							onClick={() => toggleExpand(key)}
-							className="w-full px-3 py-2 bg-muted/50 hover:bg-muted/70 flex items-center justify-between text-sm transition-colors"
+							className="w-full px-4 py-3 bg-gradient-to-r from-cyan-100/60 via-teal-100/60 to-emerald-100/60 hover:from-cyan-200/80 hover:via-teal-200/80 hover:to-emerald-200/80 flex items-center justify-between text-sm font-semibold transition-all duration-200 group border-b border-teal-200/40"
 						>
-							<span className="font-medium">
-								Internal Agent {agentNum} - {group.document}
+							<span className="text-slate-900 group-hover:text-teal-700 transition-colors">
+								Internal Agent {agentNum} - <span className="text-teal-700 font-bold">{group.document}</span>
 							</span>
-							{isExpanded ? (
-								<ChevronDown className="w-4 h-4" />
-							) : (
-								<ChevronRight className="w-4 h-4" />
-							)}
+							<div className={`transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>
+								{isExpanded ? (
+									<ChevronDown className="w-4 h-4 text-teal-600" />
+								) : (
+									<ChevronRight className="w-4 h-4 text-slate-500" />
+								)}
+							</div>
 						</button>
 						{isExpanded && (
-							<div className="bg-background border-t">
+							<div className="bg-white/90 backdrop-blur-sm border-t border-teal-200/40">
 								{Object.entries(sectionGroups).map(([section, sectionQuotes]) => (
-									<div key={section} className="p-3 border-b last:border-b-0">
-										<div className="text-xs font-semibold text-primary mb-2">
+									<div key={section} className="p-4 border-b border-teal-200/30 last:border-b-0 hover:bg-gradient-to-r hover:from-cyan-50/50 hover:to-teal-50/50 transition-colors">
+										<div className="text-xs font-bold text-teal-700 mb-3 flex items-center gap-2">
+											<span className="w-1.5 h-1.5 bg-gradient-to-br from-cyan-500 to-teal-600 rounded-full shadow-sm"></span>
 											{section}
 										</div>
-										<div className="space-y-2">
+										<div className="space-y-3">
 											{sectionQuotes.map((quote, idx) => (
-												<div key={idx} className="text-xs pl-2 border-l-2 border-primary/20">
-													<div className="text-muted-foreground mb-1">
-														{quote.topic !== 'Country-Specific Reference' && (
-															<span className="font-medium">{quote.topic}: </span>
-														)}
-													</div>
-													<div className="text-foreground italic">
+												<div key={idx} className="text-xs pl-4 border-l-3 border-teal-400/50 bg-gradient-to-r from-cyan-50/80 to-teal-50/80 rounded-r-lg p-3 hover:from-cyan-100/80 hover:to-teal-100/80 transition-colors">
+													{quote.topic !== 'Country-Specific Reference' && (
+														<div className="text-slate-800 font-bold mb-1.5">
+															{quote.topic}
+														</div>
+													)}
+													<div className="text-black italic leading-relaxed">
 														"{quote.quote}"
 													</div>
 												</div>
@@ -418,18 +424,18 @@ export function Chat({ selectedDocuments = [] }: ChatProps) {
 	};
 
 	return (
-		<div className="flex flex-col h-[700px] max-h-[85vh] w-full bg-background border rounded-lg shadow-lg">
+		<div className="flex flex-col h-[700px] max-h-[85vh] w-full bg-gradient-to-br from-white via-slate-50 to-cyan-50/20 border border-slate-200/50 rounded-2xl shadow-2xl shadow-slate-900/5 backdrop-blur-sm">
 			{/* Provider and Model Selectors */}
 			{(availableProviders || availableModels) && (
-				<div className="border-b p-3 bg-muted/30">
+				<div className="border-b border-slate-200/60 p-4 bg-gradient-to-r from-teal-50/60 via-cyan-50/40 to-blue-50/60 backdrop-blur-sm">
 					<div className="flex gap-3 items-end">
 						{availableProviders && availableProviders.available_providers.length > 0 && (
 							<div className="flex-1">
-								<label className="text-sm font-medium mb-1 block">Provider:</label>
+								<label className="text-xs font-semibold mb-1.5 block text-slate-700 uppercase tracking-wide">Provider</label>
 								<select
 									value={selectedProvider || availableProviders.current_provider}
 									onChange={(e) => setSelectedProvider(e.target.value)}
-									className="w-full px-3 py-2 border rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+									className="w-full px-4 py-2.5 border border-teal-200/60 rounded-xl bg-white/90 backdrop-blur-sm text-sm font-medium text-slate-900 shadow-sm hover:shadow-md hover:border-teal-300/60 focus:outline-none focus:ring-2 focus:ring-teal-400/50 focus:border-teal-400/50 transition-all duration-200"
 									disabled={isLoading}
 								>
 									{availableProviders.available_providers.map((provider) => (
@@ -442,11 +448,11 @@ export function Chat({ selectedDocuments = [] }: ChatProps) {
 						)}
 						{availableModels && availableModels.available_models.length > 0 && (
 							<div className="flex-1">
-								<label className="text-sm font-medium mb-1 block">Model:</label>
+								<label className="text-xs font-semibold mb-1.5 block text-slate-700 uppercase tracking-wide">Model</label>
 								<select
 									value={selectedModel || availableModels.default_model}
 									onChange={(e) => setSelectedModel(e.target.value)}
-									className="w-full px-3 py-2 border rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+									className="w-full px-4 py-2.5 border border-cyan-200/60 rounded-xl bg-white/90 backdrop-blur-sm text-sm font-medium text-slate-900 shadow-sm hover:shadow-md hover:border-cyan-300/60 focus:outline-none focus:ring-2 focus:ring-cyan-400/50 focus:border-cyan-400/50 transition-all duration-200"
 									disabled={isLoading}
 								>
 									{availableModels.available_models.map((model) => (
@@ -461,57 +467,59 @@ export function Chat({ selectedDocuments = [] }: ChatProps) {
 				</div>
 			)}
 			{/* Messages */}
-			<div className="flex-1 overflow-y-auto p-4 space-y-4">
+			<div className="flex-1 overflow-y-auto p-6 space-y-6 bg-gradient-to-b from-transparent via-white to-emerald-50/10">
 				{messages.map((message) => (
 					<div
 						key={message.id}
-						className={`flex gap-3 ${
+						className={`flex gap-4 ${
 							message.role === 'user' ? 'justify-end' : 'justify-start'
 						}`}
 					>
 						{message.role === 'assistant' && (
-							<div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-								<BotIcon className="w-5 h-5 text-primary" />
+							<div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500/20 via-cyan-500/20 to-blue-500/20 border border-teal-300/30 flex items-center justify-center shadow-lg shadow-teal-500/10">
+								<BotIcon className="w-5 h-5 text-teal-600" />
 							</div>
 						)}
 						<div className="max-w-[80%]">
 						<div
-								className={`rounded-lg px-4 py-2 ${
+								className={`rounded-2xl px-5 py-3 shadow-lg transition-all duration-200 ${
 								message.role === 'user'
-									? 'bg-primary text-primary-foreground'
-									: 'bg-muted'
+									? 'bg-gradient-to-br from-blue-700 via-blue-600 to-cyan-600 text-white shadow-primary/30'
+									: 'bg-white border border-slate-200/60 shadow-slate-200/50'
 							}`}
 						>
 								{/* Show timeline if this is the active message and timeline exists and not streaming */}
 								{message.role === 'assistant' && !isStreaming && timeline.length > 0 && message.id === activeMessageId ? (
-									<div className="space-y-4 py-2">
+									<div className="space-y-5 py-3">
 										{timeline.map((step, index) => (
-											<div key={step.id} className="flex gap-3">
-												{/* Timeline line */}
+											<div key={step.id} className="flex gap-4 group">
+												{/* Timeline line with enhanced styling */}
 												<div className="flex flex-col items-center">
-													<div className={`w-3 h-3 rounded-full border-2 ${
+													<div className={`w-4 h-4 rounded-full border-2 shadow-lg transition-all duration-300 ${
 														step.status === 'completed' 
-															? 'bg-primary border-primary' 
+															? 'bg-gradient-to-br from-emerald-500 to-teal-600 border-emerald-600 shadow-emerald-500/40' 
 															: step.status === 'active'
-															? 'bg-primary border-primary animate-pulse'
-															: 'bg-transparent border-muted-foreground'
+															? 'bg-gradient-to-br from-cyan-500 via-teal-500 to-blue-500 border-cyan-600 shadow-cyan-500/50 animate-pulse ring-2 ring-cyan-400/30'
+															: 'bg-white border-slate-300 shadow-slate-200/50'
 													}`} />
 													{index < timeline.length - 1 && (
-														<div className={`w-0.5 h-8 mt-1 ${
-															step.status === 'completed' ? 'bg-primary' : 'bg-muted'
+														<div className={`w-1 h-10 mt-2 rounded-full transition-all duration-300 ${
+															step.status === 'completed' 
+																? 'bg-gradient-to-b from-emerald-500 via-teal-500 to-cyan-500' 
+																: 'bg-gradient-to-b from-slate-200 to-slate-100'
 														}`} />
 													)}
 												</div>
 												
-												{/* Step content */}
-												<div className="flex-1 space-y-2">
+												{/* Step content with card styling */}
+												<div className="flex-1 space-y-3 bg-gradient-to-br from-white to-slate-50/50 border border-slate-200/60 rounded-xl p-4 shadow-md hover:shadow-lg transition-all duration-200">
 													<div className="flex items-center justify-between">
-														<span className={`text-sm font-medium ${
+														<span className={`text-sm font-semibold ${
 															step.status === 'completed' 
-																? 'text-muted-foreground' 
+																? 'text-slate-600' 
 																: step.status === 'active'
-																? 'text-foreground'
-																: 'text-muted-foreground'
+																? 'text-slate-900 bg-gradient-to-r from-cyan-100 via-teal-100 to-blue-100 px-3 py-1 rounded-lg border border-cyan-200/60'
+																: 'text-slate-500'
 														}`}>
 															{step.step === 'analyzing' && '🔍 Analyzing Query'}
 															{step.step === 'planning' && '📋 Planning Agent Calls'}
@@ -519,41 +527,47 @@ export function Chat({ selectedDocuments = [] }: ChatProps) {
 															{step.step === 'synthesizing' && '🔄 Synthesizing Results'}
 														</span>
 														{step.progress !== undefined && (
-															<span className="text-xs text-muted-foreground">{step.progress}%</span>
+															<span className="text-xs font-bold text-cyan-700 bg-gradient-to-r from-cyan-100 to-teal-100 px-3 py-1 rounded-full border border-cyan-200/60">{step.progress}%</span>
 														)}
 													</div>
-													<div className="text-xs text-muted-foreground">{step.message}</div>
+													<div className="text-xs text-slate-700 font-medium">{step.message}</div>
 													
-													{/* Agent tasks detail */}
+													{/* Agent tasks detail with enhanced styling */}
 													{step.agent_tasks && step.agent_tasks.length > 0 && (
-														<div className="ml-4 space-y-1 mt-2">
+														<div className="ml-2 space-y-2 mt-3 pt-3 border-t border-slate-200/60">
 															{step.agent_tasks.map((task) => (
-																<div key={task.task_id} className="flex items-center gap-2 text-xs">
-																	<span className={`w-2 h-2 rounded-full ${
+																<div key={task.task_id} className="flex items-center gap-3 text-xs bg-gradient-to-r from-emerald-50/80 via-teal-50/80 to-cyan-50/80 rounded-lg px-3 py-2 border border-emerald-200/40">
+																	<span className={`w-2.5 h-2.5 rounded-full shadow-sm ${
 																		task.status === 'completed'
-																			? 'bg-green-500'
+																			? 'bg-gradient-to-br from-emerald-500 to-teal-600 shadow-emerald-500/50'
 																			: task.status === 'running'
-																			? 'bg-blue-500 animate-pulse'
-																			: 'bg-gray-400'
+																			? 'bg-gradient-to-br from-cyan-500 via-teal-500 to-blue-500 shadow-cyan-500/50 animate-pulse'
+																			: 'bg-slate-300'
 																	}`} />
-																	<span className="text-muted-foreground">
-																		{task.agent_type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-																		{task.document && ` → ${task.document}`}
+																	<span className="text-slate-800 font-medium">
+																		<span className="font-semibold text-slate-900">{task.agent_type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>
+																		{task.document && <span className="text-teal-700 font-semibold"> → {task.document}</span>}
 																	</span>
 																</div>
 															))}
 														</div>
 													)}
 													
-													{/* Documents and agents info */}
+													{/* Documents and agents info with badges */}
 													{step.documents && step.documents.length > 0 && (
-														<div className="text-xs text-muted-foreground ml-4">
-															📄 Documents: {step.documents.join(', ')}
+														<div className="text-xs ml-2 flex flex-wrap gap-2">
+															<span className="text-slate-700 font-semibold">📄 Documents:</span>
+															{step.documents.map((doc, i) => (
+																<span key={i} className="bg-gradient-to-r from-cyan-100 to-teal-100 text-cyan-800 px-3 py-1 rounded-lg border border-cyan-300/60 font-semibold shadow-sm">{doc}</span>
+															))}
 														</div>
 													)}
 													{step.agents && step.agents.length > 0 && (
-														<div className="text-xs text-muted-foreground ml-4">
-															🤖 Agents: {step.agents.join(', ')}
+														<div className="text-xs ml-2 flex flex-wrap gap-2">
+															<span className="text-slate-700 font-semibold">🤖 Agents:</span>
+															{step.agents.map((agent, i) => (
+																<span key={i} className="bg-gradient-to-r from-emerald-100 to-teal-100 text-emerald-800 px-3 py-1 rounded-lg border border-emerald-300/60 font-semibold shadow-sm">{agent}</span>
+															))}
 														</div>
 													)}
 												</div>
@@ -561,7 +575,17 @@ export function Chat({ selectedDocuments = [] }: ChatProps) {
 										))}
 									</div>
 								) : (
-									<div className="prose prose-sm dark:prose-invert max-w-none prose-headings:font-bold prose-headings:text-foreground prose-h2:text-lg prose-h2:mt-6 prose-h2:mb-3 prose-h3:text-base prose-h3:mt-4 prose-h3:mb-2 prose-p:my-2 prose-strong:text-foreground prose-strong:font-semibold prose-ul:my-2 prose-li:my-1 prose-blockquote:border-l-4 prose-blockquote:border-primary prose-blockquote:pl-4 prose-blockquote:italic prose-blockquote:my-2">
+									<div className="prose prose-sm dark:prose-invert max-w-none 
+										prose-headings:font-bold prose-headings:text-black 
+										prose-h2:text-xl prose-h2:mt-6 prose-h2:mb-4 prose-h2:text-black
+										prose-h3:text-lg prose-h3:mt-5 prose-h3:mb-3 prose-h3:text-slate-900
+										prose-p:my-3 prose-p:text-black prose-p:leading-relaxed
+										prose-strong:text-black prose-strong:font-bold
+										prose-ul:my-3 prose-ul:space-y-2
+										prose-li:my-1 prose-li:text-black
+										prose-blockquote:border-l-4 prose-blockquote:border-teal-400 prose-blockquote:pl-5 prose-blockquote:italic prose-blockquote:my-4 prose-blockquote:bg-gradient-to-r prose-blockquote:from-teal-50 prose-blockquote:to-cyan-50 prose-blockquote:py-2 prose-blockquote:rounded-r-lg prose-blockquote:text-black
+										prose-code:text-teal-700 prose-code:bg-teal-50 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-code:font-semibold
+										prose-a:text-teal-600 prose-a:font-medium hover:prose-a:text-teal-700 hover:prose-a:underline">
 								<ReactMarkdown>{message.content}</ReactMarkdown>
 									</div>
 								)}
@@ -572,8 +596,8 @@ export function Chat({ selectedDocuments = [] }: ChatProps) {
 							)}
 						</div>
 						{message.role === 'user' && (
-							<div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-								<UserIcon className="w-5 h-5 text-primary" />
+							<div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/20 via-cyan-500/20 to-teal-500/20 border border-blue-300/30 flex items-center justify-center shadow-lg shadow-blue-500/10">
+								<UserIcon className="w-5 h-5 text-blue-600" />
 							</div>
 						)}
 					</div>
@@ -582,16 +606,20 @@ export function Chat({ selectedDocuments = [] }: ChatProps) {
 			</div>
 
 			{/* Input */}
-			<form onSubmit={handleSubmit} className="border-t p-4">
-				<div className="flex gap-2">
+			<form onSubmit={handleSubmit} className="border-t border-slate-200/60 p-5 bg-gradient-to-r from-white via-cyan-50/30 to-teal-50/30 backdrop-blur-sm">
+				<div className="flex gap-3">
 					<Input
 						value={input}
 						onChange={(e) => setInput(e.target.value)}
 						placeholder="Type your message..."
 						disabled={isLoading}
-						className="flex-1"
+						className="flex-1 px-5 py-3 rounded-xl border-teal-200/60 bg-white/95 backdrop-blur-sm shadow-sm hover:shadow-md hover:border-teal-300/60 focus:shadow-lg focus:ring-2 focus:ring-cyan-400/50 focus:border-cyan-400/50 transition-all duration-200 text-sm font-medium text-black placeholder:text-slate-400"
 					/>
-					<Button type="submit" disabled={isLoading || !input.trim()}>
+					<Button 
+						type="submit" 
+						disabled={isLoading || !input.trim()}
+						className="px-6 py-3 rounded-xl bg-gradient-to-br from-cyan-500 via-teal-500 to-blue-600 hover:from-cyan-600 hover:via-teal-600 hover:to-blue-700 shadow-lg shadow-cyan-500/30 hover:shadow-xl hover:shadow-cyan-500/40 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+					>
 						<SendIcon className="w-4 h-4" />
 					</Button>
 				</div>

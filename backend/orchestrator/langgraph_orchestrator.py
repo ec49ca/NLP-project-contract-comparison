@@ -307,23 +307,48 @@ Agent Results:
 					print(f"   ⚠️  LLM said no internal agent, but documents are manually selected. Overriding to True.")
 					needs_internal = True
 
+				# CRITICAL: If query mentions "documents" (plural) or "both documents", we need internal agent
+				query_lower = user_query.lower()
+				if not needs_internal and ("documents" in query_lower or "document" in query_lower):
+					# Check if it's a document-related query (not just a generic mention)
+					document_keywords = ["both documents", "all documents", "these documents", "the documents", 
+										"document", "contract", "agreement", "pdf", "file"]
+					if any(keyword in query_lower for keyword in document_keywords):
+						logger.info(f"   ⚠️  Query mentions documents but LLM said no internal agent. Overriding to True.")
+						print(f"   ⚠️  Query mentions documents but LLM said no internal agent. Overriding to True.")
+						needs_internal = True
+
 				# Only use fallback matching if LLM didn't return any matches AND we need internal agent
 				# With good LLMs like GPT-4, we should trust their matching
 				if needs_internal and not matched_documents:
 					logger.info(f"   🔍 LLM didn't match any documents, using fallback matching...")
 					print(f"   🔍 LLM didn't match any documents, using fallback matching...")
-					query_lower = user_query.lower()
-					for doc in available_documents:
-						# Extract key parts of document name for matching
-						doc_name_lower = doc.lower().replace(".pdf", "").replace("-", " ").replace("_", " ")
-						# Only match on country names (words longer than 4 chars), not numbers
-						doc_keywords = [kw for kw in doc_name_lower.split() if len(kw) > 4]
-						
-						# Check if country name appears in query
-						if any(keyword in query_lower for keyword in doc_keywords):
-							matched_documents.append(doc)
-							logger.info(f"   🔍 Fallback matching: '{doc}' matched from query (country name: {doc_keywords})")
-							print(f"   🔍 Fallback matching: '{doc}' matched from query (country name: {doc_keywords})")
+					
+					# Special case: if query says "both documents" and we have exactly 2 documents, match both
+					if "both documents" in query_lower and len(available_documents) == 2:
+						matched_documents = available_documents.copy()
+						logger.info(f"   🔍 Fallback matching: 'both documents' detected, matching all 2 available documents")
+						print(f"   🔍 Fallback matching: 'both documents' detected, matching all 2 available documents")
+					else:
+						# Try to match by country name or document name
+						for doc in available_documents:
+							# Extract key parts of document name for matching
+							doc_name_lower = doc.lower().replace(".pdf", "").replace("-", " ").replace("_", " ")
+							# Only match on country names (words longer than 4 chars), not numbers
+							doc_keywords = [kw for kw in doc_name_lower.split() if len(kw) > 4]
+							
+							# Check if country name appears in query
+							if any(keyword in query_lower for keyword in doc_keywords):
+								matched_documents.append(doc)
+								logger.info(f"   🔍 Fallback matching: '{doc}' matched from query (country name: {doc_keywords})")
+								print(f"   🔍 Fallback matching: '{doc}' matched from query (country name: {doc_keywords})")
+					
+					# If still no matches and query mentions "documents" (plural), match all available documents
+					if not matched_documents and ("documents" in query_lower or "both documents" in query_lower):
+						if len(available_documents) > 0:
+							matched_documents = available_documents.copy()
+							logger.info(f"   🔍 Fallback matching: Query mentions 'documents' but no specific match, using all available documents: {matched_documents}")
+							print(f"   🔍 Fallback matching: Query mentions 'documents' but no specific match, using all available documents: {matched_documents}")
 
 				# Combine manual + auto-detected documents
 				final_documents = list(set(selected_documents or []))
@@ -984,11 +1009,15 @@ Respond with ONLY the query text, no JSON, no explanation."""
 					}
 					yield {
 						"type": "complete",
-						"interpreted_response": error_msg,
-						"structured_quotes": [],
-						"agents_used": [],
-						"internal_results": [],
-						"external_results": None
+						"data": {
+							"success": False,
+							"interpreted_response": error_msg,
+							"structured_quotes": [],
+							"agents_used": [],
+							"internal_results": [],
+							"external_results": None
+						},
+						"progress": 100
 					}
 					return
 				

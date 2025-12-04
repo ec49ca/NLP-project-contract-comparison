@@ -2,6 +2,14 @@
 
 This document describes the actual workflow of the MCP server system based on observed logs. It shows how documents are uploaded, how queries are processed, and how the system uses uploaded PDF documents to answer questions.
 
+**Current System Features:**
+- **LangGraph Orchestrator**: Uses LangGraph for parallel agent execution
+- **Streaming Responses**: Server-Sent Events (SSE) for real-time progress and streaming text
+- **Progress Timeline**: Visual UI showing agent execution status
+- **Structured Quote Extraction**: Internal agent extracts quoted clauses with section references
+- **Query-Aware Extraction**: Internal agent extracts only information relevant to the specific query
+- **Markdown Formatting**: Professional paralegal-style reports with structured formatting
+
 ## System Initialization
 
 When the server starts:
@@ -119,12 +127,21 @@ Saved document: Italy-111.pdf (1376 characters)
 
 ---
 
-### Step 2: Agent Execution
+### Step 2: Agent Execution (LangGraph - Parallel Processing)
+
+**Current System**: Uses LangGraph orchestrator for parallel agent execution.
 
 **Log Evidence:**
 ```
-🤖 STEP 2: Executing 2 agent(s)...
-   → Executing internal_agent...
+🎯 LANGGRAPH ORCHESTRATOR: Starting query processing
+📊 Analyzing query...
+📋 Planning agent calls...
+   → Agent Call 1: internal_agent with document Italy-111.pdf
+      Query: [optimized query specific to Italy-111.pdf]
+   → Agent Call 2: internal_agent with document japan-111.pdf
+      Query: [optimized query specific to japan-111.pdf]
+🚀 Executing agents in parallel...
+   → Executing internal_agent for Italy-111.pdf...
       📋 Full query for internal_agent: [optimized query]
       📄 Documents being sent to internal_agent: ['Italy-111.pdf']
       🔵 INTERNAL AGENT: Processing query...
@@ -132,26 +149,31 @@ Saved document: Italy-111.pdf (1376 characters)
       📄 Document context retrieved: 1409 characters
       📝 Enhanced prompt length: 1652 characters
       📝 Enhanced prompt (first 500 chars): 
-         User Query: [query]
+         Query/Instruction: [specific query]
          Available Documents:
          === Document: Italy-111.pdf ===
          [actual document text...]
       📡 LLM: Calling [model] API ([provider])...
       ✅ LLM: Received response ([X] chars)
       ✅ INTERNAL AGENT: Got response ([X] chars)
+      📝 Parsed structured quotes: [N] quotes extracted
    ✅ internal_agent completed successfully
 
-   → Executing external_agent...
-      📋 Full query for external_agent: [optimized query]
-      🟢 EXTERNAL AGENT: Processing query...
-      📡 LLM: Calling [model] API ([provider])...
-      ✅ LLM: Received response ([Y] chars)
-      ✅ EXTERNAL AGENT: Got response ([Y] chars)
+   → Executing internal_agent for japan-111.pdf...
+      [Similar process for second document]
+   ✅ internal_agent completed successfully
+```
+
+**Key Differences with LangGraph:**
+- **Parallel Execution**: Multiple agents can run simultaneously (one document per agent)
+- **Query-Aware Extraction**: Each agent receives a query optimized for its specific document
+- **Structured Quote Extraction**: Internal agent parses its response to extract quoted clauses with section references
+- **Progress Updates**: Real-time status updates sent via SSE to frontend
    ✅ external_agent completed successfully
 ```
 
 **What Happens:**
-1. Orchestrator executes agents **sequentially** (one after another)
+1. Orchestrator executes agents **in parallel** using LangGraph (one document per agent for better token distribution)
 2. For **Internal Agent** (if documents selected):
    - Receives optimized query + list of selected documents
    - Retrieves document text from document storage
@@ -192,34 +214,58 @@ Saved document: Italy-111.pdf (1376 characters)
 ```
 
 **What Happens:**
-1. Orchestrator combines all agent results into a single prompt
-2. Makes final LLM call using the same provider/model as used in previous steps:
+1. Orchestrator collects all agent responses
+2. **Extracts structured quotes** from internal agent responses (quoted clauses with section references)
+3. Combines agent responses, structured quotes, and original user query into a single prompt
+4. Makes final LLM call using the same provider/model as used in previous steps:
    - The original user query
    - Results from all executed agents
-   - Instructions to compare and synthesize
-3. LLM generates a comprehensive final answer
-4. Response is typically longer than individual agent responses (observed: 2970 chars vs 1093/1391)
+   - Structured quotes extracted from internal agents
+   - Instructions to compare and synthesize with markdown formatting
+5. LLM generates a comprehensive final answer with markdown formatting (headers, bold, bullet points, blockquotes)
+6. Response is typically longer than individual agent responses (observed: 2970 chars vs 1093/1391)
+7. Final response includes:
+   - **Interpreted Response**: Markdown-formatted paralegal analysis
+   - **Structured Quotes**: Array of extracted quotes grouped by agent, document, topic, and section
 
 **Timing Observations:**
 - Synthesis takes ~38 seconds (16:31:23 → 16:32:02)
 - This is the longest step, likely because it processes the most data
+- With streaming, synthesis progress is visible in real-time via timeline UI
 
 ---
 
-### Step 4: Response Return
+### Step 4: Response Return (Streaming)
+
+**Current System**: Uses `/orchestrate/stream` endpoint with Server-Sent Events (SSE).
 
 **Log Evidence:**
 ```
 ✅ ORCHESTRATOR: Query processing complete!
-🌐 SERVER: Returning response to client
-INFO: 127.0.0.1:[port] - "POST /orchestrate HTTP/1.1" 200 OK
+🌐 SERVER: Streaming response to client via SSE
+   → Sending status: analyzing (20%)
+   → Sending status: planning (40%)
+   → Sending agent_status: internal_agent (Italy-111.pdf) - running
+   → Sending agent_status: internal_agent (Italy-111.pdf) - completed
+   → Sending status: executing (80%)
+   → Sending status: synthesizing (100%)
+   → Streaming content chunks...
+   → Sending complete event with structured_quotes
+INFO: 127.0.0.1:[port] - "POST /orchestrate/stream HTTP/1.1" 200 OK
 ```
 
 **What Happens:**
 1. Orchestrator completes processing
-2. Server returns the synthesized response to the frontend
-3. HTTP 200 OK status indicates success
-4. Frontend displays the response to the user
+2. Server streams response via Server-Sent Events (SSE):
+   - **Status events**: Progress updates (analyzing → planning → executing → synthesizing)
+   - **Agent status events**: Individual agent task status (running, completed)
+   - **Content events**: Streaming text chunks of final markdown-formatted response
+   - **Complete event**: Final result with `interpreted_response` and `structured_quotes` array
+3. Frontend displays:
+   - **Progress Timeline**: Visual timeline showing current step and agent execution status
+   - **Streaming Text**: Markdown-formatted response streams in real-time
+   - **Structured Quotes UI**: Clickable "Internal Agent + Document" dropdowns showing extracted quotes
+4. HTTP 200 OK status indicates success
 
 ---
 
@@ -258,10 +304,11 @@ Based on the logs for query: "tell me more about the italy document i have" with
 - System can determine multiple agents needed (complex queries)
 - Each agent gets an optimized, focused query
 
-### 3. Sequential Execution
-- Agents execute one after another (not in parallel)
-- Each agent makes independent Ollama API calls
+### 3. Parallel Execution (LangGraph)
+- Agents execute in parallel when processing multiple documents (one document per agent)
+- Each agent makes independent LLM API calls (using selected provider/model)
 - Results are collected before synthesis
+- Better token distribution: one document per agent instead of multiple documents in one agent call
 
 ### 4. Response Sizes
 - Analysis step: ~61-465 chars

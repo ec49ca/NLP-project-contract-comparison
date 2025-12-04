@@ -8,7 +8,12 @@ A Model Context Protocol (MCP) server with multi-agent orchestration capabilitie
 
 - **MCP-Compliant**: Implements Model Context Protocol standards
 - **FastAPI Server**: Modern async Python web framework
-- **Multi-Agent Orchestration**: Intelligent query splitting and result synthesis
+- **LangGraph Orchestration**: Parallel multi-agent processing with dynamic query splitting
+- **Real-Time Streaming**: Server-Sent Events (SSE) for live progress updates and streaming responses
+- **Progress Timeline UI**: Visual timeline showing agent execution status and progress
+- **Structured Quote Extraction**: Internal agent extracts quoted clauses with section references, displayed in clickable UI
+- **Query-Aware Extraction**: Internal agent extracts only relevant information based on the specific query
+- **Markdown-Formatted Responses**: Professional paralegal-style reports with headers, bold text, bullet points, and blockquotes
 - **PDF Document Upload**: Upload and manage PDF documents with automatic text extraction
 - **Document Selection**: Manual selection via UI or automatic detection from query text
 - **Smart Document Matching**: Orchestrator automatically matches document names from queries
@@ -59,13 +64,18 @@ cd ..
 # For OpenAI/Anthropic/Google: Just add API key to .env
 
 # 6. Start servers
-# Terminal 1: MCP Server
-source venv/bin/activate
-python3 -m uvicorn backend.server.mcp_server:app --host 0.0.0.0 --port 8000
+# Terminal 1: MCP Server (using helper script)
+./start_server.sh
 
 # Terminal 2: Frontend
 cd frontend
 npm run dev
+```
+
+**Note**: The `start_server.sh` script starts the MCP server in the background and shows logs. Alternatively, you can run the server manually:
+```bash
+source venv/bin/activate
+python3 -m uvicorn backend.server.mcp_server:app --host 0.0.0.0 --port 8000
 ```
 
 Access the frontend at `http://localhost:3000`
@@ -83,8 +93,11 @@ Access the frontend at `http://localhost:3000`
 4. **Ask Questions**: Type your query in the chat
    - The system will use your selected provider/model
    - Automatically uses selected documents
-   - Internal agent searches through actual document text
+   - **Progress Timeline**: Watch real-time progress as agents analyze, plan, execute, and synthesize
+   - **Structured Quotes**: Click "Internal Agent + Document" below responses to see extracted quotes with section references
+   - Internal agent searches through actual document text (query-aware extraction)
    - External agent queries external databases (WIPO, etc.)
+   - Final response is streamed and formatted in markdown for easy reading
 
 ## Architecture
 
@@ -105,11 +118,14 @@ Access the frontend at `http://localhost:3000`
    - **Internal Agent**: Searches through uploaded PDF documents using extracted text
    - **External Agent**: Queries external databases (e.g., WIPO for compliance information)
 
-4. **Orchestrator**
+4. **Orchestrator** (LangGraph-based)
+   - Uses LangGraph for parallel agent execution
    - Analyzes user queries using LLM
    - Automatically detects and matches documents from query text
-   - Splits queries into agent-specific tasks
-   - Synthesizes results from multiple agents
+   - Intelligently splits queries into agent-specific tasks (can split multi-part queries across documents)
+   - Executes multiple agents in parallel (one document per agent for better token distribution)
+   - Synthesizes results from multiple agents with markdown formatting
+   - Streams progress updates and final response via SSE
    - Has access to all uploaded documents for intelligent routing
 
 ### Workflow
@@ -155,7 +171,8 @@ The system supports two ways to select documents for queries:
 - `GET /health` - Health check
 - `GET /api/providers` - Get list of configured LLM providers
 - `GET /api/models?provider=ollama` - Get available models for a provider
-- `POST /orchestrate` - Process user query
+- `POST /orchestrate` - Process user query (legacy endpoint, returns complete response)
+- `POST /orchestrate/stream` - Process user query with streaming (SSE)
   ```json
   {
     "query": "your query here",
@@ -164,6 +181,11 @@ The system supports two ways to select documents for queries:
     "model": "gpt-4"  // Optional: override default model
   }
   ```
+  Returns Server-Sent Events (SSE) with:
+  - `status` events: Progress updates (analyzing, planning, executing, synthesizing)
+  - `agent_status` events: Individual agent task status (running, completed)
+  - `content` events: Streaming text chunks of final response
+  - `complete` event: Final result with `interpreted_response` and `structured_quotes`
 - `POST /api/upload` - Upload a PDF document
   - Content-Type: `multipart/form-data`
   - Body: `file` (PDF file)

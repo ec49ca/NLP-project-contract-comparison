@@ -308,12 +308,15 @@ The frontend will start on `http://localhost:3000`
 - **Document Sidebar**: Left side shows uploaded documents with checkboxes
 - **Upload Button**: Click "Upload PDF" to upload new documents
 - **Document Selection**: Check boxes to manually select documents for queries
-- **Chat Interface**: Right side for asking questions
+- **Chat Interface**: Right side for asking questions with markdown-formatted responses
+- **Progress Timeline**: Real-time visual progress showing agent execution status
+- **Structured Quotes**: Click "Internal Agent + Document" below responses to see extracted quotes with section references
 - **Auto-detection**: You can also just mention documents in your query (e.g., "tell me about my italy document")
+- **Streaming Responses**: Watch responses stream in real-time as they're generated
 
-### Option 2: Using Helper Scripts
+### Option 2: Using Helper Scripts (Recommended)
 
-#### Start MCP Server with Logs
+#### Step 1: Start MCP Server with Logs
 
 ```bash
 ./start_server.sh
@@ -323,8 +326,16 @@ This script:
 - Starts the server in the background
 - Shows logs in real-time
 - Logs are written to `/tmp/mcp_server.log`
+- Press Ctrl+C to stop viewing logs (server keeps running in background)
 
-#### Start Frontend with MCP Server Logs
+**Note**: The server will continue running in the background. You can verify it's running by checking:
+```bash
+curl http://localhost:8000/health
+```
+
+#### Step 2: Start Frontend
+
+In a **new terminal window**:
 
 ```bash
 cd frontend
@@ -332,8 +343,14 @@ npm run dev
 ```
 
 This will:
-- Start the frontend
-- Automatically show MCP server logs in the terminal
+- Start the frontend on `http://localhost:3000`
+- The frontend connects to the MCP server at `http://localhost:8000`
+- You'll see frontend logs in this terminal
+
+**To view MCP server logs separately**, use:
+```bash
+tail -f /tmp/mcp_server.log
+```
 
 ### Option 3: View Logs Separately
 

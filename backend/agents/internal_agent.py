@@ -5,6 +5,7 @@ from uuid import UUID
 from typing import Dict, Any, List, Optional
 import logging
 import re
+from difflib import SequenceMatcher
 from ..interfaces.agent import AgentInterface
 from ..services.llm_service import LLMService
 from ..services.document_storage import DocumentStorage
@@ -220,6 +221,10 @@ Do NOT summarize or interpret - use the actual words from the document."""
 				document_name = selected_documents[0] if selected_documents else None
 				structured_quotes = self._parse_structured_quotes(response, document_name)
 				
+				# Validate quote accuracy against raw document text (separate pipeline)
+				if document_context and structured_quotes:
+					structured_quotes = self._validate_quotes_accuracy(structured_quotes, document_context)
+				
 				logger.info(f"      📋 Parsed {len(structured_quotes)} structured quotes")
 				print(f"      📋 Parsed {len(structured_quotes)} structured quotes")
 				
@@ -379,6 +384,119 @@ Do NOT summarize or interpret - use the actual words from the document."""
 				})
 		
 		return quotes
+	
+	def _validate_quotes_accuracy(self, quotes: List[Dict[str, Any]], document_text: str) -> List[Dict[str, Any]]:
+		"""
+		Validate quote accuracy by matching LLM-extracted quotes against raw document text.
+		This is a separate validation pipeline that adds accuracy metrics to quotes.
+		
+		Args:
+			quotes: List of parsed quote dictionaries
+			document_text: Raw extracted text from the document
+		
+		Returns:
+			Same quotes list with added "accuracy" field (0-100 percentage)
+		"""
+		if not quotes or not document_text:
+			return quotes
+		
+		# Normalize document text for matching (lowercase, normalize whitespace)
+		normalized_doc = self._normalize_text(document_text)
+		
+		validated_quotes = []
+		total_accuracy = 0
+		
+		for quote in quotes:
+			quote_text = quote.get("quote", "").strip()
+			if not quote_text:
+				quote["accuracy"] = 0.0
+				validated_quotes.append(quote)
+				continue
+			
+			# Normalize quote text
+			normalized_quote = self._normalize_text(quote_text)
+			
+			# Try exact match first
+			if normalized_quote in normalized_doc:
+				accuracy = 100.0
+			else:
+				# Use fuzzy matching to find closest sentence match
+				accuracy = self._calculate_sentence_accuracy(normalized_quote, normalized_doc)
+			
+			quote["accuracy"] = round(accuracy, 1)
+			validated_quotes.append(quote)
+			total_accuracy += accuracy
+		
+		# Log average accuracy
+		if validated_quotes:
+			avg_accuracy = total_accuracy / len(validated_quotes)
+			logger.info(f"      📊 Quote accuracy: {avg_accuracy:.1f}% average ({len(validated_quotes)} quotes)")
+			print(f"      📊 Quote accuracy: {avg_accuracy:.1f}% average ({len(validated_quotes)} quotes)")
+		
+		return validated_quotes
+	
+	def _normalize_text(self, text: str) -> str:
+		"""Normalize text for comparison: lowercase, strip, normalize whitespace."""
+		# Remove quotes, normalize whitespace, lowercase
+		normalized = text.lower().strip()
+		# Remove surrounding quotes if present
+		normalized = normalized.strip('"').strip("'").strip()
+		# Normalize whitespace (multiple spaces to single space)
+		normalized = re.sub(r'\s+', ' ', normalized)
+		return normalized
+	
+	def _calculate_sentence_accuracy(self, quote_text: str, document_text: str) -> float:
+		"""
+		Calculate accuracy by finding the best matching sentence in document text.
+		
+		Args:
+			quote_text: Normalized quote text to find
+			document_text: Normalized full document text
+		
+		Returns:
+			Accuracy percentage (0-100)
+		"""
+		# Split document into sentences (by periods, exclamation, question marks)
+		sentences = re.split(r'[.!?]+\s+', document_text)
+		
+		best_match = 0.0
+		
+		# Try to find quote within sentences
+		for sentence in sentences:
+			sentence = sentence.strip()
+			if not sentence:
+				continue
+			
+			# Check if quote is contained in sentence
+			if quote_text in sentence:
+				# Exact substring match = 100%
+				return 100.0
+			
+			# Calculate similarity ratio
+			ratio = SequenceMatcher(None, quote_text, sentence).ratio()
+			if ratio > best_match:
+				best_match = ratio
+		
+		# Also try searching for quote as substring in full document (for multi-sentence quotes)
+		if len(quote_text) > 0:
+			# Try sliding window approach for partial matches
+			quote_words = quote_text.split()
+			if len(quote_words) >= 3:
+				# Use first 3 and last 3 words as anchors
+				start_anchor = ' '.join(quote_words[:3])
+				end_anchor = ' '.join(quote_words[-3:])
+				
+				if start_anchor in document_text and end_anchor in document_text:
+					# Find the text between anchors
+					start_idx = document_text.find(start_anchor)
+					end_idx = document_text.find(end_anchor) + len(end_anchor)
+					if start_idx < end_idx:
+						extracted = document_text[start_idx:end_idx]
+						ratio = SequenceMatcher(None, quote_text, extracted).ratio()
+						if ratio > best_match:
+							best_match = ratio
+		
+		return best_match * 100.0
 	
 	def get_status(self) -> Dict[str, Any]:
 		"""Return agent status."""

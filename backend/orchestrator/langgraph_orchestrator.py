@@ -615,8 +615,11 @@ Respond with ONLY the query text, no JSON, no explanation."""
 			agents_used = list(set(agents_used))  # Unique list
 
 			if not formatted_results:
+				error_msg = "I couldn't process your query because no documents were found or selected. Please:\n1. Select documents from the sidebar, or\n2. Mention specific document names in your query (e.g., 'Italy-111.pdf', 'japan-111.pdf')"
+				logger.warning("   ⚠️  No agent results to synthesize - returning error message")
+				print("   ⚠️  No agent results to synthesize - returning error message")
 				return {
-					"final_response": "I'm sorry, I couldn't get results from the agents. Please try again.",
+					"final_response": error_msg,
 					"agents_used": agents_used,
 					"internal_results": internal_results_list,
 					"external_results": external_results,
@@ -966,6 +969,29 @@ Respond with ONLY the query text, no JSON, no explanation."""
 						if agent_type not in agents_used:
 							agents_used.append(agent_type)
 
+				# CRITICAL: Check if we have any agent results before synthesizing
+				if not formatted_results:
+					error_msg = "I couldn't process your query because no documents were found or selected. Please:\n1. Select documents from the sidebar, or\n2. Mention specific document names in your query (e.g., 'Italy-111.pdf', 'japan-111.pdf')"
+					yield {
+						"type": "status",
+						"step": "error",
+						"message": "No documents found to process",
+						"progress": 100
+					}
+					yield {
+						"type": "content",
+						"chunk": error_msg
+					}
+					yield {
+						"type": "complete",
+						"interpreted_response": error_msg,
+						"structured_quotes": [],
+						"agents_used": [],
+						"internal_results": [],
+						"external_results": None
+					}
+					return
+				
 				results_text = "\n\n".join(formatted_results)
 				synthesis_prompt = self._synthesis_prompt.format(
 					user_query=user_query,

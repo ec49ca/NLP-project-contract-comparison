@@ -13,6 +13,7 @@ type StructuredQuote = {
 	section: string;
 	quote: string;
 	type: 'key_term' | 'country_specific';
+	accuracy?: number; // Optional accuracy percentage (0-100)
 };
 
 type Message = {
@@ -130,7 +131,9 @@ function QuoteReferences({ quotes }: { quotes: StructuredQuote[] }) {
 														</div>
 													)}
 													<div className="text-black italic leading-relaxed">
-														"{quote.quote}"
+														"{quote.quote}"{quote.accuracy !== undefined && (
+															<span className="ml-2 text-xs font-semibold text-teal-700">-{quote.accuracy}%</span>
+														)}
 													</div>
 												</div>
 											))}

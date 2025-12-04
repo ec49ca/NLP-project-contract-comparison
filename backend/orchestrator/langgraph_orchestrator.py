@@ -115,33 +115,36 @@ Document to analyze: {document}
 
 CRITICAL: This agent call will ONLY have access to {document}. It cannot compare to other documents or access other files.
 
-Your task is to intelligently determine what information to extract from {document} based on the user query:
+Your task is to intelligently parse the user query and determine what information to extract from {document}:
 
-1. **Analyze the user query context:**
-   - Does the query ask for different things from different documents? (e.g., "compliance for Italy and delivery for Japan") → Extract only what applies to {document}
-   - Does the query ask for the same thing from multiple documents? (e.g., "payment terms in both documents", "compare Italy and Japan") → Extract what's needed from {document} for comparison/analysis
-   - Does the query mention {document} specifically? → Use that specific part
-   - Is the query general? → Extract relevant information based on the query intent
+1. **Parse the user query to identify document-specific requests:**
+   - Look for phrases that reference specific documents (e.g., "this document", "italy document", "japan document", document names)
+   - If the query has multiple parts for different documents, identify which part applies to {document}
+   - If the query mentions "{document}" or references that match {document}, use that specific part
+   - If the query says "this document" and {document} is the manually selected document, use the part about "this document"
+   - If the query asks for the same thing from all documents, use that for {document}
 
-2. **Generate an extraction query that:**
-   - Extracts information FROM {document} only (do NOT ask to compare - comparison happens later)
-   - Matches the user's intent for THIS specific document
-   - If the query asks about specific topics, extract those topics
+2. **Generate a focused extraction query that:**
+   - Extracts ONLY the information requested for {document} based on the parsed query
+   - If the query asks about "transportation" for {document}, extract ONLY transportation/delivery/territory information
+   - If the query asks about "product" for {document}, extract ONLY product-related information
+   - If the query asks about "payment" for {document}, extract ONLY payment/currency information
    - If the query is general or asks to compare, extract all relevant key terms organized by topic (Territory, Governing Law, Jurisdiction, Currency, Taxes, IP, Exclusivity, Regulatory, Term & Termination)
-   - Includes country-specific references if relevant
+   - Do NOT extract information that wasn't requested for {document}
 
 IMPORTANT: 
-- Be intelligent: If the same query applies to all documents, use it. If different queries are needed, use the appropriate one for {document}
+- Parse the user query carefully to identify which part applies to {document}
+- Extract ONLY what the user asked for regarding {document}
+- Do NOT extract all topics if the query asks for specific information
 - Do NOT ask to compare or reference other documents - this agent only sees {document}
-- Extract what's needed from {document} to answer the user's question
 
 Examples:
-- User: "Give me compliance for Italy and delivery for Japan", Document: Italy-111.pdf → "Extract compliance terms from Italy-111.pdf"
-- User: "Give me compliance for Italy and delivery for Japan", Document: japan-111.pdf → "Extract delivery terms from japan-111.pdf"
+- User: "tell me about this document's transportation agreement, and tell me about japan document's actual product", Document: Italy-111.pdf (manually selected) → "Extract transportation and delivery terms from Italy-111.pdf"
+- User: "tell me about this document's transportation agreement, and tell me about japan document's actual product", Document: japan-111.pdf → "Extract product information and manufacturing details from japan-111.pdf"
+- User: "Give me compliance for Italy and delivery for Japan", Document: Italy-111.pdf → "Extract compliance and regulatory terms from Italy-111.pdf"
+- User: "Give me compliance for Italy and delivery for Japan", Document: japan-111.pdf → "Extract delivery and territory terms from japan-111.pdf"
 - User: "What are the payment terms in both documents?", Document: Italy-111.pdf → "Extract payment and currency terms from Italy-111.pdf"
-- User: "What are the payment terms in both documents?", Document: japan-111.pdf → "Extract payment and currency terms from japan-111.pdf"
 - User: "Compare Italy and Japan", Document: Italy-111.pdf → "Extract all key terms and country-specific references from Italy-111.pdf organized by topic"
-- User: "Compare Italy and Japan", Document: japan-111.pdf → "Extract all key terms and country-specific references from japan-111.pdf organized by topic"
 
 Respond with ONLY the optimized query text, no JSON, no explanation."""
 

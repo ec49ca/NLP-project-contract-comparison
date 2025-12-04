@@ -87,9 +87,15 @@ Access the frontend at `http://localhost:3000`
    - Choose a model from the available models for that provider
    - The system will use your selection for all LLM calls in that query
 2. **Upload Documents**: Click "Upload PDF" in the sidebar to upload text-based PDF files
-3. **Select Documents**: 
-   - **Manual**: Check the box next to documents you want to query
-   - **Automatic**: Just mention the document in your query (e.g., "tell me about my italy document")
+3. **Select Documents**: The system supports three flexible document selection scenarios:
+   - **Scenario 1**: Select one document, mention another in query → Uses both documents
+     - Example: Select `Australia-111.pdf`, query "compare australia and japan documents" → Processes both
+   - **Scenario 2**: Select multiple documents, query mentions documents → Uses only selected documents
+     - Example: Select `Australia-111.pdf` and `Japan-111.pdf`, query "compare these two documents" → Processes only the 2 selected
+   - **Scenario 3**: No selection, query mentions documents → Auto-detects from query
+     - Example: No selection, query "compare these two documents" → Auto-detects and processes documents
+   - **Manual Selection**: Check boxes next to documents you want to query
+   - **Automatic Detection**: Mention document names or countries in your query (e.g., "tell me about my italy document")
 4. **Ask Questions**: Type your query in the chat
    - The system will use your selected provider/model
    - Automatically uses selected documents

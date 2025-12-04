@@ -319,36 +319,68 @@ Agent Results:
 						needs_internal = True
 
 				# Only use fallback matching if LLM didn't return any matches AND we need internal agent
-				# With good LLMs like GPT-4, we should trust their matching
+				# Handle three scenarios:
+				# 1. Manual selection + query mentions other docs → use selected + detect additional from query
+				# 2. Manual selection + query doesn't mention others → use only selected (no fallback)
+				# 3. No manual selection → use fallback matching to detect from query
 				if needs_internal and not matched_documents:
-					logger.info(f"   🔍 LLM didn't match any documents, using fallback matching...")
-					print(f"   🔍 LLM didn't match any documents, using fallback matching...")
-					
-					# Special case: if query says "both documents" and we have exactly 2 documents, match both
-					if "both documents" in query_lower and len(available_documents) == 2:
-						matched_documents = available_documents.copy()
-						logger.info(f"   🔍 Fallback matching: 'both documents' detected, matching all 2 available documents")
-						print(f"   🔍 Fallback matching: 'both documents' detected, matching all 2 available documents")
-					else:
-						# Try to match by country name or document name
+					if selected_documents:
+						# Scenario 1 or 2: Documents manually selected
+						# Try to find additional documents explicitly mentioned in query (e.g., "japan document")
+						# But don't match ALL documents if query just says "documents"
+						logger.info(f"   📋 Documents manually selected: {selected_documents}")
+						print(f"   📋 Documents manually selected: {selected_documents}")
+						
+						# Try to match specific documents mentioned in query (by country name or filename)
 						for doc in available_documents:
+							# Skip if already manually selected
+							if doc in selected_documents:
+								continue
+							
 							# Extract key parts of document name for matching
 							doc_name_lower = doc.lower().replace(".pdf", "").replace("-", " ").replace("_", " ")
 							# Only match on country names (words longer than 4 chars), not numbers
 							doc_keywords = [kw for kw in doc_name_lower.split() if len(kw) > 4]
 							
-							# Check if country name appears in query
+							# Check if country name or document name appears in query
 							if any(keyword in query_lower for keyword in doc_keywords):
 								matched_documents.append(doc)
 								logger.info(f"   🔍 Fallback matching: '{doc}' matched from query (country name: {doc_keywords})")
 								print(f"   🔍 Fallback matching: '{doc}' matched from query (country name: {doc_keywords})")
-					
-					# If still no matches and query mentions "documents" (plural), match all available documents
-					if not matched_documents and ("documents" in query_lower or "both documents" in query_lower):
-						if len(available_documents) > 0:
+						
+						# Don't match ALL documents if query just says "documents" when documents are manually selected
+						# This prevents adding unwanted documents in scenario 2
+					else:
+						# Scenario 3: No manual selection - use full fallback matching
+						logger.info(f"   🔍 LLM didn't match any documents, using fallback matching...")
+						print(f"   🔍 LLM didn't match any documents, using fallback matching...")
+						
+						# Special case: if query says "both documents" and we have exactly 2 documents, match both
+						if "both documents" in query_lower and len(available_documents) == 2:
 							matched_documents = available_documents.copy()
-							logger.info(f"   🔍 Fallback matching: Query mentions 'documents' but no specific match, using all available documents: {matched_documents}")
-							print(f"   🔍 Fallback matching: Query mentions 'documents' but no specific match, using all available documents: {matched_documents}")
+							logger.info(f"   🔍 Fallback matching: 'both documents' detected, matching all 2 available documents")
+							print(f"   🔍 Fallback matching: 'both documents' detected, matching all 2 available documents")
+						else:
+							# Try to match by country name or document name
+							for doc in available_documents:
+								# Extract key parts of document name for matching
+								doc_name_lower = doc.lower().replace(".pdf", "").replace("-", " ").replace("_", " ")
+								# Only match on country names (words longer than 4 chars), not numbers
+								doc_keywords = [kw for kw in doc_name_lower.split() if len(kw) > 4]
+								
+								# Check if country name appears in query
+								if any(keyword in query_lower for keyword in doc_keywords):
+									matched_documents.append(doc)
+									logger.info(f"   🔍 Fallback matching: '{doc}' matched from query (country name: {doc_keywords})")
+									print(f"   🔍 Fallback matching: '{doc}' matched from query (country name: {doc_keywords})")
+						
+						# If still no matches and query mentions "documents" (plural), match all available documents
+						# ONLY if no documents were manually selected
+						if not matched_documents and ("documents" in query_lower or "both documents" in query_lower):
+							if len(available_documents) > 0:
+								matched_documents = available_documents.copy()
+								logger.info(f"   🔍 Fallback matching: Query mentions 'documents' but no specific match, using all available documents: {matched_documents}")
+								print(f"   🔍 Fallback matching: Query mentions 'documents' but no specific match, using all available documents: {matched_documents}")
 
 				# Combine manual + auto-detected documents
 				final_documents = list(set(selected_documents or []))

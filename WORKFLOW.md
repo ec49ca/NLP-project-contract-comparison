@@ -98,7 +98,14 @@ Saved document: Italy-111.pdf (1376 characters)
 
 **What Happens:**
 1. Orchestrator gets list of all available documents from document storage
-2. Orchestrator receives the user query (and optionally manually selected documents)
+2. **Document Selection Logic** - Handles three scenarios:
+   - **Scenario 1**: If documents are manually selected AND query mentions other documents → Uses selected + detects additional from query
+     - Example: Select `Australia-111.pdf`, query "compare australia and japan documents" → Processes both Australia and Japan
+   - **Scenario 2**: If documents are manually selected AND query just mentions "documents" → Uses ONLY selected documents (respects manual selection)
+     - Example: Select `Australia-111.pdf` and `Japan-111.pdf`, query "compare these two documents" → Processes only the 2 selected (won't add Italy even if available)
+   - **Scenario 3**: If no documents are manually selected → Uses full fallback matching to detect from query
+     - Example: No selection, query "compare these two documents" → Auto-detects and processes documents from query
+3. Orchestrator receives the user query (and optionally manually selected documents)
 3. Orchestrator uses the LLM service (either default from env or override from request)
 4. Orchestrator sends to LLM:
    - User query
@@ -216,7 +223,12 @@ Saved document: Italy-111.pdf (1376 characters)
 **What Happens:**
 1. Orchestrator collects all agent responses
 2. **Extracts structured quotes** from internal agent responses (quoted clauses with section references)
-3. Combines agent responses, structured quotes, and original user query into a single prompt
+3. **Validates quote accuracy** by matching LLM-extracted quotes against raw document text:
+   - Calculates accuracy percentage (0-100%) for each quote
+   - Uses fuzzy matching to find exact sentences in document text
+   - Logs average accuracy for monitoring
+   - Accuracy displayed in UI next to each quote (e.g., `"quote text" -100%`)
+4. Combines agent responses, structured quotes, and original user query into a single prompt
 4. Makes final LLM call using the same provider/model as used in previous steps:
    - The original user query
    - Results from all executed agents
@@ -264,7 +276,8 @@ INFO: 127.0.0.1:[port] - "POST /orchestrate/stream HTTP/1.1" 200 OK
 3. Frontend displays:
    - **Progress Timeline**: Visual timeline showing current step and agent execution status
    - **Streaming Text**: Markdown-formatted response streams in real-time
-   - **Structured Quotes UI**: Clickable "Internal Agent + Document" dropdowns showing extracted quotes
+   - **Structured Quotes UI**: Clickable "Internal Agent + Document" dropdowns showing extracted quotes with accuracy percentages
+   - **Quote Accuracy**: Each quote displays accuracy percentage (0-100%) based on exact match with document text
 4. HTTP 200 OK status indicates success
 
 ---

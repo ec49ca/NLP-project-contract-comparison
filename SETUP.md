@@ -307,11 +307,14 @@ The frontend will start on `http://localhost:3000`
 - **Provider & Model Selection**: Dropdowns at top of chat to select LLM provider and model
 - **Document Sidebar**: Left side shows uploaded documents with checkboxes
 - **Upload Button**: Click "Upload PDF" to upload new documents
-- **Document Selection**: Check boxes to manually select documents for queries
+- **Flexible Document Selection**: Three scenarios supported:
+  - **Scenario 1**: Select one document, mention another in query → Uses both documents
+  - **Scenario 2**: Select multiple documents, query mentions documents → Uses only selected documents (respects manual selection)
+  - **Scenario 3**: No selection, query mentions documents → Auto-detects from query
 - **Chat Interface**: Right side for asking questions with markdown-formatted responses
 - **Progress Timeline**: Real-time visual progress showing agent execution status
-- **Structured Quotes**: Click "Internal Agent + Document" below responses to see extracted quotes with section references
-- **Auto-detection**: You can also just mention documents in your query (e.g., "tell me about my italy document")
+- **Structured Quotes**: Click "Internal Agent + Document" below responses to see extracted quotes with section references and accuracy percentages
+- **Quote Accuracy Validation**: Each quote shows accuracy percentage (0-100%) based on exact match with document text
 - **Streaming Responses**: Watch responses stream in real-time as they're generated
 
 ### Option 2: Using Helper Scripts (Recommended)

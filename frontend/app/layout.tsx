@@ -1,0 +1,31 @@
+import React from 'react';
+import './globals.css';
+import type { Metadata } from 'next';
+import { ThemeProvider } from './components/theme-provider';
+
+export const metadata: Metadata = {
+  title: 'Contract Comparisons',
+  description: 'Using WIPO to give recommendations',
+  icons: {
+    icon: '/favicon.svg',
+  },
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+      </head>
+      <body className="min-h-screen bg-background">
+        <ThemeProvider defaultTheme="system">
+          {children}
+        </ThemeProvider>
+      </body>
+    </html>
+  );
+}

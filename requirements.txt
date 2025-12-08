@@ -1,0 +1,36 @@
+# FastAPI and web server dependencies
+fastapi>=0.100.0
+uvicorn[standard]>=0.20.0
+pydantic>=2.0.0
+
+# Environment and configuration
+python-dotenv>=1.0.0
+
+# Utilities
+python-multipart>=0.0.6
+
+# Development dependencies (optional)
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+
+# Logging
+structlog>=23.0.0
+
+# Type hints
+typing-extensions>=4.8.0
+
+# HTTP requests for Ollama (async)
+httpx>=0.24.0
+pdfplumber>=0.10.0
+
+# Pinecone vector database for external agent
+pinecone>=8.0.0
+
+# OpenAI for embeddings and LLM
+openai>=2.8.1
+
+# PDF processing for data extraction
+PyPDF2
+
+# Token counting for chunking
+tiktoken

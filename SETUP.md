@@ -65,7 +65,7 @@ This project consists of:
 
 3. **Agents**
    - **Internal Agent**: Searches through uploaded PDF documents using extracted text
-   - **External Agent**: Queries external databases (e.g., WIPO for compliance information)
+   - **External Agent**: Performs semantic search on WIPO documents using Pinecone vector database with OpenAI embeddings
 
 4. **Orchestrator**
    - Analyzes user queries using LLM
@@ -263,6 +263,12 @@ The backend uses environment variables from `.env`:
 - `GOOGLE_MODEL`: Default model (default: gemini-pro)
 - `GOOGLE_MODELS`: Comma-separated list of models for dropdown (optional)
 
+**Pinecone Settings (for External Agent - WIPO semantic search):**
+- `PINECONE_API_KEY`: Your Pinecone API key (required for External Agent)
+- `OPENAI_API_KEY`: Also needed for embeddings (uses `text-embedding-3-small`)
+
+**Note**: The External Agent requires both Pinecone (for vector database) and OpenAI (for generating embeddings). If these are not configured, external agent queries will fail, but internal agent (document queries) will continue to work.
+
 **Important**: You can configure multiple providers in `.env`. The UI will show all configured providers in the dropdown, allowing you to switch between them per-request. The `LLM_PROVIDER` variable only sets the default.
 
 ### Frontend Configuration
@@ -405,6 +411,90 @@ mcp-server-orchestration/        # Project root
 ├── view_logs.sh                   # Log viewing script
 └── SETUP.md                       # This file
 ```
+
+---
+
+## WIPO Document Processing (Optional)
+
+The External Agent performs semantic search on WIPO documents using Pinecone vector database. This section is optional and only needed if you want to use the External Agent for WIPO compliance queries.
+
+### Prerequisites
+
+1. **Pinecone Account**: Sign up at [pinecone.io](https://www.pinecone.io/) (free tier available)
+2. **OpenAI API Key**: Needed for generating embeddings
+3. **Environment Variables**: Set `PINECONE_API_KEY` and `OPENAI_API_KEY` in `.env`
+
+### Step 1: Add WIPO Documents
+
+Place WIPO PDF documents in the `backend/uploads/wipo_documents/` directory:
+
+```bash
+# Example: Add your WIPO PDFs
+cp /path/to/your/wipo_documents/*.pdf backend/uploads/wipo_documents/
+```
+
+Sample documents are already included in the repository for testing.
+
+### Step 2: Process Documents
+
+Run the data extraction script to upload documents to Pinecone:
+
+```bash
+# Activate virtual environment
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Run data extraction
+python -m backend.data_extraction
+```
+
+**What this does:**
+1. Reads all PDFs from `backend/uploads/wipo_documents/`
+2. Extracts text using PyPDF2
+3. Chunks text into ~400 token segments using tiktoken
+4. Generates OpenAI embeddings (text-embedding-3-small, 1536 dimensions)
+5. Creates Pinecone index (`wipo-index`) if it doesn't exist
+6. Uploads chunks with metadata (file_name, chunk_id, country, text)
+
+**Expected Output:**
+```
+🔧 Initializing Pinecone...
+✓ Index 'wipo-index' already exists.
+
+📚 Found 1 PDF file(s) to process...
+
+📄 Processing: it236en_1.pdf
+  → Extracting text...
+  → Chunking text...
+  → Created 45 chunks
+  → Generating embeddings...
+  → Uploading to Pinecone...
+  ✓ Uploaded 45 chunks for it236en_1.pdf
+
+✅ DONE — All PDFs processed successfully.
+📊 Total documents in index: 45
+```
+
+### Step 3: Verify Pinecone Index
+
+Check your Pinecone dashboard at [app.pinecone.io](https://app.pinecone.io/) to verify the index was created and contains vectors.
+
+### Step 4: Test External Agent
+
+Start your servers and ask a WIPO-related query:
+
+```
+Example query: "What are the WIPO requirements for trademark registration?"
+```
+
+The system will:
+1. Detect that this requires external knowledge
+2. Call the External Agent
+3. Embed the query using OpenAI
+4. Search Pinecone for relevant WIPO document chunks
+5. Return top 5 matches with citations
+6. Synthesize final answer using LLM
+
+**Note**: If Pinecone is not configured, external agent queries will fail, but internal agent (for uploaded documents) will continue to work normally.
 
 ---
 

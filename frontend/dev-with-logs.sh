@@ -3,7 +3,7 @@
 
 # Start Next.js in background
 echo "Starting Next.js frontend..."
-next dev &
+npm run dev:frontend &
 FRONTEND_PID=$!
 
 # Wait a moment for frontend to start

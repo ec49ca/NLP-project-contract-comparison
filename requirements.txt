@@ -22,3 +22,15 @@ typing-extensions>=4.8.0
 # HTTP requests for Ollama (async)
 httpx>=0.24.0
 pdfplumber>=0.10.0
+
+# Pinecone vector database for external agent
+pinecone>=8.0.0
+
+# OpenAI for embeddings and LLM
+openai>=2.8.1
+
+# PDF processing for data extraction
+PyPDF2
+
+# Token counting for chunking
+tiktoken

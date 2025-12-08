@@ -189,8 +189,11 @@ Saved document: Italy-111.pdf (1376 characters)
    - LLM searches through actual document text to answer
 3. For **External Agent**:
    - Receives optimized query
-   - Makes LLM call (no document context)
-   - Queries external databases conceptually
+   - Embeds query using OpenAI (`text-embedding-3-small`)
+   - Performs semantic search on Pinecone vector database (WIPO documents)
+   - Retrieves top 5 relevant chunks with citations
+   - Builds prompt: query + retrieved WIPO document chunks
+   - Makes LLM call to synthesize final answer from retrieved context
 4. All agent results are collected
 
 **Execution Order:**
@@ -358,7 +361,7 @@ User Query (optionally with selected documents)
 [Step 2: Agent Execution]
     → Execute agents sequentially
     → Internal Agent: Retrieves document text, includes in prompt
-    → External Agent: Uses query only
+    → External Agent: Embeds query, searches Pinecone, includes retrieved WIPO chunks in prompt
     → Each agent calls LLM independently
     → Collect all results
     ↓

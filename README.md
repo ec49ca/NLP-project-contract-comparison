@@ -122,7 +122,7 @@ Access the frontend at `http://localhost:3000`
 
 3. **Agents**
    - **Internal Agent**: Searches through uploaded PDF documents using extracted text
-   - **External Agent**: Queries external databases (e.g., WIPO for compliance information)
+   - **External Agent**: Performs semantic search on WIPO documents using Pinecone vector database with OpenAI embeddings
 
 4. **Orchestrator** (LangGraph-based)
    - Uses LangGraph for parallel agent execution
@@ -152,7 +152,7 @@ User Query + Provider/Model Selection → Orchestrator → Query Analysis (LLM)
                     Execute Agents (with selected documents + LLM provider)
                               ↓
                     Internal Agent: Uses document text from storage
-                    External Agent: Queries external databases
+                    External Agent: Semantic search on Pinecone (WIPO docs)
                     (Both use selected LLM provider/model)
                               ↓
                     Compare & Synthesize Results (LLM)
@@ -290,6 +290,43 @@ GOOGLE_MODEL=gemini-pro
 ```
 
 **Note**: You can configure multiple providers in `.env`. The UI will show all configured providers in the dropdown, and you can switch between them per-request. The `LLM_PROVIDER` variable sets the default provider.
+
+### WIPO External Agent Configuration (Optional)
+
+The External Agent performs semantic search on WIPO documents using Pinecone vector database. This is optional but recommended for external compliance queries.
+
+```env
+# Required for External Agent
+PINECONE_API_KEY=your-pinecone-api-key-here
+OPENAI_API_KEY=sk-your-openai-api-key-here  # For embeddings
+```
+
+**Setup Steps:**
+
+1. **Get API Keys**:
+   - Pinecone: Sign up at [pinecone.io](https://www.pinecone.io/) and create a free serverless index
+   - OpenAI: Get API key from [platform.openai.com](https://platform.openai.com/) (needed for embeddings)
+
+2. **Add WIPO Documents**:
+   - Place WIPO PDF documents in `backend/uploads/wipo_documents/`
+   - Sample documents are included in the repository
+
+3. **Process Documents**:
+   ```bash
+   # Run the data extraction script to upload documents to Pinecone
+   python -m backend.data_extraction
+   ```
+   This will:
+   - Extract text from PDFs using PyPDF2
+   - Chunk text into ~400 token segments using tiktoken
+   - Generate embeddings using OpenAI's `text-embedding-3-small`
+   - Upload to Pinecone index (`wipo-index`)
+
+4. **Query External Agent**:
+   - The system will automatically use the External Agent when queries require external compliance information
+   - Example: "What are the WIPO requirements for trademark registration in Europe?"
+
+**Note**: If Pinecone is not configured, the External Agent initialization will fail and external queries will not work. The Internal Agent (for uploaded documents) will continue to function normally.
 
 ## Documentation
 

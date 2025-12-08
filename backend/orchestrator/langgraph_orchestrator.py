@@ -765,7 +765,9 @@ Agent Results:
 				try:
 					external_query_prompt = f"""Given the user query: "{user_query}"
 
-Generate a focused query (under 100 words) for the external agent to find relevant compliance requirements, regulations, or regional standards.
+Generate a focused query (under 100 words) for the external agent to find practical drafting guidance, best practices, or helpful recommendations from WIPO documents.
+
+Focus on practical advice and improvements, not complex legal theory. Frame it as "how to improve" or "best practices for" rather than "compliance requirements."
 
 Respond with ONLY the query text, no JSON, no explanation."""
 

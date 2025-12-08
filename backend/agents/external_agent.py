@@ -219,6 +219,7 @@ Retrieved context:
 						"file_name": m.metadata["file_name"],
 						"chunk_id": m.metadata["chunk_id"],
 						"score": m.score,
+						"text": m.metadata.get("text", ""),  # Include chunk text for display
 					}
 					for m in matches
 				]

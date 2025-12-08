@@ -46,6 +46,7 @@ class OrchestratorState(TypedDict):
 	internal_results: List[Dict[str, Any]]  # List of results from internal agents (one per document)
 	external_results: Optional[Dict[str, Any]]
 	structured_quotes: List[Dict[str, Any]]  # Structured quotes extracted from internal agents for UI
+	structured_chunks: List[Dict[str, Any]]  # Structured chunks extracted from external agent for UI
 	error: Optional[str]
 
 
@@ -896,6 +897,7 @@ Respond with ONLY the query text, no JSON, no explanation."""
 			internal_results_list = []
 			external_results = None
 			structured_quotes = []  # Collect structured quotes from all internal agents
+			structured_chunks = []  # Collect structured chunks from external agent
 			internal_agent_counter = 0  # Track which internal agent call this is
 
 			for task in agent_call_plan:
@@ -930,6 +932,27 @@ Respond with ONLY the query text, no JSON, no explanation."""
 						formatted_results.append(f"=== EXTERNAL COMPLIANCE INFORMATION (WIPO/Regulatory Sources) ===\n{response}\n\nNOTE: Any document names mentioned above (e.g., wipo_pub_*.pdf) are REFERENCE SOURCES for compliance information, NOT contract documents.")
 						if not external_results:
 							external_results = result
+						
+						# Extract structured chunks from external agent response
+						source_chunks = data.get("source", [])
+						logger.info(f"      🔍 Debug: external agent data keys: {list(data.keys())}")
+						logger.info(f"      🔍 Debug: source_chunks found: {len(source_chunks) if source_chunks else 0}")
+						print(f"      🔍 Debug: external agent data keys: {list(data.keys())}")
+						print(f"      🔍 Debug: source_chunks found: {len(source_chunks) if source_chunks else 0}")
+						if source_chunks:
+							for chunk in source_chunks:
+								structured_chunks.append({
+									"file_name": chunk.get("file_name", "unknown"),
+									"chunk_id": chunk.get("chunk_id", "unknown"),
+									"score": chunk.get("score", 0.0),
+									"text": chunk.get("text", ""),
+									"agent_id": "external_1"  # External agent is typically single call
+								})
+							logger.info(f"      📋 Collected {len(source_chunks)} structured chunks from {agent_type}")
+							print(f"      📋 Collected {len(source_chunks)} structured chunks from {agent_type}")
+						else:
+							logger.warning(f"      ⚠️  No source chunks found in external agent response")
+							print(f"      ⚠️  No source chunks found in external agent response")
 
 					agents_used.append(agent_type)
 
@@ -944,7 +967,8 @@ Respond with ONLY the query text, no JSON, no explanation."""
 					"agents_used": agents_used,
 					"internal_results": internal_results_list,
 					"external_results": external_results,
-					"structured_quotes": structured_quotes
+					"structured_quotes": structured_quotes,
+					"structured_chunks": structured_chunks
 				}
 
 			# Determine which synthesis prompt to use based on agent types
@@ -993,7 +1017,8 @@ Respond with ONLY the query text, no JSON, no explanation."""
 					"agents_used": agents_used,
 					"internal_results": internal_results_list,
 					"external_results": external_results,
-					"structured_quotes": structured_quotes  # Pass through structured quotes for UI
+					"structured_quotes": structured_quotes,  # Pass through structured quotes for UI
+					"structured_chunks": structured_chunks  # Pass through structured chunks for UI
 				}
 
 			except Exception as e:
@@ -1005,7 +1030,8 @@ Respond with ONLY the query text, no JSON, no explanation."""
 					"agents_used": agents_used,
 					"internal_results": internal_results_list,
 					"external_results": external_results,
-					"structured_quotes": structured_quotes  # Pass through structured quotes for UI
+					"structured_quotes": structured_quotes,  # Pass through structured quotes for UI
+					"structured_chunks": structured_chunks  # Pass through structured chunks for UI
 				}
 
 		async def _find_agent_by_name(self, agent_name: str):
@@ -1064,6 +1090,7 @@ Respond with ONLY the query text, no JSON, no explanation."""
 				"internal_results": [],
 				"external_results": None,
 				"structured_quotes": [],  # Initialize structured quotes
+				"structured_chunks": [],  # Initialize structured chunks
 				"error": None
 			}
 
@@ -1091,7 +1118,8 @@ Respond with ONLY the query text, no JSON, no explanation."""
 					"external_results": final_state.get("external_results"),
 					"comparison": final_state.get("final_response"),
 					"interpreted_response": final_state.get("final_response", "No response generated"),
-					"structured_quotes": final_state.get("structured_quotes", [])  # Pass through structured quotes for UI
+					"structured_quotes": final_state.get("structured_quotes", []),  # Pass through structured quotes for UI
+					"structured_chunks": final_state.get("structured_chunks", [])  # Pass through structured chunks for UI
 				}
 
 			except Exception as e:
@@ -1142,6 +1170,7 @@ Respond with ONLY the query text, no JSON, no explanation."""
 				"internal_results": [],
 				"external_results": None,
 				"structured_quotes": [],
+				"structured_chunks": [],
 				"error": None
 			}
 
@@ -1277,6 +1306,7 @@ Respond with ONLY the query text, no JSON, no explanation."""
 				internal_results_list = initial_state.get("internal_results", [])
 				external_results = initial_state.get("external_results")
 				structured_quotes = []  # Collect structured quotes from agent results
+				structured_chunks = []  # Collect structured chunks from external agent
 
 				# Format agent results for synthesis and collect structured quotes
 				formatted_results = []
@@ -1314,6 +1344,27 @@ Respond with ONLY the query text, no JSON, no explanation."""
 							formatted_results.append(f"=== EXTERNAL COMPLIANCE INFORMATION (WIPO/Regulatory Sources) ===\n{response}\n\nNOTE: Any document names mentioned above (e.g., wipo_pub_*.pdf) are REFERENCE SOURCES for compliance information, NOT contract documents.")
 							if not external_results:
 								external_results = result_data
+							
+							# Extract structured chunks from external agent response
+							source_chunks = data.get("source", [])
+							logger.info(f"      🔍 Debug: external agent data keys: {list(data.keys())}")
+							logger.info(f"      🔍 Debug: source_chunks found: {len(source_chunks) if source_chunks else 0}")
+							print(f"      🔍 Debug: external agent data keys: {list(data.keys())}")
+							print(f"      🔍 Debug: source_chunks found: {len(source_chunks) if source_chunks else 0}")
+							if source_chunks:
+								for chunk in source_chunks:
+									structured_chunks.append({
+										"file_name": chunk.get("file_name", "unknown"),
+										"chunk_id": chunk.get("chunk_id", "unknown"),
+										"score": chunk.get("score", 0.0),
+										"text": chunk.get("text", ""),
+										"agent_id": "external_1"  # External agent is typically single call
+									})
+								logger.info(f"      📋 Collected {len(source_chunks)} structured chunks from {agent_type}")
+								print(f"      📋 Collected {len(source_chunks)} structured chunks from {agent_type}")
+							else:
+								logger.warning(f"      ⚠️  No source chunks found in external agent response")
+								print(f"      ⚠️  No source chunks found in external agent response")
 						
 						if agent_type not in agents_used:
 							agents_used.append(agent_type)
@@ -1337,6 +1388,7 @@ Respond with ONLY the query text, no JSON, no explanation."""
 							"success": False,
 							"interpreted_response": error_msg,
 							"structured_quotes": [],
+							"structured_chunks": [],
 							"agents_used": [],
 							"internal_results": [],
 							"external_results": None
@@ -1424,7 +1476,8 @@ Respond with ONLY the query text, no JSON, no explanation."""
 						"external_results": external_results,
 						"comparison": final_response,
 						"interpreted_response": final_response,
-						"structured_quotes": structured_quotes
+						"structured_quotes": structured_quotes,
+						"structured_chunks": structured_chunks
 					},
 					"progress": 100
 				}

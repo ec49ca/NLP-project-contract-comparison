@@ -16,12 +16,21 @@ type StructuredQuote = {
 	accuracy?: number; // Optional accuracy percentage (0-100)
 };
 
+type StructuredChunk = {
+	agent_id: string;
+	file_name: string;
+	chunk_id: string;
+	score: number;
+	text: string;
+};
+
 type Message = {
 	id: string;
 	content: string;
 	role: 'user' | 'assistant';
 	timestamp: Date;
 	structured_quotes?: StructuredQuote[];
+	structured_chunks?: StructuredChunk[];
 };
 
 // Client-only timestamp component to prevent hydration mismatches
@@ -137,6 +146,92 @@ function QuoteReferences({ quotes }: { quotes: StructuredQuote[] }) {
 													</div>
 												</div>
 											))}
+										</div>
+									</div>
+								))}
+							</div>
+						)}
+					</div>
+				);
+			})}
+		</div>
+	);
+}
+
+// Component to display structured chunks from external agent
+function ChunkReferences({ chunks }: { chunks: StructuredChunk[] }) {
+	const [expandedRefs, setExpandedRefs] = useState<Set<string>>(new Set());
+	
+	if (!chunks || chunks.length === 0) {
+		return null;
+	}
+	
+	// Group chunks by file_name
+	const groupedChunks = chunks.reduce((acc, chunk) => {
+		const key = chunk.file_name;
+		if (!acc[key]) {
+			acc[key] = {
+				file_name: chunk.file_name,
+				chunks: []
+			};
+		}
+		acc[key].chunks.push(chunk);
+		return acc;
+	}, {} as Record<string, { file_name: string; chunks: StructuredChunk[] }>);
+	
+	const toggleExpand = (key: string) => {
+		setExpandedRefs(prev => {
+			const next = new Set(prev);
+			if (next.has(key)) {
+				next.delete(key);
+			} else {
+				next.add(key);
+			}
+			return next;
+		});
+	};
+	
+	return (
+		<div className="mt-4 space-y-3">
+			<div className="text-xs font-bold text-slate-800 uppercase tracking-wide mb-3 flex items-center gap-2">
+				<span className="w-1 h-4 bg-gradient-to-b from-purple-500 via-pink-500 to-rose-500 rounded-full"></span>
+				External Sources
+			</div>
+			{Object.entries(groupedChunks).map(([key, group]) => {
+				const isExpanded = expandedRefs.has(key);
+				
+				return (
+					<div key={key} className="border border-purple-200/60 rounded-xl overflow-hidden bg-gradient-to-br from-white via-pink-50/30 to-rose-50/30 shadow-md hover:shadow-lg transition-all duration-200">
+						<button
+							onClick={() => toggleExpand(key)}
+							className="w-full px-4 py-3 bg-gradient-to-r from-purple-100/60 via-pink-100/60 to-rose-100/60 hover:from-purple-200/80 hover:via-pink-200/80 hover:to-rose-200/80 flex items-center justify-between text-sm font-semibold transition-all duration-200 group border-b border-purple-200/40"
+						>
+							<span className="text-slate-900 group-hover:text-purple-700 transition-colors">
+								External Agent - <span className="text-purple-700 font-bold">{group.file_name}</span>
+							</span>
+							<div className={`transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>
+								{isExpanded ? (
+									<ChevronDown className="w-4 h-4 text-purple-600" />
+								) : (
+									<ChevronRight className="w-4 h-4 text-slate-500" />
+								)}
+							</div>
+						</button>
+						{isExpanded && (
+							<div className="bg-white/90 backdrop-blur-sm border-t border-purple-200/40">
+								{group.chunks.map((chunk, idx) => (
+									<div key={idx} className="p-4 border-b border-purple-200/30 last:border-b-0 hover:bg-gradient-to-r hover:from-pink-50/50 hover:to-rose-50/50 transition-colors">
+										<div className="text-xs font-bold text-purple-700 mb-2 flex items-center justify-between">
+											<span className="flex items-center gap-2">
+												<span className="w-1.5 h-1.5 bg-gradient-to-br from-purple-500 to-pink-600 rounded-full shadow-sm"></span>
+												Chunk {chunk.chunk_id}
+											</span>
+											<span className="text-purple-600 font-semibold">
+												{(chunk.score * 100).toFixed(1)}% match
+											</span>
+										</div>
+										<div className="text-xs text-black leading-relaxed pl-4 border-l-3 border-purple-400/50 bg-gradient-to-r from-pink-50/80 to-rose-50/80 rounded-r-lg p-3 hover:from-pink-100/80 hover:to-rose-100/80 transition-colors">
+											{chunk.text}
 										</div>
 									</div>
 								))}
@@ -398,7 +493,8 @@ export function Chat({ selectedDocuments = [] }: ChatProps) {
 										? { 
 											...msg, 
 											content: result.interpreted_response || accumulatedContent,
-											structured_quotes: result.structured_quotes || []
+											structured_quotes: result.structured_quotes || [],
+											structured_chunks: result.structured_chunks || []
 										}
 					: msg
 			));
@@ -596,6 +692,9 @@ export function Chat({ selectedDocuments = [] }: ChatProps) {
 							</div>
 							{message.role === 'assistant' && message.structured_quotes && message.structured_quotes.length > 0 && (
 								<QuoteReferences quotes={message.structured_quotes} />
+							)}
+							{message.role === 'assistant' && message.structured_chunks && message.structured_chunks.length > 0 && (
+								<ChunkReferences chunks={message.structured_chunks} />
 							)}
 						</div>
 						{message.role === 'user' && (

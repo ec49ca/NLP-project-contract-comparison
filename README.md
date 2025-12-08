@@ -11,10 +11,15 @@ A Model Context Protocol (MCP) server with multi-agent orchestration capabilitie
 - **LangGraph Orchestration**: Parallel multi-agent processing with dynamic query splitting
 - **Real-Time Streaming**: Server-Sent Events (SSE) for live progress updates and streaming responses
 - **Progress Timeline UI**: Visual timeline showing agent execution status and progress
+- **Dual-Agent System**: 
+  - **Internal Agent**: Analyzes uploaded contract documents, extracts quoted clauses with section references
+  - **External Agent**: Queries WIPO compliance databases using Pinecone vector search for regulatory information
 - **Structured Quote Extraction**: Internal agent extracts quoted clauses with section references, displayed in clickable UI
+- **Structured Chunk Display**: External agent chunks displayed with file name, chunk ID, similarity score, and full text
 - **Query-Aware Extraction**: Internal agent extracts only relevant information based on the specific query
 - **Markdown-Formatted Responses**: Professional paralegal-style reports with headers, bold text, bullet points, and blockquotes
 - **PDF Document Upload**: Upload and manage PDF documents with automatic text extraction
+- **WIPO Document Processing**: Process WIPO PDFs and upload to Pinecone for semantic search
 - **Document Selection**: Manual selection via UI or automatic detection from query text
 - **Smart Document Matching**: Orchestrator automatically matches document names from queries
 - **Flexible LLM Provider Support**: Switch between Ollama (local), OpenAI, Anthropic, or Google via UI or environment variables
@@ -33,9 +38,10 @@ A Model Context Protocol (MCP) server with multi-agent orchestration capabilitie
 - Node.js 18+
 - **LLM Provider** (choose one or more):
   - **Ollama** (local, free): Install from [ollama.ai](https://ollama.ai/) and pull a model: `ollama pull llama3:latest`
-  - **OpenAI** (cloud, paid): Get API key from [platform.openai.com](https://platform.openai.com/)
+  - **OpenAI** (cloud, paid): Get API key from [platform.openai.com](https://platform.openai.com/) - **Required for external agent (embeddings)**
   - **Anthropic** (cloud, paid): Get API key from [console.anthropic.com](https://console.anthropic.com/)
   - **Google** (cloud, paid): Get API key from [ai.google.dev](https://ai.google.dev/)
+- **Pinecone** (for external agent): Get API key from [pinecone.io](https://www.pinecone.io/) - **Required for WIPO document search**
 
 ### Quick Installation
 
@@ -57,13 +63,19 @@ cd ..
 # 4. Configure environment
    cp env.example .env
 # Edit .env with your LLM provider settings (see Configuration section below)
+# IMPORTANT: Add PINECONE_API_KEY and OPENAI_API_KEY for external agent
 
-# 5. Start your LLM provider (if using Ollama)
+# 5. Set up Pinecone and WIPO documents (for external agent)
+# Place WIPO PDFs in backend/uploads/wipo_documents/
+# Then process them:
+python3 -m backend.data_extraction
+
+# 6. Start your LLM provider (if using Ollama)
 # macOS: Open Ollama.app
 # Linux: ollama serve
 # For OpenAI/Anthropic/Google: Just add API key to .env
 
-# 6. Start servers
+# 7. Start servers
 # Terminal 1: MCP Server (using helper script)
 ./start_server.sh
 
@@ -101,8 +113,9 @@ Access the frontend at `http://localhost:3000`
    - Automatically uses selected documents
    - **Progress Timeline**: Watch real-time progress as agents analyze, plan, execute, and synthesize
    - **Structured Quotes**: Click "Internal Agent + Document" below responses to see extracted quotes with section references
+   - **Structured Chunks**: Click "External Agent" below responses to see WIPO document chunks with similarity scores
    - Internal agent searches through actual document text (query-aware extraction)
-   - External agent queries external databases (WIPO, etc.)
+   - External agent queries WIPO compliance databases using Pinecone semantic search
    - Final response is streamed and formatted in markdown for easy reading
 
 ## Architecture
@@ -121,8 +134,8 @@ Access the frontend at `http://localhost:3000`
    - Runs on port 3000
 
 3. **Agents**
-   - **Internal Agent**: Searches through uploaded PDF documents using extracted text
-   - **External Agent**: Queries external databases (e.g., WIPO for compliance information)
+   - **Internal Agent**: Searches through uploaded PDF documents using extracted text, extracts structured quotes
+   - **External Agent**: Queries WIPO compliance databases using Pinecone vector search, returns structured chunks with source information
 
 4. **Orchestrator** (LangGraph-based)
    - Uses LangGraph for parallel agent execution
@@ -215,7 +228,10 @@ mcp-server-orchestration/        # Project root
 │   │   └── mcp_server.py          # FastAPI server with upload endpoints
 │   ├── agents/
 │   │   ├── internal_agent.py      # Internal document agent (uses uploaded PDFs)
-│   │   └── external_agent.py      # External database agent
+│   │   └── external_agent.py      # External agent (Pinecone vector search for WIPO)
+│   ├── uploads/
+│   │   └── wipo_documents/        # WIPO PDF documents (processed and uploaded to Pinecone)
+│   ├── data_extraction.py         # Script to process WIPO PDFs and upload to Pinecone
 │   ├── orchestrator/
 │   │   └── orchestrator.py        # Query orchestration with document matching
 │   ├── services/
@@ -289,7 +305,19 @@ GOOGLE_API_KEY=your-api-key-here
 GOOGLE_MODEL=gemini-pro
 ```
 
-**Note**: You can configure multiple providers in `.env`. The UI will show all configured providers in the dropdown, and you can switch between them per-request. The `LLM_PROVIDER` variable sets the default provider.
+**Pinecone Configuration (Required for External Agent)**
+```env
+PINECONE_API_KEY=your-pinecone-api-key-here
+```
+
+**OpenAI Configuration (Required for External Agent Embeddings)**
+```env
+OPENAI_API_KEY=sk-your-api-key-here
+```
+
+**Note**: 
+- You can configure multiple LLM providers in `.env`. The UI will show all configured providers in the dropdown, and you can switch between them per-request. The `LLM_PROVIDER` variable sets the default provider.
+- **Pinecone and OpenAI are required** for the external agent to work (Pinecone for vector storage, OpenAI for embeddings). Even if you use a different LLM provider for queries, you still need OpenAI for generating embeddings.
 
 ## Documentation
 
@@ -319,9 +347,10 @@ GOOGLE_MODEL=gemini-pro
 
 ### Example Use Cases
 
-- **"What does my italy contract say?"** → Auto-detects Italy-111.pdf, searches through it
-- **"Compare my italy and japan documents"** → Finds both, searches through both
-- **"What do I need to change in my italy contract for australia?"** → Uses internal agent (Italy document) + external agent (Australian compliance)
+- **"What does my italy contract say?"** → Auto-detects Italy-111.pdf, searches through it (internal agent only)
+- **"Compare my italy and japan documents"** → Finds both, searches through both (internal agent only)
+- **"What do I need to change in my italy contract for australia?"** → Uses internal agent (Italy document) + external agent (WIPO compliance information)
+- **"What are the IP compliance requirements for my product?"** → Uses external agent (WIPO database search)
 
 ## Development
 

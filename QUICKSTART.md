@@ -34,7 +34,10 @@ cd ..
 
 # 4. Configure environment
 cp env.example .env
-# Edit .env - at minimum set LLM_PROVIDER and your API key if using cloud provider
+# Edit .env - at minimum set:
+#   - LLM_PROVIDER and your API key if using cloud provider
+#   - PINECONE_API_KEY (required for external agent)
+#   - OPENAI_API_KEY (required for external agent embeddings)
 ```
 
 ## Configuration (Choose One)
@@ -58,7 +61,24 @@ Make sure Ollama is running:
 ```env
 LLM_PROVIDER=openai
 OPENAI_API_KEY=sk-your-api-key-here
-OPENAI_MODEL=gpt-4
+OPENAI_MODEL=gpt-4o
+PINECONE_API_KEY=your-pinecone-api-key-here
+```
+
+**Note**: Even if using a different LLM provider, you still need `OPENAI_API_KEY` and `PINECONE_API_KEY` for the external agent.
+
+## Set Up WIPO Documents (Required for External Agent)
+
+Before running, process WIPO documents:
+
+```bash
+# 1. Place WIPO PDFs in backend/uploads/wipo_documents/
+mkdir -p backend/uploads/wipo_documents
+# Copy your WIPO PDF files here
+
+# 2. Process and upload to Pinecone
+source venv/bin/activate  # Windows: venv\Scripts\activate
+python3 -m backend.data_extraction
 ```
 
 ## Running
@@ -66,7 +86,9 @@ OPENAI_MODEL=gpt-4
 **Terminal 1 - Backend:**
 ```bash
 source venv/bin/activate
-python3 -m uvicorn backend.server.mcp_server:app --host 0.0.0.0 --port 8000
+./start_server.sh
+# Or manually:
+# python3 -m uvicorn backend.server.mcp_server:app --host 0.0.0.0 --port 8000
 ```
 
 **Terminal 2 - Frontend:**
@@ -85,9 +107,10 @@ npm run dev
 
 ## Example Queries
 
-- "What does my italy document say?"
-- "Compare my italy and japan documents"
-- "What do I need to change in my italy contract for australia?"
+- "What does my italy document say?" (internal agent only)
+- "Compare my italy and japan documents" (internal agent only)
+- "What do I need to change in my italy contract for australia?" (internal + external agents)
+- "What are the IP compliance requirements for my product?" (external agent only)
 
 ## Troubleshooting
 
@@ -96,6 +119,10 @@ npm run dev
 - **Ollama errors**: Ensure Ollama is running: `curl http://localhost:11434/api/tags`
 - **OpenAI errors**: Check API key in `.env`
 - **No providers showing**: Ensure at least one provider is configured in `.env`
+- **External agent not working**: 
+  - Check `PINECONE_API_KEY` and `OPENAI_API_KEY` are set in `.env`
+  - Run `python3 -m backend.data_extraction` to process WIPO documents
+  - Verify Pinecone index exists and has data
 
 ## Using Cursor AI
 

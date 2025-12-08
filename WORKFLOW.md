@@ -6,9 +6,12 @@ This document describes the actual workflow of the MCP server system based on ob
 - **LangGraph Orchestrator**: Uses LangGraph for parallel agent execution
 - **Streaming Responses**: Server-Sent Events (SSE) for real-time progress and streaming text
 - **Progress Timeline**: Visual UI showing agent execution status
+- **Dual-Agent System**: Internal agent (contract analysis) + External agent (WIPO compliance search)
 - **Structured Quote Extraction**: Internal agent extracts quoted clauses with section references
+- **Structured Chunk Display**: External agent returns chunks with file name, chunk ID, similarity score, and full text
 - **Query-Aware Extraction**: Internal agent extracts only information relevant to the specific query
 - **Markdown Formatting**: Professional paralegal-style reports with structured formatting
+- **Pinecone Integration**: External agent uses Pinecone vector database for semantic search of WIPO documents
 
 ## System Initialization
 
@@ -189,17 +192,24 @@ Saved document: Italy-111.pdf (1376 characters)
    - LLM searches through actual document text to answer
 3. For **External Agent**:
    - Receives optimized query
-   - Makes LLM call (no document context)
-   - Queries external databases conceptually
+   - Generates OpenAI embeddings for the query
+   - Performs semantic search in Pinecone vector database
+   - Retrieves relevant WIPO document chunks with similarity scores
+   - Makes LLM call with retrieved context to generate summary
+   - Returns structured chunks with file name, chunk ID, score, and text
 4. All agent results are collected
 
 **Execution Order:**
-- Agents execute in the order they were determined in Step 1
+- Agents execute in parallel when processing multiple documents (one document per agent)
 - Each agent is independent and makes its own LLM API call (using selected provider/model)
 - **Internal agent** includes document text in prompt (observed: 1652 chars prompt with 1409 chars document text)
-- **External agent** uses query only (observed: ~100 chars prompt)
-- Agents can return different response sizes (observed: 1103-1591 chars for internal, 987-1442 chars for external)
-- All agents use the same LLM provider/model selected for the request
+- **External agent**:
+  - Generates OpenAI embeddings for query (required: OpenAI API key)
+  - Searches Pinecone vector database for relevant WIPO chunks
+  - Includes retrieved chunks in prompt (observed: ~8000+ chars prompt with WIPO context)
+  - Returns structured chunks with source information
+- Agents can return different response sizes (observed: 1103-1591 chars for internal, 907+ chars for external)
+- All agents use the same LLM provider/model selected for the request (except embeddings which always use OpenAI)
 
 **Timing Observations:**
 - Internal agent: ~13 seconds (16:30:55 → 16:31:08)
@@ -223,13 +233,14 @@ Saved document: Italy-111.pdf (1376 characters)
 **What Happens:**
 1. Orchestrator collects all agent responses
 2. **Extracts structured quotes** from internal agent responses (quoted clauses with section references)
-3. **Validates quote accuracy** by matching LLM-extracted quotes against raw document text:
+3. **Extracts structured chunks** from external agent responses (WIPO document chunks with file name, chunk ID, score, text)
+4. **Validates quote accuracy** by matching LLM-extracted quotes against raw document text:
    - Calculates accuracy percentage (0-100%) for each quote
    - Uses fuzzy matching to find exact sentences in document text
    - Logs average accuracy for monitoring
    - Accuracy displayed in UI next to each quote (e.g., `"quote text" -100%`)
-4. Combines agent responses, structured quotes, and original user query into a single prompt
-4. Makes final LLM call using the same provider/model as used in previous steps:
+5. Combines agent responses, structured quotes, structured chunks, and original user query into a single prompt
+6. Makes final LLM call using the same provider/model as used in previous steps:
    - The original user query
    - Results from all executed agents
    - Structured quotes extracted from internal agents
@@ -238,7 +249,8 @@ Saved document: Italy-111.pdf (1376 characters)
 6. Response is typically longer than individual agent responses (observed: 2970 chars vs 1093/1391)
 7. Final response includes:
    - **Interpreted Response**: Markdown-formatted paralegal analysis
-   - **Structured Quotes**: Array of extracted quotes grouped by agent, document, topic, and section
+   - **Structured Quotes**: Array of extracted quotes grouped by agent, document, topic, and section (from internal agent)
+   - **Structured Chunks**: Array of WIPO document chunks with file name, chunk ID, similarity score, and text (from external agent)
 
 **Timing Observations:**
 - Synthesis takes ~38 seconds (16:31:23 → 16:32:02)
@@ -272,11 +284,12 @@ INFO: 127.0.0.1:[port] - "POST /orchestrate/stream HTTP/1.1" 200 OK
    - **Status events**: Progress updates (analyzing → planning → executing → synthesizing)
    - **Agent status events**: Individual agent task status (running, completed)
    - **Content events**: Streaming text chunks of final markdown-formatted response
-   - **Complete event**: Final result with `interpreted_response` and `structured_quotes` array
+   - **Complete event**: Final result with `interpreted_response`, `structured_quotes`, and `structured_chunks` arrays
 3. Frontend displays:
    - **Progress Timeline**: Visual timeline showing current step and agent execution status
    - **Streaming Text**: Markdown-formatted response streams in real-time
    - **Structured Quotes UI**: Clickable "Internal Agent + Document" dropdowns showing extracted quotes with accuracy percentages
+   - **Structured Chunks UI**: Clickable "External Agent" dropdowns showing WIPO document chunks with file name, chunk ID, similarity score, and full text
    - **Quote Accuracy**: Each quote displays accuracy percentage (0-100%) based on exact match with document text
 4. HTTP 200 OK status indicates success
 

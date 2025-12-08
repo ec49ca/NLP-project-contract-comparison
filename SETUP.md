@@ -29,7 +29,7 @@ Before you begin, ensure you have the following installed on your system:
    - Check: `node --version` and `npm --version`
    - Install: [nodejs.org](https://nodejs.org/)
 
-3. **Ollama** (for local LLM inference)
+3. **Ollama** (for local LLM inference, optional)
    - Install: [ollama.ai](https://ollama.ai/)
    - After installation, pull a model:
      ```bash
@@ -40,7 +40,16 @@ Before you begin, ensure you have the following installed on your system:
      curl http://localhost:11434/api/tags
      ```
 
-4. **Git** (for cloning the repository)
+4. **Pinecone Account** (for external agent - WIPO document search)
+   - Sign up at [pinecone.io](https://www.pinecone.io/)
+   - Get your API key from the dashboard
+   - Create an index (the script will create it automatically if it doesn't exist)
+
+5. **OpenAI Account** (required for external agent embeddings)
+   - Get API key from [platform.openai.com](https://platform.openai.com/)
+   - Even if you use a different LLM provider for queries, OpenAI is needed for generating embeddings
+
+6. **Git** (for cloning the repository)
    - Check: `git --version`
 
 ### Optional but Recommended
@@ -64,8 +73,8 @@ This project consists of:
    - Runs on port 3000
 
 3. **Agents**
-   - **Internal Agent**: Searches through uploaded PDF documents using extracted text
-   - **External Agent**: Queries external databases (e.g., WIPO for compliance information)
+   - **Internal Agent**: Searches through uploaded PDF documents using extracted text, extracts structured quotes
+   - **External Agent**: Queries WIPO compliance databases using Pinecone vector search, returns structured chunks with source information
 
 4. **Orchestrator**
    - Analyzes user queries using LLM
@@ -79,6 +88,7 @@ This project consists of:
    - Document storage (filesystem + in-memory cache)
    - Manual document selection via UI
    - Automatic document detection from queries
+   - WIPO document processing and Pinecone upload for external agent
 
 ---
 
@@ -116,10 +126,10 @@ pip install -r requirements.txt
 #### 2.3 Verify Installation
 
 ```bash
-python3 -c "import fastapi, uvicorn, httpx, pdfplumber; print('✅ All dependencies installed')"
+python3 -c "import fastapi, uvicorn, httpx, pdfplumber, pinecone, openai, PyPDF2, tiktoken; print('✅ All dependencies installed')"
 ```
 
-This verifies that all required packages including `pdfplumber` are installed correctly.
+This verifies that all required packages including `pdfplumber`, `pinecone`, `openai`, `PyPDF2`, and `tiktoken` are installed correctly.
 
 ### Step 3: Set Up Frontend
 
@@ -187,14 +197,19 @@ ALLOWED_ORIGINS=*
 # LLM Provider Configuration
 LLM_PROVIDER=openai
 
-# OpenAI Configuration
+# OpenAI Configuration (Required for queries AND external agent embeddings)
 OPENAI_API_KEY=sk-your-api-key-here
-OPENAI_MODEL=gpt-4
+OPENAI_MODEL=gpt-4o
 # Optional: Add more models for dropdown
-# OPENAI_MODELS=gpt-4,gpt-4-turbo,gpt-3.5-turbo
+# OPENAI_MODELS=gpt-4o,gpt-4-turbo,gpt-4,gpt-3.5-turbo
+
+# Pinecone Configuration (Required for external agent)
+PINECONE_API_KEY=your-pinecone-api-key-here
 ```
 
-**Note**: You can configure multiple providers in `.env`. The UI will show all configured providers, and you can switch between them. See `env.example` for all options.
+**Note**: 
+- You can configure multiple providers in `.env`. The UI will show all configured providers, and you can switch between them. See `env.example` for all options.
+- **Pinecone and OpenAI are required** for the external agent to work. Even if you use a different LLM provider for queries, you still need OpenAI for generating embeddings.
 
 #### 4.2 Frontend Configuration
 
@@ -206,7 +221,41 @@ frontend/app/api/chat/route.ts
 
 Look for the `MCP_SERVER_URL` constant.
 
-### Step 5: Verify Your LLM Provider is Ready
+### Step 5: Set Up Pinecone and WIPO Documents (Required for External Agent)
+
+The external agent requires Pinecone for vector search and WIPO documents to be processed:
+
+1. **Place WIPO PDFs in the correct directory:**
+   ```bash
+   # Create directory if it doesn't exist
+   mkdir -p backend/uploads/wipo_documents
+   
+   # Place your WIPO PDF files in this directory
+   # Example: wipo_pub_903.pdf, wipo_pub_868.pdf, etc.
+   ```
+
+2. **Process WIPO documents and upload to Pinecone:**
+   ```bash
+   # Make sure you're in the project root and venv is activated
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   
+   # Run the data extraction script
+   python3 -m backend.data_extraction
+   ```
+
+   This script will:
+   - Read all PDFs from `backend/uploads/wipo_documents/`
+   - Extract text using PyPDF2
+   - Chunk text using tiktoken (token-based chunking)
+   - Generate OpenAI embeddings
+   - Create Pinecone index if it doesn't exist
+   - Upload all chunks to Pinecone
+
+3. **Verify setup:**
+   - Check that `.env` has `PINECONE_API_KEY` and `OPENAI_API_KEY` set
+   - The script will print success messages when chunks are uploaded
+
+### Step 6: Verify Your LLM Provider is Ready
 
 Before starting the servers, ensure your selected LLM provider is configured:
 
@@ -224,6 +273,8 @@ curl http://localhost:11434/api/tags
 **If using OpenAI/Anthropic/Google:**
 - Ensure your API key is set in `.env`
 - No additional setup needed - the system will connect to their APIs
+
+**Important**: Even if you use Ollama/Anthropic/Google for queries, you still need OpenAI API key in `.env` for the external agent to generate embeddings.
 
 ---
 
@@ -263,7 +314,15 @@ The backend uses environment variables from `.env`:
 - `GOOGLE_MODEL`: Default model (default: gemini-pro)
 - `GOOGLE_MODELS`: Comma-separated list of models for dropdown (optional)
 
-**Important**: You can configure multiple providers in `.env`. The UI will show all configured providers in the dropdown, allowing you to switch between them per-request. The `LLM_PROVIDER` variable only sets the default.
+**Pinecone Settings (Required for External Agent):**
+- `PINECONE_API_KEY`: Your Pinecone API key (required for external agent)
+
+**OpenAI Settings (Required for External Agent Embeddings):**
+- `OPENAI_API_KEY`: Your OpenAI API key (required for external agent embeddings, even if using different LLM provider)
+
+**Important**: 
+- You can configure multiple LLM providers in `.env`. The UI will show all configured providers in the dropdown, allowing you to switch between them per-request. The `LLM_PROVIDER` variable only sets the default.
+- **Pinecone and OpenAI are required** for the external agent to work. Even if you use a different LLM provider for queries, you still need OpenAI for generating embeddings.
 
 ### Frontend Configuration
 
@@ -314,6 +373,7 @@ The frontend will start on `http://localhost:3000`
 - **Chat Interface**: Right side for asking questions with markdown-formatted responses
 - **Progress Timeline**: Real-time visual progress showing agent execution status
 - **Structured Quotes**: Click "Internal Agent + Document" below responses to see extracted quotes with section references and accuracy percentages
+- **Structured Chunks**: Click "External Agent" below responses to see WIPO document chunks with file name, chunk ID, similarity score, and full text
 - **Quote Accuracy Validation**: Each quote shows accuracy percentage (0-100%) based on exact match with document text
 - **Streaming Responses**: Watch responses stream in real-time as they're generated
 
@@ -375,7 +435,10 @@ mcp-server-orchestration/        # Project root
 │   │   └── mcp_server.py          # FastAPI server with upload/document endpoints
 │   ├── agents/
 │   │   ├── internal_agent.py      # Internal document agent (uses uploaded PDFs)
-│   │   └── external_agent.py      # External database agent
+│   │   └── external_agent.py      # External agent (Pinecone vector search for WIPO)
+│   ├── uploads/
+│   │   └── wipo_documents/        # WIPO PDF documents (processed and uploaded to Pinecone)
+│   ├── data_extraction.py         # Script to process WIPO PDFs and upload to Pinecone
 │   ├── orchestrator/
 │   │   └── orchestrator.py        # Query orchestration with document matching
 │   ├── services/
@@ -482,6 +545,18 @@ kill -9 $(lsof -ti:3000)
 2. Check `backend/uploads/` directory exists and is writable
 3. Verify pdfplumber is installed: `pip install pdfplumber`
 4. Check server logs for extraction errors
+
+### Issue: External agent not working
+
+**Solution:**
+1. Verify Pinecone API key is set in `.env`: `PINECONE_API_KEY=your-key`
+2. Verify OpenAI API key is set in `.env`: `OPENAI_API_KEY=sk-your-key` (required for embeddings)
+3. Check that WIPO documents have been processed:
+   ```bash
+   python3 -m backend.data_extraction
+   ```
+4. Verify Pinecone index exists and has data (check Pinecone dashboard)
+5. Check server logs for external agent errors
 
 ### Issue: Documents not being auto-detected
 
@@ -619,6 +694,8 @@ When a user submits a query:
 | `GOOGLE_API_KEY` | (required) | Google API key |
 | `GOOGLE_MODEL` | `gemini-pro` | Default Google model |
 | `GOOGLE_MODELS` | (same as GOOGLE_MODEL) | Comma-separated models for dropdown |
+| `PINECONE_API_KEY` | (required) | Pinecone API key for external agent |
+| `OPENAI_API_KEY` | (required) | OpenAI API key for external agent embeddings |
 
 ---
 

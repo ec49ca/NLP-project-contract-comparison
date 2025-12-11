@@ -2,6 +2,8 @@
 
 Get up and running in 5 minutes!
 
+**Note**: This guide is for local development. The system runs as two separate processes (backend on port 8000, frontend on port 3000) and requires external services (Pinecone, OpenAI for embeddings). For production deployment to AWS, see [SETUP.md](./SETUP.md#aws-deployment-considerations) and [README.md](./README.md#aws-deployment-guide).
+
 ## Prerequisites Check
 
 ```bash

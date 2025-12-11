@@ -197,15 +197,44 @@ Format as structured JSON matching internal agent structure."
 ### 6. Additional Performance Improvements
 
 **Current State:**
-- Sequential agent execution
-- No caching of frequently accessed documents
+- Parallel agent execution (LangGraph implemented)
+- In-memory caching of document text (reloaded on restart)
+- No persistent caching layer
 - No optimization for repeated queries
 
 **Future Goals:**
-- **Caching Layer**: Cache frequently accessed document text and legal requirements
+- **Persistent Caching Layer**: Use Redis/ElastiCache for document text and query results
 - **Query Optimization**: Identify and reuse similar queries
-- **Response Streaming**: Stream responses as they're generated (already discussed, deferred)
+- **Response Streaming**: ✅ Already implemented with SSE
 - **Database Indexing**: If using scraped database, implement efficient search indexing
+- **CDN Integration**: Cache static assets and API responses
+
+## Cloud Deployment
+
+### 7. AWS Production Deployment
+
+**Current State:**
+- System designed for local development
+- Dockerfile exists for backend
+- Docker-compose configuration for local containers
+- Filesystem-based document storage
+- In-memory document text caching
+
+**Future Goals:**
+- **Complete Containerization**: Create frontend Dockerfile and production docker-compose
+- **ECS Deployment**: Deploy to AWS ECS Fargate with auto-scaling
+- **EFS Integration**: Migrate document storage to EFS for shared access
+- **Secrets Management**: Integrate AWS Secrets Manager for API keys
+- **Load Balancing**: Set up Application Load Balancer with SSL/TLS
+- **Monitoring**: CloudWatch dashboards and alerting
+- **CI/CD Pipeline**: Automated deployment with CodePipeline
+- **Multi-Region**: Deploy to multiple regions for high availability
+- **Cost Optimization**: Right-size instances and implement auto-scaling policies
+
+**Alternative Deployment Options:**
+- **EC2 Deployment**: Simpler single-instance deployment for smaller scale
+- **Elastic Beanstalk**: Platform-as-a-Service for easier deployment
+- **Serverless**: Lambda functions for backend (requires architecture changes)
 
 ---
 
@@ -227,10 +256,18 @@ Format as structured JSON matching internal agent structure."
 2. ⏳ Risk identification
 3. ⏳ Actionable recommendations
 
-### Phase 4: Optimization (Lower Priority)
-1. ⏳ Caching layer
+### Phase 4: Cloud Deployment (Medium Priority)
+1. ⏳ Complete containerization (frontend Dockerfile)
+2. ⏳ AWS ECS deployment setup
+3. ⏳ EFS integration for document storage
+4. ⏳ Secrets management integration
+5. ⏳ Monitoring and alerting setup
+
+### Phase 5: Optimization (Lower Priority)
+1. ⏳ Persistent caching layer (Redis/ElastiCache)
 2. ⏳ Query optimization
 3. ⏳ Performance monitoring
+4. ⏳ CDN integration
 
 ---
 

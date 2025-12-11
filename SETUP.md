@@ -65,12 +65,14 @@ This project consists of:
 
 1. **MCP Server** (Python/FastAPI backend)
    - Orchestrates multi-agent workflows
-   - Uses Ollama for LLM inference
+   - Multi-provider LLM support (Ollama, OpenAI, Anthropic, Google)
    - Runs on port 8000
+   - LangGraph-based parallel agent execution
 
 2. **Frontend** (Next.js/React)
    - Simple chat interface for querying the MCP server
    - Runs on port 3000
+   - Real-time progress timeline and streaming responses
 
 3. **Agents**
    - **Internal Agent**: Searches through uploaded PDF documents using extracted text, extracts structured quotes
@@ -89,6 +91,65 @@ This project consists of:
    - Manual document selection via UI
    - Automatic document detection from queries
    - WIPO document processing and Pinecone upload for external agent
+
+### Current System State
+
+**Development Status:**
+- ✅ **Fully Functional**: All core features are implemented and working
+- ✅ **Local Development Ready**: Optimized for local machine execution
+- ✅ **Containerization Ready**: Dockerfile and docker-compose.yml provided
+- ⏳ **Production Deployment**: Requires infrastructure setup for cloud deployment
+
+**Architecture:**
+- **Backend**: Python 3.11+ with FastAPI, async/await patterns
+- **Frontend**: Next.js 15 with React 19, modern React patterns
+- **Communication**: RESTful API with Server-Sent Events (SSE) for streaming
+- **Storage**: Filesystem-based document storage with in-memory caching
+- **External Services**: Pinecone (vector DB), OpenAI (embeddings), LLM providers
+
+**Dependencies:**
+- **Python**: ~15 direct dependencies (FastAPI, LangGraph, pdfplumber, Pinecone, etc.)
+- **Node.js**: ~15 direct dependencies (Next.js, React, Tailwind, etc.)
+- **System**: Python 3.11+, Node.js 18+, Git
+- **External**: Pinecone account, OpenAI account (for embeddings), LLM provider account
+
+### Local Development Architecture
+
+**How It Runs Locally:**
+
+The system operates as two independent processes:
+
+1. **Backend Process** (Terminal 1)
+   - Python virtual environment activated
+   - Uvicorn ASGI server running
+   - Binds to: `0.0.0.0:8000` (accessible from localhost and network)
+   - Logs: Console output + `/tmp/mcp_server.log`
+   - Handles: API requests, document uploads, orchestration, LLM calls
+
+2. **Frontend Process** (Terminal 2)
+   - Next.js development server
+   - Binds to: `localhost:3000` (local access only)
+   - Hot reload: Enabled for development
+   - Connects to: Backend at `http://localhost:8000`
+
+**Data Flow:**
+```
+User Browser (localhost:3000)
+    ↓ HTTP Requests
+Frontend (Next.js)
+    ↓ API Calls
+Backend (FastAPI on localhost:8000)
+    ↓ LLM API Calls
+External Services (Ollama localhost:11434 OR Cloud APIs)
+    ↓ Vector Search
+Pinecone (Cloud)
+```
+
+**Local Storage:**
+- Documents: `backend/uploads/` directory (persists across restarts)
+- Document Text: In-memory cache (reloaded on server start)
+- WIPO Data: Pinecone cloud (persists independently)
+- Configuration: `.env` file (not in git)
 
 ---
 
@@ -772,6 +833,114 @@ This guide is designed to work with Cursor AI. After cloning the repository:
 5. **Cursor can help** with troubleshooting if you encounter issues
 
 All documentation includes clear examples and step-by-step instructions that Cursor can follow and explain.
+
+---
+
+## AWS Deployment Considerations
+
+### Overview
+
+While the system is designed for local development, it can be deployed to AWS. This section provides guidance on AWS deployment options and considerations.
+
+### Deployment Options
+
+**Option 1: ECS Fargate (Recommended for Production)**
+- Containerized deployment with auto-scaling
+- Managed infrastructure (no EC2 to manage)
+- Better for high availability and scaling
+- Cost: ~$68/month for small scale
+
+**Option 2: EC2 with Docker (Simpler, Lower Cost)**
+- Single EC2 instance running Docker containers
+- Full control over the environment
+- Lower cost for small deployments
+- Cost: ~$32/month for t3.medium
+
+**Option 3: Elastic Beanstalk (Easiest)**
+- Platform-as-a-Service approach
+- Handles deployment and scaling automatically
+- Less control but easier setup
+
+### Key AWS Components Needed
+
+**Required:**
+- **Compute**: ECS Fargate tasks OR EC2 instance
+- **Storage**: EFS (for ECS) OR EBS volume (for EC2) for documents
+- **Networking**: VPC, Security Groups, Load Balancer (for ECS)
+- **Secrets**: AWS Secrets Manager or Parameter Store for API keys
+
+**Optional:**
+- **Database**: RDS (if moving to database-backed storage)
+- **Cache**: ElastiCache (for document text caching)
+- **CDN**: CloudFront (for frontend static assets)
+- **Monitoring**: CloudWatch (for logs and metrics)
+
+### Migration Checklist
+
+**Before Deploying to AWS:**
+- [ ] Test Docker containers locally with `docker-compose`
+- [ ] Create frontend Dockerfile (currently only backend Dockerfile exists)
+- [ ] Update environment variables for production
+- [ ] Set up AWS account and IAM roles
+- [ ] Create VPC and networking infrastructure
+- [ ] Set up ECR (Elastic Container Registry) for images
+- [ ] Configure Secrets Manager for API keys
+- [ ] Plan document storage (EFS vs EBS vs S3)
+- [ ] Set up SSL/TLS certificates (ACM)
+- [ ] Configure domain and DNS (Route 53)
+
+**Deployment Steps:**
+1. Build and push Docker images to ECR
+2. Create ECS task definitions with environment variables
+3. Create ECS services with auto-scaling
+4. Set up Application Load Balancer with SSL
+5. Configure security groups and networking
+6. Test endpoints and verify functionality
+7. Set up CloudWatch monitoring and alerts
+
+**Post-Deployment:**
+- Monitor CloudWatch logs for errors
+- Set up auto-scaling policies
+- Configure backup strategy for documents
+- Set up health check monitoring
+- Enable CloudWatch dashboards
+
+### Cost Considerations
+
+**Monthly AWS Costs (Approximate):**
+- ECS Fargate: ~$45-68/month (backend + frontend tasks)
+- EC2 t3.medium: ~$30/month
+- EFS: ~$3/month (10GB)
+- ALB: ~$20/month (if using ECS)
+- Data Transfer: ~$0.09/GB outbound
+
+**External Service Costs:**
+- Pinecone: Free tier available, then pay-per-use
+- OpenAI: Pay-per-use (embeddings + LLM calls)
+- Anthropic/Google: Pay-per-use (LLM calls)
+
+**Total Estimated Cost:**
+- Small deployment (EC2): ~$32/month + API costs
+- Production deployment (ECS): ~$68/month + API costs
+
+### Current Limitations
+
+**What's Ready:**
+- ✅ Backend Dockerfile exists
+- ✅ Docker-compose configuration
+- ✅ Environment-based configuration
+- ✅ Health check endpoints
+- ✅ Stateless backend design
+
+**What Needs Work:**
+- ⏳ Frontend Dockerfile (needs to be created)
+- ⏳ Production docker-compose configuration
+- ⏳ AWS-specific environment variable management
+- ⏳ Document storage migration strategy
+- ⏳ SSL/TLS setup
+- ⏳ Domain configuration
+
+For detailed AWS deployment guide, see the [AWS Deployment Guide section in README.md](./README.md#aws-deployment-guide).
 
 ---
 
